@@ -1,0 +1,37 @@
+
+body {
+  margin: 0;
+  background: #222;
+  font-family: Arial, sans-serif;
+}
+
+.scene {
+  position: relative;
+  width: 800px;
+  height: 450px;
+  margin: 40px auto 15px;
+  background: #5096ff url("../background.jpg") center / 100% 100% no-repeat;
+  overflow: hidden;
+}
+
+#mario {
+  position: absolute;
+  left: 0;
+  bottom: 16.5%;
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
+  transform: translateX(0);
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  color: white;
+}
+
+#timeline {
+  width: 400px;
+}
