@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>Mario Animation - HyperFrames</title>
+  <link rel="preload" as="image" href="assets/run_0.png">
+  <link rel="preload" as="image" href="assets/run_1.png">
+  <link rel="preload" as="image" href="assets/run_2.png">
+  <link rel="preload" as="image" href="assets/run_3.png">
+  <link rel="preload" as="image" href="assets/run_4.png">
+  <link rel="preload" as="image" href="assets/run_5.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="root" data-composition-id="mario-animation" data-start="0" data-width="800" data-height="450">
+    <img id="mario" src="assets/run_0.png" alt="" data-start="0.22" data-track-index="0" data-duration="4.68" data-media-start="0">
+  </div>
+  <script src="node_modules/gsap/dist/gsap.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
