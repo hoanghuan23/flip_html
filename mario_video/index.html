@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>Mario - 28 cảnh tĩnh</title>
+  <style>
+    html, body { margin: 0; width: 800px; height: 450px; overflow: hidden; }
+    #root {
+      position: relative;
+      width: 800px;
+      height: 450px;
+      overflow: hidden;
+      background: #5096ff url("assets/background.jpg") center / 100% 100% no-repeat;
+    }
+    .mario {
+      position: absolute;
+      width: 85px;
+      height: 85px;
+      object-fit: contain;
+    }
+    #scene-01 { left: 0;   bottom: calc(16.5% - 13px); }
+    #scene-02 { left: 30px; bottom: calc(16.5% - 6px); }
+    #scene-03 { left: 60px; bottom: calc(16.5% - 11px); }
+    #scene-04 { left: 90px; bottom: calc(16.5% - 13px); }
+    #scene-05 { left: 120px; bottom: calc(16.5% - 6px); }
+    #scene-06 { left: 150px; bottom: calc(16.5% - 11px); }
+    #scene-07 { left: 180px; bottom: calc(16.5% - 13px); }
+    #scene-08 { left: 210px; bottom: calc(16.5% - 13px); }
+    #scene-09 { left: 240px; bottom: calc(16.5% - 6px); }
+    #scene-10 { left: 270px; bottom: calc(16.5% - 11px); }
+    #scene-11 { left: 300px; bottom: calc(16.5% - 13px); }
+    #scene-12 { left: 330px; bottom: calc(16.5% - 6px); }
+    #scene-13 { left: 360px; bottom: calc(16.5% - 11px); }
+    #scene-14 { left: 390px; bottom: calc(16.5% - 13px); }
+    #scene-15 { left: 420px; bottom: calc(16.5% - 6px); }
+    #scene-16 { left: 450px; bottom: calc(16.5% - 11px); }
+    #scene-17 { left: 480px; bottom: calc(16.5% - 13px); }
+    #scene-18 { left: 510px; bottom: calc(16.5% - 6px); }
+    #scene-19 { left: 540px; bottom: calc(16.5% - 11px); }
+    #scene-20 { left: 570px; bottom: calc(16.5% - 13px); }
+    #scene-21 { left: 600px; bottom: calc(16.5% - 6px); }
+    #scene-22 { left: 630px; bottom: calc(16.5% - 11px); }
+    #scene-23 { left: 660px; bottom: calc(16.5% - 13px); }
+    #scene-24 { left: 690px; bottom: calc(16.5% - 6px); }
+    #scene-25 { left: 720px; bottom: calc(16.5% - 11px); }
+    #scene-26 { left: 750px; bottom: calc(16.5% - 13px); }
+    #scene-27 { left: 780px; bottom: calc(16.5% - 6px); }
+    #scene-28 { left: 810px; bottom: calc(16.5% - 11px); }
+  </style>
+</head>
+<body>
+  <div id="root" data-composition-id="mario-video" data-start="0" data-width="800" data-height="450">
+    <!-- Mỗi clip tương ứng với mario/mario_01 đến mario/mario_28. -->
+    <img id="scene-01" class="clip mario" data-start="0"   data-duration="0.1" data-track-index="1" src="assets/run_0.png" alt="">
+    <img id="scene-02" class="clip mario" data-start="0.1" data-duration="0.1" data-track-index="1" src="assets/run_1.png" alt="">
+    <img id="scene-03" class="clip mario" data-start="0.2" data-duration="0.1" data-track-index="1" src="assets/run_2.png" alt="">
+    <img id="scene-04" class="clip mario" data-start="0.3" data-duration="0.1" data-track-index="1" src="assets/run_3.png" alt="">
+    <img id="scene-05" class="clip mario" data-start="0.4" data-duration="0.1" data-track-index="1" src="assets/run_4.png" alt="">
+    <img id="scene-06" class="clip mario" data-start="0.5" data-duration="0.1" data-track-index="1" src="assets/run_5.png" alt="">
+    <img id="scene-07" class="clip mario" data-start="0.6" data-duration="0.1" data-track-index="1" src="assets/run_0.png" alt="">
+    <img id="scene-08" class="clip mario" data-start="0.7" data-duration="0.1" data-track-index="1" src="assets/run_0.png" alt="">
+    <img id="scene-09" class="clip mario" data-start="0.8" data-duration="0.1" data-track-index="1" src="assets/run_1.png" alt="">
+    <img id="scene-10" class="clip mario" data-start="0.9" data-duration="0.1" data-track-index="1" src="assets/run_2.png" alt="">
+    <img id="scene-11" class="clip mario" data-start="1.0" data-duration="0.1" data-track-index="1" src="assets/run_3.png" alt="">
+    <img id="scene-12" class="clip mario" data-start="1.1" data-duration="0.1" data-track-index="1" src="assets/run_4.png" alt="">
+    <img id="scene-13" class="clip mario" data-start="1.2" data-duration="0.1" data-track-index="1" src="assets/run_5.png" alt="">
+    <img id="scene-14" class="clip mario" data-start="1.3" data-duration="0.1" data-track-index="1" src="assets/run_0.png" alt="">
+    <img id="scene-15" class="clip mario" data-start="1.4" data-duration="0.1" data-track-index="1" src="assets/run_1.png" alt="">
+    <img id="scene-16" class="clip mario" data-start="1.5" data-duration="0.1" data-track-index="1" src="assets/run_2.png" alt="">
+    <img id="scene-17" class="clip mario" data-start="1.6" data-duration="0.1" data-track-index="1" src="assets/run_3.png" alt="">
+    <img id="scene-18" class="clip mario" data-start="1.7" data-duration="0.1" data-track-index="1" src="assets/run_4.png" alt="">
+    <img id="scene-19" class="clip mario" data-start="1.8" data-duration="0.1" data-track-index="1" src="assets/run_5.png" alt="">
+    <img id="scene-20" class="clip mario" data-start="1.9" data-duration="0.1" data-track-index="1" src="assets/run_0.png" alt="">
+    <img id="scene-21" class="clip mario" data-start="2.0" data-duration="0.1" data-track-index="1" src="assets/run_1.png" alt="">
+    <img id="scene-22" class="clip mario" data-start="2.1" data-duration="0.1" data-track-index="1" src="assets/run_2.png" alt="">
+    <img id="scene-23" class="clip mario" data-start="2.2" data-duration="0.1" data-track-index="1" src="assets/run_3.png" alt="">
+    <img id="scene-24" class="clip mario" data-start="2.3" data-duration="0.1" data-track-index="1" src="assets/run_4.png" alt="">
+    <img id="scene-25" class="clip mario" data-start="2.4" data-duration="0.1" data-track-index="1" src="assets/run_5.png" alt="">
+    <img id="scene-26" class="clip mario" data-start="2.5" data-duration="0.1" data-track-index="1" src="assets/run_0.png" alt="">
+    <img id="scene-27" class="clip mario" data-start="2.6" data-duration="0.1" data-track-index="1" src="assets/run_1.png" alt="">
+    <img id="scene-28" class="clip mario" data-start="2.7" data-duration="0.1" data-track-index="1" src="assets/run_2.png" alt="">
+
+    <script src="./node_modules/gsap/dist/gsap.min.js"></script>
+    <script>
+      const timeline = gsap.timeline({ paused: true });
+      timeline.set({}, {}, 2.8);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["mario-video"] = timeline;
+    </script>
+  </div>
+</body>
+</html>

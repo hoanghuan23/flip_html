@@ -1,0 +1,16 @@
+{
+  "name": "mario-hyperframes-video",
+  "private": true,
+  "scripts": {
+    "lint": "hyperframes lint",
+    "render": "powershell -NoProfile -ExecutionPolicy Bypass -File ./render.ps1"
+  },
+  "dependencies": {
+    "gsap": "^3.14.0",
+    "hyperframes": "^0.9.28"
+  },
+  "devDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2"
+  }
+}

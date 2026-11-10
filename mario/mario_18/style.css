@@ -1,0 +1,6 @@
+@import url("../mario_01/style.css");
+
+#mario {
+  left: 510px;
+  bottom: calc(16.5% - 6px);
+}

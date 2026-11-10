@@ -11,6 +11,8 @@ const runFrames = Array.from({ length: 6 }, (_, index) => {
   image.src = `../run_${index}.png`;
   return image;
 });
+// Transparent space below each pose at the 85px display size.
+const footInsets = [13, 6, 11];
 let currentFrame = -1;
 let currentTime = 0;
 let playing = false;
@@ -31,6 +33,7 @@ function renderAt(time) {
   const frameIndex = Math.floor(currentTime / frameDuration + 1e-9) % runFrames.length;
   if (frameIndex !== currentFrame) {
     mario.src = runFrames[frameIndex].src;
+    mario.style.setProperty("--foot-inset", `${footInsets[frameIndex % footInsets.length]}px`);
     currentFrame = frameIndex;
   }
 
