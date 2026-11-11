@@ -53,21 +53,6 @@ body {
   user-select: none;
 }
 
-.controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  width: min(800px, 100%);
-  margin: 15px auto 0;
-  color: white;
-}
-
-#timeline {
-  width: 400px;
-  min-width: 0;
-}
-
 .status {
   width: min(800px, 100%);
   margin: 8px auto;

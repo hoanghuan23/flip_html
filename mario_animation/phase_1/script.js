@@ -1,9 +1,6 @@
 const scene = document.querySelector(".scene");
 const character = document.getElementById("character");
 const mario = document.getElementById("mario");
-const timeline = document.getElementById("timeline");
-const timeLabel = document.getElementById("time");
-const playButton = document.getElementById("play");
 const statusLabel = document.getElementById("status");
 
 // Coordinates use an 800 × 450 stage; CSS percentages scale the whole scene together.
@@ -48,9 +45,7 @@ const jumpPoses = [
 let jumps = [];
 let currentTime = 0;
 let currentPose = null;
-let playing = false;
-let startTime = 0;
-let animationFrame = null;
+let startTime;
 
 function measureObstacles() {
   const bounds = scene.getBoundingClientRect();
@@ -102,42 +97,15 @@ function renderAt(time) {
     mario.alt = `Nhân vật đang ${action}`;
     currentPose = selectedPose;
   }
-
-  timeline.value = currentTime;
-  timeLabel.textContent = currentTime.toFixed(2) + "s";
-}
-
-function pause() {
-  playing = false;
-  cancelAnimationFrame(animationFrame);
-  animationFrame = null;
-  playButton.textContent = "Play";
 }
 
 function animate(timestamp) {
-  if (!playing) return;
+  if (startTime === undefined) startTime = timestamp;
   renderAt((timestamp - startTime) / 1000);
-  if (currentTime >= duration) {
-    pause();
-    return;
+  if (currentTime < duration) {
+    requestAnimationFrame(animate);
   }
-  animationFrame = requestAnimationFrame(animate);
 }
-
-function play() {
-  if (playing) return;
-  if (currentTime >= duration) renderAt(0);
-  playing = true;
-  playButton.textContent = "Pause";
-  startTime = performance.now() - currentTime * 1000;
-  animationFrame = requestAnimationFrame(animate);
-}
-
-playButton.addEventListener("click", () => playing ? pause() : play());
-timeline.addEventListener("input", () => {
-  pause();
-  renderAt(timeline.value);
-});
 
 new ResizeObserver(() => {
   measureObstacles();
@@ -161,10 +129,7 @@ Promise.all(sources.map((src) => {
   image.src = src;
   return image.decode();
 })).then(() => {
-  playButton.disabled = false;
-  timeline.disabled = false;
-  pause();
+  requestAnimationFrame(animate);
 }).catch(() => {
-  playButton.textContent = "Chưa tải được ảnh";
   statusLabel.textContent = "Không tải được ảnh hoạt ảnh. Hãy kiểm tra thư mục characters và environment rồi tải lại trang.";
 });

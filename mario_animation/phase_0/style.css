@@ -23,15 +23,3 @@ body {
   object-fit: contain;
   transform: translateX(0);
 }
-
-.controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  color: white;
-}
-
-#timeline {
-  width: 400px;
-}

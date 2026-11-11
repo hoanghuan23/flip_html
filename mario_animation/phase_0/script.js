@@ -1,8 +1,5 @@
 
 const mario = document.getElementById("mario");
-const timeline = document.getElementById("timeline");
-const timeLabel = document.getElementById("time");
-const playButton = document.getElementById("play");
 
 const duration = 5;
 const frameDuration = 0.1;
@@ -16,13 +13,11 @@ const runFrames = Array.from({ length: 6 }, (_, index) => {
 // Transparent space below each pose at the 85px display size.
 const footInsets = [13, 6, 11];
 let currentFrame = -1;
-let currentTime = 0;
-let playing = false;
-let startTime = 0;
+let startTime;
 
 // Xác định vị trí nhân vật theo thời gian
 function renderAt(time) {
-  currentTime = Math.max(0, Math.min(time, duration));
+  const currentTime = Math.max(0, Math.min(time, duration));
 
   const progress = currentTime / duration;
 
@@ -38,49 +33,22 @@ function renderAt(time) {
     mario.style.setProperty("--foot-inset", `${footInsets[frameIndex % footInsets.length]}px`);
     currentFrame = frameIndex;
   }
-
-  timeline.value = currentTime;
-  timeLabel.textContent = currentTime.toFixed(2) + "s";
 }
 
-// Điều khiển bằng thanh thời gian
-timeline.addEventListener("input", () => {
-  playing = false;
-  playButton.textContent = "Play";
-  renderAt(Number(timeline.value));
-});
-
-// Chạy animation
+// Tự chạy animation khi mở trang.
 function animate(timestamp) {
-  if (!playing) return;
+  if (startTime === undefined) startTime = timestamp;
 
   const elapsed = (timestamp - startTime) / 1000;
   renderAt(elapsed);
 
   if (elapsed < duration) {
     requestAnimationFrame(animate);
-  } else {
-    playing = false;
-    playButton.textContent = "Play";
   }
 }
-
-playButton.addEventListener("click", () => {
-  if (playing) {
-    playing = false;
-    playButton.textContent = "Play";
-    return;
-  }
-
-  if (currentTime >= duration) renderAt(0);
-
-  playing = true;
-  playButton.textContent = "Pause";
-  startTime = performance.now() - currentTime * 1000;
-  requestAnimationFrame(animate);
-});
 
 // Cho phép HyperFrames gọi trực tiếp
 window.renderAt = renderAt;
 
 renderAt(0);
+requestAnimationFrame(animate);
