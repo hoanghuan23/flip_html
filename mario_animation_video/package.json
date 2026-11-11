@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "lint": "hyperframes lint",
-    "render": "powershell -NoProfile -ExecutionPolicy Bypass -File ./render.ps1"
+    "render": "bash ./render.sh"
   },
   "dependencies": {
     "gsap": "^3.14.0",
