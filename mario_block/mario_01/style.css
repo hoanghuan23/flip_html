@@ -9,7 +9,7 @@ body {
   width: 800px;
   height: 450px;
   margin: 40px auto 15px;
-  background: #5096ff url("../../background.jpg") center / 100% 100% no-repeat;
+  background: #5096ff url("../../environment/background_3.jpg") center / 100% 100% no-repeat;
   overflow: hidden;
 }
 

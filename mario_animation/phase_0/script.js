@@ -6,6 +6,8 @@ const playButton = document.getElementById("play");
 
 const duration = 5;
 const frameDuration = 0.1;
+const startX = -100;
+const endX = 800;
 const runFrames = Array.from({ length: 6 }, (_, index) => {
   const image = new Image();
   image.src = `../../characters/run_${index}.png`;
@@ -24,12 +26,12 @@ function renderAt(time) {
 
   const progress = currentTime / duration;
 
-  // Mario di chuyển từ x = 0 đến x = 700
-  const x = progress * 800;
+  // Mario di chuyển từ x = -100 đến x = 800
+  const x = startX + progress * (endX - startX);
 
   mario.style.transform = `translateX(${x}px)`;
 
-  // Đổi ảnh mỗi 0,05 giây, lặp lại sau run_5.
+  // Đổi ảnh mỗi 0,1 giây, lặp lại sau run_5.
   const frameIndex = Math.floor(currentTime / frameDuration + 1e-9) % runFrames.length;
   if (frameIndex !== currentFrame) {
     mario.src = runFrames[frameIndex].src;
