@@ -1,23 +1,34 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="data:,">
-  <title>Mario Animation - HyperFrames</title>
-  <link rel="preload" as="image" href="assets/run_0.png">
-  <link rel="preload" as="image" href="assets/run_1.png">
-  <link rel="preload" as="image" href="assets/run_2.png">
-  <link rel="preload" as="image" href="assets/run_3.png">
-  <link rel="preload" as="image" href="assets/run_4.png">
-  <link rel="preload" as="image" href="assets/run_5.png">
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=800, initial-scale=1">
+  <title>Mario Animation</title>
+  <script src="assets/vendor/gsap.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 800px; height: 450px; overflow: hidden; background: #000; }
+    #root { position: relative; width: 800px; height: 450px; overflow: hidden; }
+    .clip { position: absolute; inset: 0; }
+  </style>
 </head>
 <body>
-  <div id="root" data-composition-id="mario-animation" data-start="0" data-width="800" data-height="450">
-    <img id="mario" src="assets/run_0.png" alt="" data-start="0.22" data-track-index="0" data-duration="4.68" data-media-start="0">
+  <div id="root" data-hf-id="hf-9qtn" data-composition-id="main"
+       data-start="0" data-duration="10" data-width="800" data-height="450">
+    <div id="phase0" data-hf-id="hf-gw3s" class="clip"
+         data-composition-id="phase0" data-composition-src="compositions/phase_0/index.html"
+         data-start="0" data-duration="5" data-track-index="0" data-track-kind="graphics"
+         data-width="800" data-height="450"></div>
+    <div id="phase1" data-hf-id="hf-qc5b" class="clip"
+         data-composition-id="phase1" data-composition-src="compositions/phase_1/index.html"
+         data-start="5" data-duration="5" data-track-index="1" data-track-kind="graphics"
+         data-width="800" data-height="450"></div>
   </div>
-  <script src="node_modules/gsap/dist/gsap.min.js"></script>
-  <script src="script.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to({}, { duration: 10 });
+    window.__timelines["main"] = tl;
+  </script>
 </body>
 </html>

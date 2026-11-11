@@ -1,0 +1,76 @@
+body {
+  margin: 0;
+  padding: 40px 16px;
+  background: #222;
+  font-family: Arial, sans-serif;
+}
+
+.scene {
+  /* Same 800 × 450 stage as phase_0; all positions scale with it. */
+  /* Ground starts at 86% of background_1.png. */
+  --ground-height: 14%;
+  position: relative;
+  width: min(800px, 100%);
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #5096ff url("../../environment/background_1.png") center / 100% 100% no-repeat;
+}
+
+.obstacle {
+  position: absolute;
+  bottom: var(--ground-height);
+  display: block;
+  width: 6.75%;
+  height: auto;
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+.obstacle--first {
+  left: 30%;
+}
+
+.obstacle--second {
+  left: 60%;
+}
+
+.character {
+  position: absolute;
+  left: 0;
+  bottom: var(--ground-height);
+  width: 10.625%;
+  aspect-ratio: 532 / 469;
+  pointer-events: none;
+}
+
+#mario {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Anchor the visible pose at its centre and soles, ignoring transparent padding. */
+  transform: translate(-50.094%, 10.874%);
+  user-select: none;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  width: min(800px, 100%);
+  margin: 15px auto 0;
+  color: white;
+}
+
+#timeline {
+  width: 400px;
+  min-width: 0;
+}
+
+.status {
+  width: min(800px, 100%);
+  margin: 8px auto;
+  color: #fff;
+}
+

@@ -8,7 +8,7 @@ const duration = 5;
 const frameDuration = 0.1;
 const runFrames = Array.from({ length: 6 }, (_, index) => {
   const image = new Image();
-  image.src = `../run_${index}.png`;
+  image.src = `../../characters/run_${index}.png`;
   return image;
 });
 // Transparent space below each pose at the 85px display size.

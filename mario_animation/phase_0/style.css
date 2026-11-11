@@ -10,14 +10,14 @@ body {
   width: 800px;
   height: 450px;
   margin: 40px auto 15px;
-  background: #5096ff url("../background.jpg") center / 100% 100% no-repeat;
+  background: #5096ff url("../../environment/background_1.png") center / 100% 100% no-repeat;
   overflow: hidden;
 }
 
 #mario {
   position: absolute;
   left: 0;
-  bottom: calc(16.5% - var(--foot-inset, 13px));
+  bottom: calc(14% - var(--foot-inset, 15px));
   width: 85px;
   height: 85px;
   object-fit: contain;
