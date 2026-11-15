@@ -23,6 +23,11 @@ from urllib.request import Request, urlopen
 
 from analyze_text import ROOT, request_text
 
+ART_DIRECTION = """Premium 2D flat vector educational cartoon. Clean rounded geometric
+silhouettes, vibrant controlled palette, limited gradients, consistent proportions,
+line weight, lighting and camera view. Transparent cut-out parts share the same
+character identity and scale. No photorealism, 3D, anime, watercolor, text or watermark."""
+
 PLAN_PROMPT = """
 Bạn chuyển KỊCH BẢN ĐÃ CÓ thành kế hoạch ảnh tĩnh + HTML sprite animation.
 Chỉ trả một JSON object hợp lệ, không Markdown. Không viết lại kịch bản.
@@ -32,7 +37,7 @@ Chưa dùng HyperFrames, không tạo video, MP4 hay âm thanh.
 Schema (thay toàn bộ dữ liệu ví dụ bằng nội dung kịch bản):
 {
   "title": "Tên câu chuyện",
-  "style": "Mô tả phong cách, palette và thiết kế cố định của TẤT CẢ nhân vật/vật thể",
+  "style": "Mô tả riêng của cảnh; quy chuẩn mỹ thuật chung được áp dụng cố định",
   "total_duration": 4,
   "assets": [
     {"id":"street", "kind":"backgrounds", "size":"1536x1024",
@@ -64,6 +69,19 @@ Ràng buộc:
 - Chỉ liệt kê ảnh THỰC SỰ cần, tối đa 32 assets. Nền riêng; mỗi nhân vật một
   sprite sheet PNG trong suốt gồm đủ tư thế cho tất cả phase, tối đa 16 ô/sheet.
   Vật thể có thể là sheet riêng (ô đóng/mở). Không vẽ ô vào sprite cô bé nếu ô là asset riêng.
+- render_mode mặc định là "sheet". Chỉ dùng "rig" cho nhân vật khi đã có PNG
+  bộ phận thủ công trong assets/characters/<id>/<part_id>.png. Rig dùng columns=rows=1,
+  poses=["rest"], size là canvas bind pose; không tự sinh các part độc lập từ prompt.
+  Rig có parts:[{id,parent,size,pivot:[x,y],offset:[x,y],z}], đúng một root.
+  Mỗi rig cần character_bible:{character_id,identity,proportions,clothing,
+  lighting,reference_view,reference_height_m,palette:["#RRGGBB",...]}; nhất quán với
+  mọi PNG part. Thay bible sẽ làm mất hiệu lực cache.
+  offset là vị trí pivot trong hệ tọa độ chuẩn hóa của part cha (root dùng canvas).
+  clips là object tên clip -> {duration,loop,channels}; channel "part.property"
+  dùng keyframes [[time,value],...], property: rotation (độ), x/y (đơn vị part cha),
+  scale_x/scale_y, opacity, visible. Có thể thêm channel_easing:{"head.rotation":"ease_in_out_cubic"};
+  mặc định linear. Track rig dùng clip ở mỗi keyframe thay pose.
+  Clip được lấy mẫu theo thời gian tuyệt đối của phase, không phụ thuộc frame trước.
 - Giữ ngoại hình/áo quần/kích thước trong mọi pose. Cùng asset ID được tái sử dụng.
 - poses theo thứ tự ô từ trái sang phải, trên xuống dưới; columns*rows >= số poses.
   Kiểm đếm số poses trước khi chọn lưới: ví dụ 13 poses cần lưới 4x4, không phải 4x3.
@@ -111,6 +129,9 @@ Ràng buộc:
   hay vật được mang theo như ô cầm tay. Track scene_bound được phép không xuất hiện
   ở phase kế tiếp nếu background thay đổi. Khi background giữ nguyên, vẫn phải
   giữ track nếu còn hiện. Mặc định scene_bound=false và phải giữ giá trị giữa các phase.
+- Hiệu ứng trang trí thuộc riêng góc máy (ví dụ dải sóng, dòng nước minh họa)
+  cũng dùng scene_bound:true. Qua camera cut sang shot khác, chúng được phép bắt đầu
+  lại pose, opacity và vị trí; trong cùng shot phải giữ trạng thái liên tục.
 - rain/rainbow là đường cong cường độ 0–1 với mốc từ 0 đến duration; không có hiệu ứng
   thì cả hai mốc value=0. Dùng rain/rainbow để dựng mưa/cầu vồng bằng CSS theo thời gian.
 - events ghi các hành động thực tế để người xem đối chiếu khi tua.
@@ -162,7 +183,8 @@ HỢP ĐỒNG DÀN CẢNH (bắt buộc cho plan mới, trước khi sinh ảnh)
   camera đầu nối camera cuối. Cảnh hỗ trợ sau tai nạn giữ nguyên nền hiện trường.
   Camera lùi bằng đường cong zoom của staging, tác động lên CẢ nền và mọi sprite;
   không sinh nền phố khác rồi giữ nguyên x/y. zoom >= 1 để không hở biên.
-- geometry.motion constant kiểm tra vận tốc các đoạn bằng nhau; thêm exit:right/left
+- geometry.motion nhận free, constant hoặc static (không đổi x/y nhưng có thể fade/đổi pose).
+  constant kiểm tra vận tốc các đoạn bằng nhau; thêm exit:right/left
   chỉ khi kịch bản yêu cầu ra hết khung. Hệ thống sẽ kiểm tra theo ảnh sau hiệu chỉnh.
 - geometry.forward là right/left theo hướng gốc nhân vật/xe trong PNG;
   locomotion_poses liệt kê các pose đi/chạy (ví dụ walk_1, walk_2). Khi di chuyển
@@ -205,10 +227,119 @@ def asset_path(asset):
     return f"assets/{asset['kind']}/{asset['id']}.png"
 
 
+def rig_part_path(asset, part):
+    return f"assets/characters/{asset['id']}/{part['id']}.png"
+
+
 def point(value, label, low=0, high=1):
     if not isinstance(value, list) or len(value) != 2:
         raise ValueError(f"{label}: cần [x,y].")
     return [number(v, label, low, high) for v in value]
+
+
+def validate_rig(asset):
+    aid = asset["id"]
+    if asset["kind"] != "characters" or asset["columns"] != 1 or asset["rows"] != 1:
+        raise ValueError(f"{aid}: rig cần character với lưới 1x1.")
+    if asset["poses"] != ["rest"]:
+        raise ValueError(f"{aid}: rig cần poses=['rest'] cho ảnh bind pose.")
+    parts = objects(asset.get("parts"), f"{aid}.parts")
+    if len(parts) > 32:
+        raise ValueError(f"{aid}: rig tối đa 32 part.")
+    by_id = {}
+    roots = []
+    for part in parts:
+        pid = identifier(part.get("id"))
+        if pid in by_id:
+            raise ValueError(f"{aid}: part {pid} trùng ID.")
+        if part.get("parent") is not None:
+            identifier(part["parent"])
+        else:
+            roots.append(pid)
+        if "file" in part and part["file"] not in (f"{aid}/{pid}.png", rig_part_path(asset, part)):
+            raise ValueError(f"{aid}.{pid}.file: cần {aid}/{pid}.png hoặc bỏ trống.")
+        size = re.fullmatch(r"([1-9][0-9]{0,3})x([1-9][0-9]{0,3})", str(part.get("size")))
+        if not size or any(not 16 <= int(v) <= 8192 for v in size.groups()):
+            raise ValueError(f"{aid}.{pid}.size: cần WIDTHxHEIGHT trong 16–8192.")
+        point(part.get("pivot"), f"{aid}.{pid}.pivot")
+        point(part.get("offset"), f"{aid}.{pid}.offset", -2, 2)
+        number(part.get("z"), f"{aid}.{pid}.z", -1000, 1000)
+        by_id[pid] = part
+    if len(roots) != 1:
+        raise ValueError(f"{aid}: rig cần đúng một root.")
+    for pid, part in by_id.items():
+        seen = set()
+        node = part
+        while node["parent"] is not None:
+            parent = node["parent"]
+            if parent not in by_id or parent in seen or parent == pid:
+                raise ValueError(f"{aid}.{pid}: parent thiếu hoặc rig có chu trình.")
+            seen.add(parent)
+            node = by_id[parent]
+    sockets = asset.setdefault("rig_sockets", {})
+    if not isinstance(sockets, dict):
+        raise ValueError(f"{aid}.rig_sockets: cần object.")
+    for name, socket in sockets.items():
+        identifier(name)
+        if not isinstance(socket, dict) or socket.get("part") not in by_id:
+            raise ValueError(f"{aid}.{name}: socket cần part hợp lệ.")
+        point(socket.get("point"), f"{aid}.{name}.point")
+    bible = asset.get("character_bible")
+    if not isinstance(bible, dict):
+        raise ValueError(f"{aid}.character_bible: cần object.")
+    if bible.get("character_id") != aid:
+        raise ValueError(f"{aid}.character_bible.character_id: cần trùng ID asset.")
+    for key in ("identity", "proportions", "clothing", "lighting"):
+        text_value(bible.get(key), f"{aid}.character_bible.{key}")
+    if bible.get("reference_view") not in ("side", "three_quarter", "overhead"):
+        raise ValueError(f"{aid}.character_bible.reference_view: góc nhìn không hợp lệ.")
+    number(bible.get("reference_height_m"), f"{aid}.character_bible.reference_height_m", .05, 100)
+    palette = bible.get("palette")
+    if (not isinstance(palette, list) or not palette or
+            any(not isinstance(color, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", color)
+                for color in palette)):
+        raise ValueError(f"{aid}.character_bible.palette: cần danh sách màu HEX.")
+    clips = asset.get("clips")
+    if not isinstance(clips, dict) or not clips or len(clips) > 12:
+        raise ValueError(f"{aid}.clips: cần 1–12 clip.")
+    allowed = {"rotation", "x", "y", "scale_x", "scale_y", "opacity", "visible"}
+    for name, clip in clips.items():
+        identifier(name)
+        if not isinstance(clip, dict):
+            raise ValueError(f"{aid}.{name}: clip cần object.")
+        duration = number(clip.get("duration"), f"{aid}.{name}.duration", .01, 600)
+        if not isinstance(clip.get("loop"), bool) or not isinstance(clip.get("channels"), dict):
+            raise ValueError(f"{aid}.{name}: clip cần loop boolean và channels object.")
+        easing = clip.get("channel_easing", {})
+        if (not isinstance(easing, dict) or any(channel not in clip["channels"] or
+                mode not in ("linear", "ease_in_out_cubic") for channel, mode in easing.items())):
+            raise ValueError(f"{aid}.{name}.channel_easing: channel hoặc easing không hợp lệ.")
+        for channel, keys in clip["channels"].items():
+            if not isinstance(channel, str) or "." not in channel:
+                raise ValueError(f"{aid}.{name}: channel không hợp lệ.")
+            pid, property_name = channel.rsplit(".", 1)
+            if pid not in by_id or property_name not in allowed or not isinstance(keys, list) or not keys:
+                raise ValueError(f"{aid}.{name}.{channel}: part/property/keyframes không hợp lệ.")
+            previous = -1
+            for key in keys:
+                if not isinstance(key, list) or len(key) != 2:
+                    raise ValueError(f"{aid}.{name}.{channel}: keyframe cần [time,value].")
+                time = number(key[0], f"{aid}.{name}.{channel}.time", 0, duration)
+                if time <= previous:
+                    raise ValueError(f"{aid}.{name}.{channel}: thời gian phải tăng.")
+                previous = time
+                if property_name == "visible":
+                    if not isinstance(key[1], bool):
+                        raise ValueError(f"{aid}.{name}.{channel}: visible cần boolean.")
+                else:
+                    low, high = {"rotation": (-720, 720), "x": (-2, 2), "y": (-2, 2),
+                                 "scale_x": (.01, 10), "scale_y": (.01, 10),
+                                 "opacity": (0, 1)}[property_name]
+                    number(key[1], f"{aid}.{name}.{channel}.value", low, high)
+    default = asset.get("default_clip", next(iter(clips)))
+    if default not in clips:
+        raise ValueError(f"{aid}.default_clip: clip không tồn tại.")
+    asset["default_clip"] = default
 
 
 def validate_plan(plan):
@@ -225,6 +356,8 @@ def validate_plan(plan):
         aid = identifier(asset.get("id"))
         if aid in by_id or asset.get("kind") not in ("backgrounds", "characters", "objects"):
             raise ValueError(f"Asset trùng ID hoặc sai kind: {aid}.")
+        if asset.get("render_mode", "sheet") not in ("sheet", "rig"):
+            raise ValueError(f"{aid}.render_mode: cần sheet hoặc rig.")
         text_value(asset.get("prompt"), f"{aid}.prompt")
         size = re.fullmatch(r"([1-9][0-9]{1,3})x([1-9][0-9]{1,3})", str(asset.get("size")))
         if not size:
@@ -259,6 +392,8 @@ def validate_plan(plan):
                 raise ValueError(f"{aid}.{name}: socket cần điểm cho tất cả poses.")
             for pose, position in positions.items():
                 point(position, f"{aid}.{name}.{pose}")
+        if asset.get("render_mode") == "rig":
+            validate_rig(asset)
         by_id[aid] = asset
     phases = objects(plan.get("phases"), "phases")
     total = 0
@@ -322,13 +457,21 @@ def validate_plan(plan):
                 frame.setdefault("flip", False)
                 if not isinstance(frame["flip"], bool):
                     raise ValueError(f"{tid}.flip phải là boolean.")
-                poses = frame.get("pose")
-                if isinstance(poses, str):
-                    poses = [poses]
-                if (not isinstance(poses, list) or not poses
-                        or any(p not in by_id[aid]["poses"] for p in poses)):
-                    raise ValueError(f"{tid}: pose không tồn tại trong asset {aid}.")
-            if not isinstance(frames[-1]["pose"], str):
+                if by_id[aid].get("render_mode") == "rig":
+                    if frame.get("clip", by_id[aid]["default_clip"]) not in by_id[aid]["clips"]:
+                        raise ValueError(f"{tid}.clip: clip không tồn tại.")
+                    frame["pose"] = "rest"
+                    frame["clip"] = frame.get("clip", by_id[aid]["default_clip"])
+                    frame["clip_speed"] = number(frame.get("clip_speed", 1), f"{tid}.clip_speed", .01, 10)
+                    frame["clip_start"] = number(frame.get("clip_start", 0), f"{tid}.clip_start", 0, 600)
+                else:
+                    poses = frame.get("pose")
+                    if isinstance(poses, str):
+                        poses = [poses]
+                    if (not isinstance(poses, list) or not poses
+                            or any(p not in by_id[aid]["poses"] for p in poses)):
+                        raise ValueError(f"{tid}: pose không tồn tại trong asset {aid}.")
+            if by_id[aid].get("render_mode") != "rig" and not isinstance(frames[-1]["pose"], str):
                 raise ValueError(f"{tid}: keyframe cuối cần một pose cố định.")
         check_attachments(phase, by_id)
         check_staging(phase, by_id, label)
@@ -353,7 +496,7 @@ def check_attachments(phase, assets):
                 raise ValueError(f"{tid}.attach: cần track cha hợp lệ cho sprite gắn socket.")
             parent = tracks[attachment["track"]]
             sockets = {**assets[parent["asset"]]["sockets"], **parent["sockets"]}
-            if attachment.get("socket") not in sockets:
+            if attachment.get("socket") not in sockets and attachment.get("socket") not in assets[parent["asset"]].get("rig_sockets", {}):
                 raise ValueError(f"{tid}.attach: socket không tồn tại.")
             attachment["anchor"] = point(attachment.get("anchor", assets[track["asset"]]["anchor"]),
                                          f"{tid}.attach.anchor")
@@ -425,8 +568,8 @@ def check_staging(phase, assets, label):
         baked = geometry.get("baked_poses", [])
         if not isinstance(baked, list) or any(p not in aid["poses"] for p in baked):
             raise ValueError(f"{track['id']}.baked_poses: pose không tồn tại.")
-        if geometry.get("motion", "free") not in ("constant", "free"):
-            raise ValueError(f"{track['id']}.motion: cần constant/free.")
+        if geometry.get("motion", "free") not in ("constant", "free", "static"):
+            raise ValueError(f"{track['id']}.motion: cần constant/free/static.")
         if geometry.get("exit") not in (None, "left", "right"):
             raise ValueError(f"{track['id']}.exit: cần left/right.")
         locomotion = geometry.get("locomotion_poses", [])
@@ -444,6 +587,10 @@ def check_staging(phase, assets, label):
             poses = [frame["pose"]] if isinstance(frame["pose"], str) else frame["pose"]
             if any(p in baked for p in poses) and abs(frame["rotation"]) > 0.01:
                 raise ValueError(f"{track['id']}: pose đã vẽ nghiêng/ngã, không xoay thêm rotation.")
+        if geometry.get("motion") == "static" and any(
+                abs(frame[axis]-track["keyframes"][0][axis]) > .001
+                for frame in track["keyframes"][1:] for axis in ("x", "y")):
+            raise ValueError(f"{track['id']}: motion static nhưng x/y thay đổi.")
         if geometry.get("motion") == "constant" and not any(f.get("attach") for f in track["keyframes"]):
             velocities = [((b["x"]-a["x"])*16/(b["time"]-a["time"]),
                            (b["y"]-a["y"])*9/(b["time"]-a["time"]))
@@ -498,7 +645,10 @@ def endpoint_outside_stage(phase, assets, tid):
             parent = tracks[binding["track"]]
             parent_asset = assets[parent["asset"]]
             sockets = {**parent_asset["sockets"], **parent["sockets"]}
-            socket = sockets[binding["socket"]][parent["keyframes"][-1]["pose"]]
+            if parent_asset.get("render_mode") == "rig" and binding["socket"] in parent_asset["rig_sockets"]:
+                socket = rig_socket(parent_asset, parent, binding["socket"], phase["duration"])
+            else:
+                socket = sockets[binding["socket"]][parent["keyframes"][-1]["pose"]]
             grip = [(socket[i] - parent_anchor[i] + binding["offset"][i]) * size
                     for i, size in enumerate((parent_width, parent_height))]
             anchor = binding["anchor"]
@@ -508,8 +658,26 @@ def endpoint_outside_stage(phase, assets, tid):
         return states[track_id]
 
     transform, width, height, anchor = state_for(tid)
-    xs = [transform(((x - anchor[0]) * width, (y - anchor[1]) * height))[0]
-          for x in (0, 1) for y in (0, 1)]
+    asset = assets[tracks[tid]["asset"]]
+    if asset.get("render_mode") == "rig":
+        aw, ah = dimensions(asset["size"])
+        clip, elapsed = rig_clip_at(tracks[tid], phase["duration"])
+        matrices = rig_matrices(asset, clip, elapsed)
+        xs = []
+        for part in asset["parts"]:
+            if not rig_sample(asset, clip, elapsed, part["id"]+".visible", True):
+                continue
+            m = matrices[part["id"]]
+            pw, ph = dimensions(part["size"])
+            for px in (0, pw):
+                for py in (0, ph):
+                    x, y = (m[0]*px+m[2]*py+m[4])/aw, (m[1]*px+m[3]*py+m[5])/ah
+                    xs.append(transform(((x-anchor[0])*width, (y-anchor[1])*height))[0])
+        if not xs:
+            return True
+    else:
+        xs = [transform(((x - anchor[0]) * width, (y - anchor[1]) * height))[0]
+              for x in (0, 1) for y in (0, 1)]
     return max(xs) <= 0 or min(xs) >= 1600
 
 
@@ -530,18 +698,34 @@ def check_continuity(previous, current, label, assets):
         visible = end["opacity"] > 0 and not endpoint_outside_stage(previous, assets, old["id"])
         if new is None:
             left_scene = (old.get("scene_bound", False)
-                          and previous["background"] != current["background"])
+                          and (previous["background"] != current["background"] or cut))
             if visible and not left_scene:
                 raise ValueError(f"{label}: track {old['id']} đang hiện rồi tự biến mất.")
             continue
         start = new["keyframes"][0]
         start_pose = start["pose"][0] if isinstance(start["pose"], list) else start["pose"]
+        rig = assets[old["asset"]] if old["asset"] == new["asset"] else None
+        rig_jump = False
+        if rig and rig.get("render_mode") == "rig":
+            old_clip, old_time = rig_clip_at(old, previous["duration"])
+            new_clip, new_time = rig_clip_at(new, 0)
+            old_parts = rig_matrices(rig, old_clip, old_time)
+            new_parts = rig_matrices(rig, new_clip, new_time)
+            rig_jump = any(not math.isclose(x, y, abs_tol=.01) for pid in old_parts
+                           for x, y in zip(old_parts[pid], new_parts[pid]))
+            rig_jump |= any(rig_sample(rig, old_clip, old_time, pid+".visible", True) !=
+                            rig_sample(rig, new_clip, new_time, pid+".visible", True)
+                            or not math.isclose(rig_sample(rig, old_clip, old_time, pid+".opacity", 1),
+                                                rig_sample(rig, new_clip, new_time, pid+".opacity", 1), abs_tol=.01)
+                            for pid in old_parts)
         if (old["asset"] != new["asset"]
                 or old.get("scene_bound", False) != new.get("scene_bound", False)
                 or old.get("sockets", {}) != new.get("sockets", {})
                 or (not cut and (any(old[k] != new[k] for k in ("width", "z"))
                                   or old.get("layout", {}) != new.get("layout", {})))):
             raise ValueError(f"{label}: thiết kế/kích thước/lớp của {old['id']} không liên tục.")
+        if old.get("scene_bound") and new.get("scene_bound") and cut:
+            continue  # A shot-bound decoration is independently staged after the cut.
         if end["opacity"] == start["opacity"] == 0:
             continue
         # A completed exit may re-enter in a different shot. Keep the carried
@@ -550,17 +734,28 @@ def check_continuity(previous, current, label, assets):
                       and endpoint_outside_stage(previous, assets, old["id"]))
         continuous_values = ("opacity",) if cut else ("opacity", "scale", "rotation") if reposition else (
             "x", "y", "opacity", "scale", "rotation")
-        if (start_pose != end["pose"] or (not cut and start["flip"] != end["flip"])
-                or start.get("attach") != end.get("attach")
-                or any(not math.isclose(end[k], start[k], abs_tol=0.001)
-                       for k in continuous_values)):
-            raise ValueError(f"{label}: trạng thái đầu {old['id']} khác cuối phase trước.")
+        changes = []
+        if start_pose != end["pose"]:
+            changes.append(f"pose {end['pose']} → {start_pose}")
+        if not cut and start["flip"] != end["flip"]:
+            changes.append("flip")
+        if rig_jump:
+            changes.append("khớp rig")
+        if start.get("attach") != end.get("attach"):
+            changes.append("attach")
+        changes.extend(k for k in continuous_values
+                       if not math.isclose(end[k], start[k], abs_tol=0.001))
+        if changes:
+            hint = (" Hiệu ứng/vật chỉ thuộc shot này có thể đặt scene_bound:true "
+                    "ở cả hai phase khi đổi camera." if cut and assets[old["asset"]]["kind"] == "objects" else "")
+            raise ValueError(f"{label}: trạng thái đầu {old['id']} khác cuối phase trước "
+                             f"({', '.join(changes)}).{hint}")
 
 
 def analyze_script(screenplay, output, ask=None):
     """Nhận chính text kịch bản, không sinh lại kịch bản trong bước này."""
     ask = ask or request_text
-    prompt = PLAN_PROMPT + screenplay
+    prompt = ART_DIRECTION + "\n\n" + PLAN_PROMPT + screenplay
     for attempt in range(1, 3):
         raw = ask(prompt)
         (output / f"plan_attempt_{attempt}.txt").write_text(raw, encoding="utf-8")
@@ -573,13 +768,13 @@ def analyze_script(screenplay, output, ask=None):
         except (ValueError, TypeError, KeyError) as error:
             if attempt == 2:
                 raise ValueError(f"Kế hoạch AI chưa hợp lệ: {error}. Xem plan_attempt_2.txt.") from error
-            prompt = (PLAN_PROMPT + screenplay + "\n\nJSON trước bị lỗi: " + str(error)
+            prompt = (ART_DIRECTION + "\n\n" + PLAN_PROMPT + screenplay + "\n\nJSON trước bị lỗi: " + str(error)
                       + "\nSửa JSON dưới đây, giữ nguyên kịch bản. Chỉ trả JSON đầy đủ:\n" + raw)
     raise AssertionError("unreachable")
 
 
 # Contract read from ../codex_server/server.py, GenerateRequest and /generate-image.
-PIPELINE_VERSION = "codex-cli-png-sheet-v2"
+PIPELINE_VERSION = "codex-cli-png-rig-v3"
 ALPHA_NOISE_FLOOR = 8
 VISUAL_LIMIT = ("Chỉ đạt kiểm tra kỹ thuật. Chưa xác minh ngoại hình, tỷ lệ cơ thể, đúng pose, "
                 "tay/socket, nền không lẫn sprite hoặc độ nhất quán mỹ thuật; cần xem ảnh và tua Phase 1.")
@@ -655,12 +850,18 @@ def read_png(data, size, transparent):
 
 def frame_info(image, label):
     # Nearly invisible alpha=1 pixels can be generation noise, rather than clipped artwork.
-    bounds = image.getchannel("A").point(lambda value: 255 if value >= ALPHA_NOISE_FLOOR else 0).getbbox()
-    if bounds is None:
-        raise ValueError(f"{label}: frame rỗng.")
+    bounds = source_bounds(image, label)
     left, top, right, bottom = bounds
     if left == 0 or top == 0 or right == image.width or bottom == image.height:
         raise ValueError(f"{label}: nội dung chạm biên, có thể bị cắt; cần sinh lại pose.")
+    return bounds
+
+
+def source_bounds(image, label):
+    """Locate source artwork before it is fitted into a final cell with margins."""
+    bounds = image.getchannel("A").point(lambda value: 255 if value >= ALPHA_NOISE_FLOOR else 0).getbbox()
+    if bounds is None:
+        raise ValueError(f"{label}: frame rỗng.")
     return list(bounds)
 
 
@@ -681,7 +882,7 @@ def png_info(data, asset):
             continue
         bounds = frame_info(cell, asset["poses"][index]) if transparent else [0, 0, width, height]
         anchor = asset.get("anchor", [0.5, 0.94])
-        if transparent and (abs(bounds[3] - round(height * anchor[1])) > 1
+        if transparent and asset.get("render_mode") != "rig" and (abs(bounds[3] - round(height * anchor[1])) > 1
                             or abs((bounds[0] + bounds[2]) / 2 - width * anchor[0]) > 1):
             raise ValueError(f"{asset['id']}: frame lệch điểm chân/đáy hoặc trục giữa.")
         frames.append({"pose": asset["poses"][index], "index": index, "bbox": bounds,
@@ -692,7 +893,7 @@ def png_info(data, asset):
 
 
 def image_prompt(plan, asset):
-    prompt = (f"Shared art direction and fixed designs:\n{plan['style']}\n\n{asset['prompt']}\n"
+    prompt = (f"Shared art direction and fixed designs:\n{ART_DIRECTION}\n{plan['style']}\n\n{asset['prompt']}\n"
               "Generate raster PNG artwork. No text, labels, watermark, borders or grid. ")
     if asset["kind"] == "backgrounds":
         excluded = ", ".join(a["id"] for a in plan["assets"] if a["kind"] != "backgrounds")
@@ -706,6 +907,14 @@ def image_prompt(plan, asset):
                 f"Reserve empty matching apertures/space for scene-bound sprites at these 16:9 stage placements: {json.dumps(placements)}. "
                 "Do not paint rain streaks, rainbow arcs or other animated weather overlays; "
                 "the HTML timeline adds those effects separately. A wet ground and overcast lighting are allowed.")
+    if asset.get("render_mode") == "rig":
+        return (prompt + f"Character bible: {json.dumps(asset.get('character_bible', {}), ensure_ascii=False)}. "
+                "Create one consistent transparent master character in the neutral bind pose. "
+                "Separate body parts from that same master at their joints, preserving overlapping artwork, "
+                "identity, scale and lighting. Save each part as an exact-size transparent PNG under "
+                f"assets/characters/{asset['id']}/<part_id>.png. Required parts: "
+                + json.dumps([{"id": p["id"], "size": p["size"]} for p in asset["parts"]]) + ". "
+                "This backend does not accept a reference image; review part consistency manually.")
     return sheet_prompt(plan, asset)
 
 def sheet_prompt(plan, asset):
@@ -723,7 +932,7 @@ def sheet_prompt(plan, asset):
             "Do not illustrate mini-scenes. Exactly one isolated subject in each cell, no companion, "
             "no pet, no umbrella or other handheld prop. No colored halo or leftover background pixels. "
             "Leave at least 8% entirely empty transparent padding around each pose within its own cell.")
-    return (f"Shared fixed art direction: {plan['style']}\n{asset['prompt']}\n"
+    return (f"Shared fixed art direction: {ART_DIRECTION}\n{plan['style']}\n{asset['prompt']}\n"
             f"Generate exactly one raster PNG sprite sheet, canvas {asset['size']} pixels. "
             f"Grid: {asset['columns']} equal columns by {asset['rows']} equal rows. "
             f"EXACT row-major pose order, left to right then top to bottom: {layout}. "
@@ -740,7 +949,7 @@ def sheet_prompt(plan, asset):
 
 def request_image(prompt, config, *, transparent):
     """Call codex_server's image route, never the text route or a direct OpenAI API."""
-    # GenerateRequest forbids all additional fields. The CLI model is not an image model ID.
+    # GenerateImageRequest accepts these fields. The CLI model is not an image model ID.
     payload = {"model": config["model"], "prompt": prompt +
                f"\nRendering detail preference: {config['quality']}. " +
                ("Real transparent PNG alpha is required." if transparent else
@@ -757,16 +966,47 @@ def request_image(prompt, config, *, transparent):
                          "Kiểm tra x-api-key, model CLI và công cụ image_generation trên server. "
                          "Không chuyển về SVG; chạy --resume để tiếp tục.") from error
     except (ValueError, UnicodeError) as error:
-        raise ValueError("codex_server phải trả JSON success/output_format/data[0].b64_json.") from error
+        raise ValueError("codex_server phải trả JSON chứa ảnh bitmap base64.") from error
     try:
-        if result["success"] is not True or result["output_format"] != "png" or len(result["data"]) != 1:
-            raise ValueError("codex_server phải trả success=true, output_format=png và đúng một ảnh.")
-        data = base64.b64decode(result["data"][0]["b64_json"], validate=True)
-        if not data.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise ValueError("codex_server trả dữ liệu không phải PNG.")
-        return data
+        if result["success"] is not True:
+            raise ValueError("codex_server không sinh ảnh thành công.")
+        if "data" in result:
+            if result["output_format"] != "png" or len(result["data"]) != 1:
+                raise ValueError("codex_server phải trả đúng một ảnh PNG.")
+            data = base64.b64decode(result["data"][0]["b64_json"], validate=True)
+        else:
+            encoded = result["result"]
+            mime_type = result["mime_type"]
+            prefix = f"data:{mime_type};base64,"
+            if not isinstance(encoded, str) or mime_type not in ("image/png", "image/jpeg", "image/webp", "image/gif") or not encoded.startswith(prefix):
+                raise ValueError("codex_server trả data URL ảnh không hợp lệ.")
+            data = base64.b64decode(encoded[len(prefix):], validate=True)
+        if data.startswith(b"\x89PNG\r\n\x1a\n"):
+            return data
+        image = generated_png_source(data, transparent)
+        stream = io.BytesIO()
+        image.save(stream, format="PNG")
+        return stream.getvalue()
     except (KeyError, IndexError, TypeError, binascii.Error) as error:
-        raise ValueError("codex_server không trả PNG base64 đúng schema /generate-image.") from error
+        raise ValueError("codex_server không trả ảnh base64 đúng schema /generate-image.") from error
+
+
+def generated_png_source(data, transparent):
+    """Convert a bitmap returned by codex_server to PNG, preserving alpha."""
+    Image = pillow_image()
+    try:
+        with Image.open(io.BytesIO(data)) as source:
+            source.load()
+            if source.format not in ("JPEG", "WEBP", "GIF"):
+                raise ValueError("codex_server trả dữ liệu không phải ảnh bitmap hỗ trợ.")
+            if transparent and "A" not in source.getbands() and "transparency" not in source.info:
+                raise ValueError("Sprite trả về thiếu alpha channel.")
+            image = source.convert("RGBA")
+            if transparent and image.getchannel("A").getextrema()[0] == 255:
+                raise ValueError("Sprite trả về không có pixel trong suốt.")
+            return image
+    except (OSError, SyntaxError) as error:
+        raise ValueError("codex_server trả dữ liệu không phải ảnh bitmap hợp lệ.") from error
 
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -775,8 +1015,173 @@ def digest(value):
 def asset_recipe(plan, asset, config):
     return {"pipeline": PIPELINE_VERSION, "config": config, "asset": asset,
             "prompt": image_prompt(plan, asset),
+            "art_direction": ART_DIRECTION,
             "normalization": "shared-cell-scale-align-base", "format": "png"}
 
+
+def rig_part_info(data, part):
+    image = read_png(data, part["size"], True)
+    return {"size": list(image.size), "bbox": frame_info(image, part["id"]),
+            "sha256": hashlib.sha256(data).hexdigest()}
+
+
+def rig_source_hashes(asset, output):
+    hashes = {}
+    for part in asset["parts"]:
+        path = output / rig_part_path(asset, part)
+        if not path.is_file():
+            raise ValueError(f"Thiếu PNG rig: {path}. Cần tách part từ một master và lưu tại đường dẫn này.")
+        data = path.read_bytes()
+        rig_part_info(data, part)
+        hashes[part["id"]] = hashlib.sha256(data).hexdigest()
+    return hashes
+
+
+def asset_fingerprint(plan, asset, config, output):
+    recipe = asset_recipe(plan, asset, config)
+    if asset.get("render_mode") == "rig":
+        recipe["part_sha256"] = rig_source_hashes(asset, output)
+    return digest(recipe)
+
+
+def affine_multiply(a, b):
+    return (a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1],
+            a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3],
+            a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5])
+
+
+def rig_sample(asset, clip, time, name, default):
+    if clip is None or name not in asset["clips"][clip]["channels"]:
+        return default
+    keys = asset["clips"][clip]["channels"][name]
+    duration = asset["clips"][clip]["duration"]
+    t = time % duration if asset["clips"][clip]["loop"] else min(time, duration)
+    for a, b in zip(keys, keys[1:]):
+        if a[0] <= t < b[0]:
+            ratio = (t-a[0])/(b[0]-a[0])
+            if asset["clips"][clip].get("channel_easing", {}).get(name) == "ease_in_out_cubic":
+                ratio = 4*ratio**3 if ratio < .5 else 1-(-2*ratio+2)**3/2
+            return a[1] if isinstance(a[1], bool) else a[1]+(b[1]-a[1])*ratio
+    return keys[0][1] if t < keys[0][0] else keys[-1][1]
+
+
+def rig_matrices(asset, clip=None, time=0):
+    """Part-local pixel to bind-canvas pixel, matching the browser's flat DOM."""
+    parts = {part["id"]: part for part in asset["parts"]}
+    matrices = {}
+    sample = lambda name, default: rig_sample(asset, clip, time, name, default)
+    def matrix(pid):
+        if pid in matrices:
+            return matrices[pid]
+        part = parts[pid]
+        parent = parts.get(part["parent"])
+        pw, ph = dimensions(parent["size"] if parent else asset["size"])
+        w, h = dimensions(part["size"])
+        angle = math.radians(sample(pid+".rotation", 0))
+        sx, sy = sample(pid+".scale_x", 1), sample(pid+".scale_y", 1)
+        rotate_scale = (math.cos(angle)*sx, math.sin(angle)*sx,
+                        -math.sin(angle)*sy, math.cos(angle)*sy, 0, 0)
+        ox = (part["offset"][0]+sample(pid+".x", 0))*pw
+        oy = (part["offset"][1]+sample(pid+".y", 0))*ph
+        local = affine_multiply((1, 0, 0, 1, ox, oy), affine_multiply(
+            rotate_scale, (1, 0, 0, 1, -part["pivot"][0]*w, -part["pivot"][1]*h)))
+        matrices[pid] = affine_multiply(matrix(parent["id"]), local) if parent else local
+        return matrices[pid]
+    for pid in parts:
+        matrix(pid)
+    return matrices
+
+
+def rig_clip_at(track, time):
+    frames = track["keyframes"]
+    index = max(i for i, frame in enumerate(frames) if frame["time"] <= time)
+    current = frames[index]
+    while (index > 0 and frames[index-1]["clip"] == current["clip"]
+           and frames[index-1]["clip_speed"] == current["clip_speed"]
+           and frames[index-1]["clip_start"] == current["clip_start"]):
+        index -= 1
+    return current["clip"], current["clip_start"] + (time-frames[index]["time"])*current["clip_speed"]
+
+
+def rig_socket(asset, track, name, time):
+    spec = asset["rig_sockets"][name]
+    part = next(part for part in asset["parts"] if part["id"] == spec["part"])
+    pw, ph = dimensions(part["size"])
+    aw, ah = dimensions(asset["size"])
+    clip, t = rig_clip_at(track, time)
+    a, b, c, d, tx, ty = rig_matrices(asset, clip, t)[part["id"]]
+    return [(a*spec["point"][0]*pw+c*spec["point"][1]*ph+tx)/aw,
+            (b*spec["point"][0]*pw+d*spec["point"][1]*ph+ty)/ah]
+
+
+def compose_rig(asset, output):
+    Image = pillow_image()
+    canvas = Image.new("RGBA", dimensions(asset["size"]))
+    matrices = rig_matrices(asset)
+    for part in sorted(asset["parts"], key=lambda item: item["z"]):
+        with Image.open(output / rig_part_path(asset, part)) as source:
+            image = source.convert("RGBA")
+        a, b, c, d, tx, ty = matrices[part["id"]]
+        det = a*d-b*c
+        inverse = (d/det, -c/det, (c*ty-d*tx)/det,
+                   -b/det, a/det, (b*tx-a*ty)/det)
+        layer = image.transform(canvas.size, Image.Transform.AFFINE, inverse, Image.Resampling.BICUBIC)
+        canvas.alpha_composite(layer)
+    stream = io.BytesIO()
+    canvas.save(stream, format="PNG")
+    data = stream.getvalue()
+    png_info(data, asset)
+    return data
+
+
+def write_rig_review(asset, output):
+    """Contact frames with joint/socket markers; appearance still needs a human review."""
+    Image = pillow_image()
+    from PIL import ImageDraw
+    folder = output / "rig_review" / asset["id"]
+    folder.mkdir(parents=True, exist_ok=True)
+    aw, ah = dimensions(asset["size"])
+    frames = []
+    for clip_name, clip in asset["clips"].items():
+        for index in range(5):
+            time = clip["duration"]*index/4
+            matrices = rig_matrices(asset, clip_name, time)
+            canvas = Image.new("RGBA", (aw, ah))
+            for part in sorted(asset["parts"], key=lambda item: item["z"]):
+                pid = part["id"]
+                if not rig_sample(asset, clip_name, time, pid+".visible", True):
+                    continue
+                with Image.open(output/rig_part_path(asset, part)) as source:
+                    image = source.convert("RGBA")
+                a, b, c, d, tx, ty = matrices[pid]
+                det = a*d-b*c
+                inverse = (d/det, -c/det, (c*ty-d*tx)/det,
+                           -b/det, a/det, (b*tx-a*ty)/det)
+                layer = image.transform(canvas.size, Image.Transform.AFFINE, inverse, Image.Resampling.BICUBIC)
+                opacity = rig_sample(asset, clip_name, time, pid+".opacity", 1)
+                if opacity < 1:
+                    layer.putalpha(layer.getchannel("A").point(lambda value: round(value*opacity)))
+                canvas.alpha_composite(layer)
+            draw = ImageDraw.Draw(canvas)
+            for part in asset["parts"]:
+                a, b, c, d, tx, ty = matrices[part["id"]]
+                pw, ph = dimensions(part["size"])
+                x, y = part["pivot"][0]*pw, part["pivot"][1]*ph
+                cx, cy = a*x+c*y+tx, b*x+d*y+ty
+                draw.ellipse((cx-3, cy-3, cx+3, cy+3), fill="red")
+            for socket in asset["rig_sockets"].values():
+                part = next(part for part in asset["parts"] if part["id"] == socket["part"])
+                pw, ph = dimensions(part["size"])
+                a, b, c, d, tx, ty = matrices[part["id"]]
+                x, y = socket["point"][0]*pw, socket["point"][1]*ph
+                cx, cy = a*x+c*y+tx, b*x+d*y+ty
+                draw.ellipse((cx-4, cy-4, cx+4, cy+4), outline="lime", width=2)
+            target = folder / f"{clip_name}_{index}.png"
+            canvas.save(target)
+            frames.append({"clip": clip_name, "time": time, "file": str(target.relative_to(output))})
+    (folder/"review.json").write_text(json.dumps({"asset": asset["id"], "frames": frames,
+        "note": "Dấu đỏ là pivot, vòng xanh là socket. Cần duyệt đường nét, màu và seam bằng mắt."},
+        ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
 def metadata_path(target):
     # SVG previously used <id>.meta.json; keep both its file and metadata intact.
     return target.with_suffix(".png.meta.json")
@@ -812,7 +1217,7 @@ def cached_asset(target, fingerprint, inspect):
 
 def load_asset(plan, asset, output, config):
     target = output / asset_path(asset)
-    data = cached_asset(target, digest(asset_recipe(plan, asset, config)), lambda data: png_info(data, asset))
+    data = cached_asset(target, asset_fingerprint(plan, asset, config, output), lambda data: png_info(data, asset))
     if data is None:
         raise ValueError(f"{asset_path(asset)}: file/metadata PNG thiếu, hỏng hoặc khác cấu hình/prompt; "
                          "chạy --resume --phase 1 để sinh lại. Cache SVG cũ không được dùng.")
@@ -823,7 +1228,7 @@ def normalize_pose(data, asset, config):
     Image = pillow_image()
     source = read_png(data, config["sprite_size"], True)
     source.putalpha(source.getchannel("A").point(lambda value: value if value >= ALPHA_NOISE_FLOOR else 0))
-    frame_info(source, asset["id"])
+    source_bounds(source, asset["id"])
     width, height = dimensions(asset["size"])
     width //= asset["columns"]
     height //= asset["rows"]
@@ -835,7 +1240,7 @@ def normalize_pose(data, asset, config):
         raise ValueError(f"{asset['id']}: anchor không đủ chỗ đặt sprite.")
     resized = source.resize((max(1, round(source.width * factor)), max(1, round(source.height * factor))),
                             Image.Resampling.LANCZOS)
-    left, top, right, bottom = frame_info(resized, asset["id"])
+    left, top, right, bottom = source_bounds(resized, asset["id"])
     x = round(width * anchor[0] - (left + right) / 2)
     y = round(height * anchor[1] - bottom)
     if x + left <= 0 or y + top <= 0 or x + right >= width or y + bottom >= height:
@@ -861,24 +1266,31 @@ def generated_png(data, transparent):
 def raw_sheet_info(data, asset):
     image = generated_png(data, True)
     columns, rows = asset["columns"], asset["rows"]
-    expected_width, expected_height = dimensions(asset["size"])
-    if (image.width % columns or image.height % rows
-            or not math.isclose(image.width / image.height, expected_width / expected_height, rel_tol=.02)):
-        raise ValueError(f"{asset['id']}: PNG nguồn sai tỷ lệ/lưới {columns}x{rows}; "
-                         "codex_server chưa có tham số size để bảo đảm lưới. Cần sinh lại ảnh.")
-    width, height = image.width // columns, image.height // rows
+    # The image tool chooses a supported canvas aspect ratio. The requested grid
+    # still works when each source cell is valid; normalization fits it to the
+    # plan's frame size without stretching individual poses.
+    if image.width // columns < 16 or image.height // rows < 16:
+        raise ValueError(f"{asset['id']}: ô PNG nguồn quá nhỏ cho lưới {columns}x{rows}.")
+    width, height = math.ceil(image.width / columns), math.ceil(image.height / rows)
     frames = []
     for index in range(columns * rows):
-        x, y = index % columns * width, index // columns * height
-        frame = image.crop((x, y, x + width, y + height))
+        bounds = source_cell_bounds(image.size, columns, rows, index)
+        frame = image.crop(bounds)
         if index >= len(asset["poses"]):
             # Apply the same noise floor as used poses; the final sheet leaves
             # unused cells entirely transparent instead of copying this noise.
             if frame.getchannel("A").point(lambda value: 255 if value >= ALPHA_NOISE_FLOOR else 0).getbbox() is not None:
                 raise ValueError(f"{asset['id']}: ô thừa không trong suốt.")
         else:
-            frames.append({"pose": asset["poses"][index], "bbox": frame_info(frame, asset["poses"][index])})
+            frames.append({"pose": asset["poses"][index], "bbox": source_bounds(frame, asset["poses"][index])})
     return {"size": list(image.size), "frame_size": [width, height], "frames": frames}
+
+
+def source_cell_bounds(size, columns, rows, index):
+    """Split tool-selected dimensions into cells, allowing one-pixel rounding."""
+    column, row = index % columns, index // columns
+    return (round(column * size[0] / columns), round(row * size[1] / rows),
+            round((column + 1) * size[0] / columns), round((row + 1) * size[1] / rows))
 
 
 def generate_assets(plan, output, phases, resume=False):
@@ -890,9 +1302,17 @@ def generate_assets(plan, output, phases, resume=False):
             continue
         target = output / asset_path(asset)
         recipe = asset_recipe(plan, asset, config)
-        fingerprint = digest(recipe)
+        fingerprint = asset_fingerprint(plan, asset, config, output)
         if resume and cached_asset(target, fingerprint, lambda data: png_info(data, asset)) is not None:
             print(f"  Dùng lại {asset_path(asset)}", flush=True)
+            if asset.get("render_mode") == "rig" and not (output/"rig_review"/asset["id"]/"review.json").is_file():
+                write_rig_review(asset, output)
+            continue
+        if asset.get("render_mode") == "rig":
+            data = compose_rig(asset, output)
+            save_cached(target, data, fingerprint, png_info(data, asset))
+            write_rig_review(asset, output)
+            print(f"  Ghép bind pose rig {asset['id']} từ PNG part có sẵn", flush=True)
             continue
         raw_target = target.parent / ".source" / target.name
         def inspect_raw(data):
@@ -916,15 +1336,13 @@ def generate_assets(plan, output, phases, resume=False):
         else:
             info = raw_sheet_info(data, asset)
             source = generated_png(data, True)
-            width, height = info["frame_size"]
             sheet = Image.new("RGBA", dimensions(asset["size"]))
             # Every cell shares the same size and normalization factor; no per-pose enlargement.
             for index, pose in enumerate(asset["poses"]):
-                x, y = index % asset["columns"] * width, index // asset["columns"] * height
-                frame = source.crop((x, y, x + width, y + height))
+                frame = source.crop(source_cell_bounds(source.size, asset["columns"], asset["rows"], index))
                 stream = io.BytesIO()
                 frame.save(stream, format="PNG")
-                frame = normalize_pose(stream.getvalue(), asset, {"sprite_size": f"{width}x{height}"})
+                frame = normalize_pose(stream.getvalue(), asset, {"sprite_size": f"{frame.width}x{frame.height}"})
                 sheet.alpha_composite(frame, (index % asset["columns"] * frame.width,
                                                index // asset["columns"] * frame.height))
         stream = io.BytesIO()
@@ -969,8 +1387,12 @@ def layout_state(phase, assets, tid, time, states=None, blend=True):
         binding = a["attach"]
         parent = layout_state(phase, assets, binding["track"], time, states)
         parent_track = tracks[binding["track"]]
-        sockets = {**assets[parent_track["asset"]]["sockets"], **parent_track["sockets"]}
-        socket = sockets[binding["socket"]][parent["pose"]]
+        parent_asset = assets[parent_track["asset"]]
+        sockets = {**parent_asset["sockets"], **parent_track["sockets"]}
+        if parent_asset.get("render_mode") == "rig" and binding["socket"] in parent_asset["rig_sockets"]:
+            socket = rig_socket(parent_asset, parent_track, binding["socket"], time)
+        else:
+            socket = sockets[binding["socket"]][parent["pose"]]
         same = b["attach"] and all(binding[k] == b["attach"][k] for k in ("track", "socket"))
         off = [mix(v, b["attach"]["offset"][i]) if same else v for i, v in enumerate(binding["offset"])]
         state["anchor"] = [mix(v, b["attach"]["anchor"][i]) if same else v for i, v in enumerate(binding["anchor"])]
@@ -999,6 +1421,46 @@ def layout_point(state, x, y):
     return state["x"]+a*dx+c*dy, state["y"]+b*dx+d*dy
 
 
+def rig_part_layers(asset, track, time, state, output):
+    """Yield transformed part images and world bounds for review and layout checks."""
+    Image = pillow_image()
+    aw, ah = dimensions(asset["size"])
+    clip, elapsed = rig_clip_at(track, time)
+    matrices = rig_matrices(asset, clip, elapsed)
+    for part in sorted(asset["parts"], key=lambda item: item["z"]):
+        pid = part["id"]
+        if not rig_sample(asset, clip, elapsed, pid+".visible", True):
+            continue
+        opacity = rig_sample(asset, clip, elapsed, pid+".opacity", 1)*state["opacity"]
+        if opacity <= 0:
+            continue
+        with Image.open(output/rig_part_path(asset, part)) as source:
+            image = source.convert("RGBA")
+        m = matrices[pid]
+        x0, y0 = layout_point(state, m[4]/aw, m[5]/ah)
+        a, b, c, d = state["matrix"]
+        transform = (a*state["width"]/aw*m[0]+c*state["height"]/ah*m[1],
+                     b*state["width"]/aw*m[0]+d*state["height"]/ah*m[1],
+                     a*state["width"]/aw*m[2]+c*state["height"]/ah*m[3],
+                     b*state["width"]/aw*m[2]+d*state["height"]/ah*m[3], x0, y0)
+        yield part, image, transform, opacity
+
+
+def transformed_bounds(image, transform):
+    box = image.getchannel("A").point(lambda value: 255 if value >= ALPHA_NOISE_FLOOR else 0).getbbox()
+    a, b, c, d, tx, ty = transform
+    points = [(a*x+c*y+tx, b*x+d*y+ty) for x in (box[0], box[2]) for y in (box[1], box[3])]
+    return min(x for x, _ in points), min(y for _, y in points), max(x for x, _ in points), max(y for _, y in points)
+
+
+def rig_world_bounds(asset, track, time, state, output):
+    boxes = [transformed_bounds(image, transform)
+             for _, image, transform, _ in rig_part_layers(asset, track, time, state, output)]
+    if not boxes:
+        return None
+    return min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)
+
+
 def inside_polygon(x, y, polygon):
     inside = False
     for a, b in zip(polygon, polygon[1:]+polygon[:1]):
@@ -1023,6 +1485,17 @@ def layout_snapshot(plan, phase, time, output, measurements):
         if state["opacity"] <= 0:
             continue
         asset = assets[track["asset"]]
+        if asset.get("render_mode") == "rig":
+            for part, frame, transform, opacity in rig_part_layers(asset, track, time, state, output):
+                a, b, c, d, tx, ty = transform
+                det = a*d-b*c
+                inverse = (d/det, -c/det, (c*ty-d*tx)/det,
+                           -b/det, a/det, (b*tx-a*ty)/det)
+                layer = frame.transform(canvas.size, Image.Transform.AFFINE, inverse, Image.Resampling.BICUBIC)
+                if opacity < 1:
+                    layer.putalpha(layer.getchannel("A").point(lambda value: round(value*opacity)))
+                canvas.alpha_composite(layer)
+            continue
         info = measurements[asset["id"]]
         fw, fh = info["frame_size"]
         index = asset["poses"].index(state["pose"])
@@ -1143,10 +1616,17 @@ def calibrate_layout(plan, output, phases):
                 state = layout_state(phase, assets, track["id"], time, states)
                 if state["opacity"] <= 0 or track["keyframes"][max(i for i, f in enumerate(track["keyframes"]) if f["time"] <= time)]["attach"]:
                     continue
-                info = measurements[track["asset"]]
-                box = next(f["bbox"] for f in info["frames"] if f["pose"] == state["pose"])
-                fw, fh = info["frame_size"]
-                x, y = layout_point(state, (box[0]+box[2])/2/fw, box[3]/fh)
+                asset = assets[track["asset"]]
+                if asset.get("render_mode") == "rig":
+                    bounds = rig_world_bounds(asset, track, time, state, output)
+                    if bounds is None:
+                        continue
+                    x, y = (bounds[0]+bounds[2])/2, bounds[3]
+                else:
+                    info = measurements[track["asset"]]
+                    box = next(f["bbox"] for f in info["frames"] if f["pose"] == state["pose"])
+                    fw, fh = info["frame_size"]
+                    x, y = layout_point(state, (box[0]+box[2])/2/fw, box[3]/fh)
                 if 0 <= x <= 1600 and 0 <= y <= 900 and not inside_polygon(x/16, y/9, staging["ground"][region]):
                     key = (track["id"], region)
                     if key not in seen:
@@ -1156,7 +1636,14 @@ def calibrate_layout(plan, output, phases):
             direction = track["geometry"].get("exit")
             if direction:
                 state = layout_state(phase, assets, track["id"], phase["duration"])
-                xs = [layout_point(state, x, y)[0] for x in (0, 1) for y in (0, 1)]
+                asset = assets[track["asset"]]
+                if asset.get("render_mode") == "rig":
+                    bounds = rig_world_bounds(asset, track, phase["duration"], state, output)
+                    xs = [bounds[0], bounds[2]] if bounds else []
+                else:
+                    xs = [layout_point(state, x, y)[0] for x in (0, 1) for y in (0, 1)]
+                if not xs:
+                    continue
                 if (direction == "right" and min(xs) < 1600) or (direction == "left" and max(xs) > 0):
                     entry["issues"].append(f"{track['id']}: chưa ra hết mép {direction} khi kết thúc.")
         proof_dir = output/"layout_review"/f"phase_{index+1}"
@@ -1175,10 +1662,10 @@ def calibrate_layout(plan, output, phases):
         validate_plan(calibrated)
     except ValueError as error:
         report["errors"].append(str(error))
-    (output/"layout_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n")
+    (output/"layout_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     if report["errors"]:
         raise ValueError("Hiệu chỉnh ảnh chưa đạt: " + "; ".join(report["errors"]) + ". Xem layout_report.json và layout_review/.")
-    (output/"scene_plan.calibrated.json").write_text(json.dumps(calibrated, ensure_ascii=False, indent=2)+"\n")
+    (output/"scene_plan.calibrated.json").write_text(json.dumps(calibrated, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     measured_count = sum(p["status"] != "legacy_unmeasured" for p in report["phases"])
     print(f"  Đã đo PNG; {measured_count} phase có hiệu chỉnh tỷ lệ/hình học. Xem layout_report.json, layout_review/.", flush=True)
     return calibrated, [calibrated["phases"][i] for i in selected], report
@@ -1199,8 +1686,9 @@ nav{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}a{color:#1a56b8}button{cu
 background:#224e98;color:white;border-radius:8px;padding:10px 20px;font:inherit}button:disabled{opacity:.5;cursor:wait}
 .stage{position:relative;aspect-ratio:16/9;overflow:hidden;isolation:isolate;background:#dce8ec;border-radius:14px}
 .scene-world{position:absolute;inset:0;isolation:isolate;will-change:transform}
-.background{position:absolute;width:100%;height:100%;object-fit:cover}.sprite{position:absolute;background-repeat:no-repeat;
+.background{position:absolute;width:100%;height:100%;object-fit:cover}.sprite,.actor-rig{position:absolute;background-repeat:no-repeat;
 transform-origin:50% 100%;will-change:transform,left,top}.weather{position:absolute;inset:0;pointer-events:none;z-index:1100}
+.rig-part{position:absolute;max-width:none;transform-origin:0 0;pointer-events:none}
 .drop{position:absolute;display:block;background:linear-gradient(transparent,#d4ecff);width:2px;transform:rotate(15deg)}
 .rainbow{position:absolute;left:42%;top:2%;width:53%;aspect-ratio:2/1;overflow:hidden;z-index:1;pointer-events:none}
 .rainbow:before{content:"";display:block;width:100%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,
@@ -1238,15 +1726,29 @@ for (const track of phase.tracks) {
   const asset = assets[track.asset];
   const element = document.createElement('div');
   const [width, height] = asset.size.split('x').map(Number);
-  element.className = 'sprite';
+  const rig = asset.render_mode === 'rig';
+  element.className = rig ? 'actor-rig' : 'sprite';
   element.dataset.actor = track.id;
   element.setAttribute('role', 'img');
   element.setAttribute('aria-label', track.id);
   element.style.width = `${track.layout?.width ?? track.width}%`;
   element.style.aspectRatio = `${width / asset.columns} / ${height / asset.rows}`;
   element.style.zIndex = track.z;
-  element.style.backgroundImage = `url("../${asset.file}")`;
-  element.style.backgroundSize = `${asset.columns * 100}% ${asset.rows * 100}%`;
+  if (rig) {
+    for (const part of [...asset.parts].sort((a,b) => a.z-b.z)) {
+      const image = document.createElement('img');
+      const [pw,ph] = part.size.split('x').map(Number);
+      image.className = 'rig-part'; image.dataset.part = part.id;
+      image.src = `../assets/characters/${asset.id}/${part.id}.png`;
+      image.alt = ''; image.style.width = `${pw/width*100}%`;
+      image.style.height = `${ph/height*100}%`;
+      image.style.zIndex = part.z;
+      element.appendChild(image);
+    }
+  } else {
+    element.style.backgroundImage = `url("../${asset.file}")`;
+    element.style.backgroundSize = `${asset.columns * 100}% ${asset.rows * 100}%`;
+  }
   world.appendChild(element);
   actors.set(track.id, element);
 }
@@ -1274,6 +1776,53 @@ const tracks = Object.fromEntries(phase.tracks.map(track => [track.id, track]));
 const multiply = (p, q) => [p[0]*q[0]+p[2]*q[1], p[1]*q[0]+p[3]*q[1],
                             p[0]*q[2]+p[2]*q[3], p[1]*q[2]+p[3]*q[3]];
 const vector = (m, x, y) => [m[0]*x+m[2]*y, m[1]*x+m[3]*y];
+const mulAffine = (p,q) => [p[0]*q[0]+p[2]*q[1],p[1]*q[0]+p[3]*q[1],
+  p[0]*q[2]+p[2]*q[3],p[1]*q[2]+p[3]*q[3],
+  p[0]*q[4]+p[2]*q[5]+p[4],p[1]*q[4]+p[3]*q[5]+p[5]];
+function rigState(track,asset,time) {
+  const {a,index} = segment(track.keyframes,time);
+  let start = index;
+  while (start > 0 && track.keyframes[start-1].clip === a.clip &&
+         track.keyframes[start-1].clip_speed === a.clip_speed &&
+         track.keyframes[start-1].clip_start === a.clip_start) start--;
+  const clip = asset.clips[a.clip], duration = clip.duration;
+  const elapsed = Math.max(0,a.clip_start+(time-track.keyframes[start].time)*a.clip_speed);
+  const t = clip.loop ? elapsed % duration : Math.min(elapsed,duration);
+  const sample = (name,defaultValue) => {
+    const keys = clip.channels[name];
+    if (!keys) return defaultValue;
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i=0;i<keys.length-1;i++) {
+      const p=keys[i], q=keys[i+1];
+      if (t < q[0]) {
+        let ratio=(t-p[0])/(q[0]-p[0]);
+        if (clip.channel_easing?.[name] === 'ease_in_out_cubic')
+          ratio=ratio<.5 ? 4*ratio*ratio*ratio : 1-Math.pow(-2*ratio+2,3)/2;
+        return typeof p[1] === 'boolean' ? p[1] : lerp(p[1],q[1],ratio);
+      }
+    }
+    return keys[keys.length-1][1];
+  };
+  const parts = Object.fromEntries(asset.parts.map(part => [part.id,part]));
+  const matrices = {}, visible = {};
+  const matrix = id => {
+    if (matrices[id]) return matrices[id];
+    const part=parts[id], parent=parts[part.parent];
+    const [pw,ph]=(parent?.size ?? asset.size).split('x').map(Number);
+    const [w,h]=part.size.split('x').map(Number);
+    const angle=sample(`${id}.rotation`,0)*Math.PI/180;
+    const sx=sample(`${id}.scale_x`,1), sy=sample(`${id}.scale_y`,1);
+    const origin=[1,0,0,1,(part.offset[0]+sample(`${id}.x`,0))*pw,
+                             (part.offset[1]+sample(`${id}.y`,0))*ph];
+    const rotation=[Math.cos(angle)*sx,Math.sin(angle)*sx,-Math.sin(angle)*sy,Math.cos(angle)*sy,0,0];
+    const local=mulAffine(origin,mulAffine(rotation,[1,0,0,1,-part.pivot[0]*w,-part.pivot[1]*h]));
+    matrices[id]=parent ? mulAffine(matrix(parent.id),local) : local;
+    visible[id]=sample(`${id}.visible`,true);
+    return matrices[id];
+  };
+  for (const part of asset.parts) matrix(part.id);
+  return {matrices,visible,sample};
+}
 function actorState(id, time, states, blendAttachments = true) {
   if (states.has(id)) return states.get(id);
   const track = tracks[id], asset = assets[track.asset];
@@ -1293,7 +1842,15 @@ function actorState(id, time, states, blendAttachments = true) {
     const parent = actorState(a.attach.track, time, states);
     const parentAsset = assets[tracks[a.attach.track].asset];
     const sockets = {...parentAsset.sockets,...tracks[a.attach.track].sockets};
-    const socket = sockets[a.attach.socket][parent.pose];
+    let socket;
+    if (parentAsset.render_mode === 'rig' && parentAsset.rig_sockets[a.attach.socket]) {
+      const binding=parentAsset.rig_sockets[a.attach.socket], part=parentAsset.parts.find(p=>p.id===binding.part);
+      const [pw,ph]=part.size.split('x').map(Number);
+      const [aw,ah]=parentAsset.size.split('x').map(Number);
+      const m=rigState(tracks[a.attach.track],parentAsset,time).matrices[part.id];
+      socket=[(m[0]*binding.point[0]*pw+m[2]*binding.point[1]*ph+m[4])/aw,
+              (m[1]*binding.point[0]*pw+m[3]*binding.point[1]*ph+m[5])/ah];
+    } else socket=sockets[a.attach.socket][parent.pose];
     const same = b.attach && a.attach.track === b.attach.track && a.attach.socket === b.attach.socket;
     const offset = a.attach.offset.map((v,i) => same ? lerp(v,b.attach.offset[i],ratio) : v);
     state.anchor = a.attach.anchor.map((v,i) => same ? lerp(v,b.attach.anchor[i],ratio) : v);
@@ -1340,7 +1897,18 @@ function renderAt(input) {
     element.style.opacity = state.opacity;
     element.style.transformOrigin = `${state.anchor[0]*100}% ${state.anchor[1]*100}%`;
     element.style.transform = `translate(${-state.anchor[0]*100}%, ${-state.anchor[1]*100}%) matrix(${state.matrix.join(',')},0,0)`;
-    element.style.backgroundPosition = `${asset.columns === 1 ? 0 : (frame % asset.columns) / (asset.columns - 1) * 100}% ${asset.rows === 1 ? 0 : Math.floor(frame / asset.columns) / (asset.rows - 1) * 100}%`;
+    if (asset.render_mode === 'rig') {
+      const [aw,ah]=asset.size.split('x').map(Number);
+      const rig=rigState(track,asset,time);
+      for (const image of element.children) {
+        const id=image.dataset.part, m=rig.matrices[id];
+        image.style.left=`${m[4]/aw*100}%`;
+        image.style.top=`${m[5]/ah*100}%`;
+        image.style.transform=`matrix(${m[0]},${m[1]},${m[2]},${m[3]},0,0)`;
+        image.style.opacity=rig.sample(`${id}.opacity`,1);
+        image.style.visibility=rig.visible[id] ? 'visible' : 'hidden';
+      }
+    } else element.style.backgroundPosition = `${asset.columns === 1 ? 0 : (frame % asset.columns) / (asset.columns - 1) * 100}% ${asset.rows === 1 ? 0 : Math.floor(frame / asset.columns) / (asset.rows - 1) * 100}%`;
     element.dataset.pose = pose;
   }
   rain.style.opacity = effect(phase.rain, time);
@@ -1380,17 +1948,20 @@ button.addEventListener('click', () => {
 });
 slider.addEventListener('input', () => { pause(); renderAt(slider.value); });
 renderAt(0);
-const sources = [...new Set([phase.background, ...phase.tracks.map(track => track.asset)])];
-window.previewReady = Promise.all(sources.map(id => new Promise((resolve, reject) => {
+const sources = [...new Set([phase.background, ...phase.tracks.map(track => track.asset)])]
+  .flatMap(id => assets[id].render_mode === 'rig' ? assets[id].parts.map(part =>
+    ({file:`assets/characters/${id}/${part.id}.png`,size:part.size})) :
+    [{file:assets[id].file,size:assets[id].size}]);
+window.previewReady = Promise.all(sources.map(source => new Promise((resolve, reject) => {
   const image = new Image();
   image.onload = () => {
-    const [width,height] = assets[id].size.split('x').map(Number);
+    const [width,height] = source.size.split('x').map(Number);
     if (image.naturalWidth !== width || image.naturalHeight !== height) {
-      reject(new Error(`Sai kích thước ${assets[id].file}`));
+      reject(new Error(`Sai kích thước ${source.file}`));
     } else resolve();
   };
-  image.onerror = () => reject(new Error(`Không tải được ${assets[id].file}`));
-  image.src = `../${assets[id].file}`;
+  image.onerror = () => reject(new Error(`Không tải được ${source.file}`));
+  image.src = `../${source.file}`;
 }))).then(() => { button.disabled = false; status.textContent = 'Sẵn sàng. Play hoặc kéo thanh thời gian.'; return true; })
   .catch(error => { status.textContent = error.message; return false; });
 """

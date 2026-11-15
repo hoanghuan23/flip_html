@@ -154,6 +154,21 @@ class SceneContinuityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "của door không liên tục"):
             validate_plan(self.plan)
 
+    def test_scene_bound_effect_can_restart_after_camera_cut(self):
+        plan = staged_plan()
+        effect = next(a for a in plan["assets"] if a["id"] == "umbrella")
+        effect["poses"] = ["still", "wave"]
+        effect["columns"] = 2
+        effect["size"] = "200x100"
+        first = next(t for t in plan["phases"][0]["tracks"] if t["id"] == "umbrella")
+        second = next(t for t in plan["phases"][1]["tracks"] if t["id"] == "umbrella")
+        first["scene_bound"] = second["scene_bound"] = True
+        second["keyframes"][0].update(pose="wave", opacity=.5)
+        validate_plan(plan)
+        second["scene_bound"] = False
+        with self.assertRaisesRegex(ValueError, "không liên tục"):
+            validate_plan(plan)
+
 
 IMAGE_ENV = {
     "IMAGE_API_BASE_URL": "http://127.0.0.1:8000/generate-image", "IMAGE_API_KEY": "server-test-key",
@@ -211,6 +226,139 @@ def staged_plan():
     return validate_plan(plan)
 
 
+def rig_plan():
+    plan = valid_plan()
+    girl = next(asset for asset in plan["assets"] if asset["id"] == "girl")
+    girl.update({"render_mode": "rig", "poses": ["rest"], "parts": [
+        {"id": "torso", "parent": None, "size": "40x40", "pivot": [0.5, 0.5],
+         "offset": [0.5, 0.6], "z": 10},
+        {"id": "head", "parent": "torso", "size": "20x20", "pivot": [0.5, 1],
+         "offset": [0.5, 0.2], "z": 20}],
+        "character_bible": {"character_id": "girl", "identity": "girl with coral jacket",
+                            "proportions": "large head, small body", "clothing": "coral jacket",
+                            "lighting": "soft left light", "reference_view": "side",
+                            "reference_height_m": 1.45, "palette": ["#FF7755"]},
+        "rig_sockets": {"hand": {"part": "head", "point": [0.5, 0.5]}},
+        "clips": {"idle": {"duration": 1, "loop": True,
+                           "channels": {"head.rotation": [[0, 0], [0.5, 30], [1, 0]]}}}})
+    for phase in plan["phases"]:
+        for track in phase["tracks"]:
+            if track["id"] == "girl":
+                for frame in track["keyframes"]:
+                    frame.pop("pose")
+                    frame["clip"] = "idle"
+    return validate_plan(plan)
+
+
+class RigTests(unittest.TestCase):
+    def test_rig_validates_hierarchy_and_channels(self):
+        plan = rig_plan()
+        rig = next(asset for asset in plan["assets"] if asset["id"] == "girl")
+        rig["parts"][1]["parent"] = "head"
+        with self.assertRaisesRegex(ValueError, "chu trình"):
+            validate_plan(plan)
+        rig["parts"][1]["parent"] = "torso"
+        rig["clips"]["idle"]["channels"] = {"head.invalid": [[0, 1]]}
+        with self.assertRaisesRegex(ValueError, "part/property"):
+            validate_plan(plan)
+
+    def test_rig_visibility_step_and_channel_easing(self):
+        plan = rig_plan()
+        rig = next(asset for asset in plan["assets"] if asset["id"] == "girl")
+        rig["clips"]["idle"]["channels"]["head.visible"] = [[0, True], [0.5, False], [1, True]]
+        rig["clips"]["idle"]["channel_easing"] = {"head.rotation": "ease_in_out_cubic"}
+        validate_plan(plan)
+        self.assertTrue(preview.rig_sample(rig, "idle", .49, "head.visible", True))
+        self.assertFalse(preview.rig_sample(rig, "idle", .5, "head.visible", True))
+        self.assertAlmostEqual(preview.rig_sample(rig, "idle", .125, "head.rotation", 0), 1.875)
+
+    def test_rig_composite_cache_and_deterministic_socket(self):
+        plan = rig_plan()
+        rig = next(asset for asset in plan["assets"] if asset["id"] == "girl")
+        track = plan["phases"][0]["tracks"][1]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            for part in rig["parts"]:
+                target = output / preview.rig_part_path(rig, part)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(png_bytes(preview.dimensions(part["size"])))
+            first = preview.asset_fingerprint(plan, rig, {}, output)
+            data = preview.compose_rig(rig, output)
+            self.assertEqual(preview.png_info(data, rig)["frame_count"], 1)
+            preview.write_rig_review(rig, output)
+            review = json.loads((output/"rig_review/girl/review.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(review["frames"]), 5)
+            self.assertTrue((output/review["frames"][2]["file"]).is_file())
+            start = preview.rig_socket(rig, track, "hand", 0)
+            middle = preview.rig_socket(rig, track, "hand", 0.5)
+            self.assertNotEqual(start, middle)
+            self.assertEqual(middle, preview.rig_socket(rig, track, "hand", 0.5))
+            target = output / preview.rig_part_path(rig, rig["parts"][1])
+            target.write_bytes(png_bytes((20, 20), color="red"))
+            self.assertNotEqual(first, preview.asset_fingerprint(plan, rig, {}, output))
+
+    def test_rig_browser_scrub_and_attachment_follow_joint(self):
+        import shutil
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("Node.js needed for JavaScript runtime verification")
+        plan = rig_plan()
+        phase = plan["phases"][0]
+        phase["tracks"] = [t for t in phase["tracks"] if t["id"] != "door"]
+        umbrella = next(t for t in phase["tracks"] if t["id"] == "umbrella")
+        for frame in umbrella["keyframes"]:
+            frame["attach"] = {"track": "girl", "socket": "hand", "anchor": [0.5, 0.8], "offset": [0, 0]}
+        config = {"phase": phase, "assets": [dict(a, file=preview.asset_path(a)) for a in plan["assets"]]}
+        harness = r'''
+const assert=require('node:assert/strict');
+const elements=new Map();
+function element(){return {style:{},dataset:{},children:[],disabled:true,
+  appendChild(e){this.children.push(e)},setAttribute(){},addEventListener(){}}}
+for(const id of ['stage','scene-data','time','clock','play','status','caption','rainbow','rain']) elements.set(id,element());
+elements.get('scene-data').textContent=JSON.stringify(CONFIG);
+global.document={getElementById:id=>elements.get(id),createElement:()=>element()};
+global.window={};global.Image=class {set src(v){this.naturalWidth=100;this.naturalHeight=100;queueMicrotask(()=>this.onload())}};
+global.requestAnimationFrame=()=>1;global.cancelAnimationFrame=()=>{};
+'''.replace("CONFIG", json.dumps(config))
+        checks = r'''
+const girl=actors.get('girl'),prop=actors.get('umbrella');
+assert.equal(girl.children.length,2);
+renderAt(0);const atZero=girl.children[1].style.transform,gripZero=prop.style.left;
+renderAt(.5);const atHalf=girl.children[1].style.transform,gripHalf=prop.style.left;
+assert.notEqual(atZero,atHalf);assert.notEqual(gripZero,gripHalf);
+renderAt(0);assert.equal(girl.children[1].style.transform,atZero);
+renderAt(.5);assert.equal(prop.style.left,gripHalf);
+'''
+        result = subprocess.run(["node", "-e", harness + preview.JAVASCRIPT + checks],
+                                capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_rig_pipeline_writes_preview_and_review(self):
+        plan = staged_plan()
+        source = rig_plan()
+        rig = next(asset for asset in source["assets"] if asset["id"] == "girl")
+        plan["assets"][3] = rig
+        for phase, source_phase in zip(plan["phases"], source["phases"]):
+            track = next(t for t in phase["tracks"] if t["id"] == "girl")
+            source_track = next(t for t in source_phase["tracks"] if t["id"] == "girl")
+            track["keyframes"] = copy.deepcopy(source_track["keyframes"])
+            track["geometry"]["reference_pose"] = "rest"
+        validate_plan(plan)
+        with tempfile.TemporaryDirectory() as directory, patch.dict("os.environ", IMAGE_ENV):
+            output = Path(directory)
+            for part in rig["parts"]:
+                path = output/preview.rig_part_path(rig, part)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(png_bytes(preview.dimensions(part["size"])))
+            with patch.object(preview, "request_image", side_effect=fake_image):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    preview.generate_assets(plan, output, plan["phases"])
+                    preview.write_preview(plan, output, [plan["phases"][0]])
+            self.assertTrue((output/"phase_1/index.html").is_file())
+            self.assertTrue((output/"rig_review/girl/review.json").is_file())
+            self.assertIn('"render_mode": "rig"',
+                          (output/"phase_1/index.html").read_text(encoding="utf-8"))
+
 class PngImageApiTests(unittest.TestCase):
     def setUp(self):
         self.environment = patch.dict("os.environ", IMAGE_ENV)
@@ -243,6 +391,14 @@ class PngImageApiTests(unittest.TestCase):
                 self.assertEqual(payload["model"],"gpt-5.6-luna")
                 self.assertIn("draw",payload["prompt"])
                 self.assertEqual(opened.call_args.kwargs["timeout"],660)
+
+    def test_codex_server_data_url_image_contract(self):
+        import base64
+        data = png_bytes()
+        response = {"success": True, "result": "data:image/png;base64," + base64.b64encode(data).decode(),
+                    "mime_type": "image/png", "session_id": "example-session"}
+        with patch.object(preview, "urlopen", return_value=io.BytesIO(json.dumps(response).encode())):
+            self.assertEqual(preview.request_image("draw", preview.image_config(), transparent=True), data)
 
     def test_missing_configuration_never_calls_text(self):
         with patch.dict("os.environ",{},clear=True),patch.object(preview,"request_text") as text_api:
@@ -364,9 +520,17 @@ class PngImageApiTests(unittest.TestCase):
         asset=valid_plan()["assets"][3]
         asset.update(size="200x100",columns=2,poses=["still","walk"])
         invalid=[png_sheet((200,100),2,1,["red"]),png_bytes((200,100),False),
-                 png_sheet((200,200),2,1,["red","blue"])]
+                 png_sheet((30,200),2,1,["red","blue"])]
         for data in invalid:
             with self.assertRaises(ValueError):preview.raw_sheet_info(data,asset)
+
+    def test_source_sheet_can_use_different_canvas_ratio(self):
+        asset=valid_plan()["assets"][3]
+        asset.update(size="200x100",columns=2,poses=["still","walk"])
+        info=preview.raw_sheet_info(png_sheet((201,200),2,1,["red","blue"]),asset)
+        self.assertEqual(info["frame_size"],[101,200])
+        self.assertEqual(preview.source_cell_bounds((201,200),2,1,0),(0,0,100,200))
+        self.assertEqual(preview.source_cell_bounds((201,200),2,1,1),(100,0,201,200))
 
     def test_invalid_cache_regenerates_and_svg_is_preserved(self):
         plan=valid_plan();phase=[plan["phases"][0]]
@@ -548,6 +712,17 @@ class StagingContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"vận tốc"):
             validate_plan(plan)
 
+    def test_static_motion_allows_fade_but_not_translation(self):
+        plan = staged_plan()
+        track = plan["phases"][0]["tracks"][1]
+        track["geometry"]["motion"] = "static"
+        track["keyframes"][-1]["opacity"] = .4
+        plan["phases"][1]["tracks"][0]["keyframes"][0]["opacity"] = .4
+        validate_plan(plan)
+        track["keyframes"][-1]["x"] += 1
+        with self.assertRaisesRegex(ValueError, "motion static"):
+            validate_plan(plan)
+
     def test_walking_left_requires_correct_facing(self):
         plan = staged_plan()
         track = plan["phases"][0]["tracks"][1]
@@ -564,6 +739,7 @@ class StagingContractTests(unittest.TestCase):
             result = preview.analyze_script("story",Path(directory),ask)
             self.assertEqual(ask.call_count,2)
             self.assertIn("staging",ask.call_args.args[0])
+            self.assertTrue(all(preview.ART_DIRECTION in call.args[0] for call in ask.call_args_list))
             self.assertIn("staging",result["phases"][0])
 
 

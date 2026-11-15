@@ -26,9 +26,7 @@ API_KEY = os.getenv("CODEX_API_TOKEN")
 MODEL = os.getenv("CODEX_MODEL")
 
 NOI_DUNG = """
-**Chủ đề: Vụ tai nạn tại ngã tư**
-Vào một buổi sáng đông đúc, một nam thanh niên điều khiển xe máy trên đường đến nơi làm việc. Khi đến ngã tư, anh cố vượt đèn vàng đúng lúc một chiếc ô tô bắt đầu rẽ trái. Hai phương tiện va chạm khiến người đi xe máy ngã xuống đường.
-Những người xung quanh nhanh chóng chạy đến giúp đỡ, gọi cấp cứu và cảnh báo các phương tiện khác. Lực lượng chức năng sau đó có mặt để xử lý hiện trường.
+Dòng chảy xa bờ (tiếng Anh là rip current, thường được ngư dân gọi là dòng xoáy hay ao xoáy) là một dòng nước mạnh, hẹp chảy từ phía bờ biển hướng ngược thẳng ra ngoài khơi.
 """
 
 PROMPT = """

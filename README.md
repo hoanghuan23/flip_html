@@ -14,7 +14,7 @@ AI giữ nội dung, số phase, thứ tự và thời lượng kịch bản. K�
 pose, socket, chu trình track cha/con và trạng thái nối phase; nếu sai, AI sửa một lần.
 `image_prompts.json` lưu prompt ảnh, kích thước sheet, lưới, thứ tự pose và điểm neo.
 
-Adapter được viết theo `../codex_server/server.py`: `GenerateRequest` và `generate_image()`.
+Adapter được viết theo `../codex_server/server.py`: `GenerateRequest`, `GenerateImageRequest` và `generate_image()`.
 API văn bản `/generate` và API ảnh `/generate-image` là hai route riêng, cùng nhận JSON
 `{"prompt":"...","model":"..."}` và header `x-api-key`. Không gửi thêm trường vì server dùng
 `extra="forbid"`. `request_text()` chỉ dùng cho kịch bản và Scene Plan, không dùng để vẽ ảnh.
@@ -38,10 +38,10 @@ không phải OpenAI API key. `IMAGE_MODEL` là model **Codex CLI**, truyền ng
 không có danh sách bắt buộc model `gpt-image-*`, không tự đổi model và không gọi trực tiếp OpenAI Images API.
 Thiếu cấu hình ảnh thì dừng trước khi gọi AI, không quay lại SVG.
 
-Server chạy Codex CLI đã đăng nhập với `image_generation`, yêu cầu dùng `$imagegen`,
-đọc `output.png` và trả `{"success":true,"output_format":"png","data":[{"b64_json":"..."}]}`.
-Client giải mã PNG rồi kiểm tra dữ liệu thực. Thời gian chờ client là 660 giây, cao hơn
-600 giây của server. Lỗi API được báo cùng HTTP status; dùng `--resume` để tiếp tục.
+Server chạy Codex CLI đã đăng nhập với `image_generation` và trả
+`{"success":true,"result":"data:image/png;base64,...","mime_type":"image/png","session_id":"..."}`.
+Client nhận PNG/JPEG/WebP/GIF bitmap, chuẩn hóa thành PNG rồi kiểm tra dữ liệu thực; sprite phải có alpha.
+Client chờ tối đa 660 giây cho mỗi ảnh. Lỗi API được báo cùng HTTP status; dùng `--resume` để tiếp tục.
 
 Server hiện **chưa có input ảnh tham chiếu, tham số size/quality/background hoặc edit API**.
 Kích thước, độ chi tiết và nền trong suốt chỉ được yêu cầu trong prompt, rồi kiểm tra sau khi nhận ảnh.
@@ -68,11 +68,11 @@ server cần bổ sung hợp đồng nhận ảnh trước; chương trình này
 
 Python kiểm tra lưới PNG nguồn, cắt từng ô và ghép lại theo thứ tự `poses` từ trái sang phải, trên xuống dưới.
 Mỗi ô dùng cùng hệ số resize theo canvas; không phóng lớn riêng tư thế cúi. Nội dung được dịch về trục giữa
-và điểm chân/đáy `anchor`, giữ nguyên tỷ lệ ảnh. Nguồn có thể có độ phân giải khác kích thước sheet cuối,
-nhưng phải chia hết cho số hàng/cột và có đúng tỷ lệ lưới. Nền được resize/crop theo tâm để khớp kích thước plan.
+và điểm chân/đáy `anchor`, giữ nguyên tỷ lệ ảnh. Nguồn có thể có kích thước và tỷ lệ khác sheet cuối;
+ranh giới ô được làm tròn theo lưới và từng pose được kiểm tra riêng. Nền được resize/crop theo tâm để khớp kích thước plan.
 
 Trước khi dùng asset: giải mã PNG tĩnh, kiểm tra kích thước, alpha thực, frame không rỗng,
-nội dung không chạm biên, số ô, kích thước ô, thứ tự chỉ số pose, điểm chân/đáy và ô thừa trong suốt.
+nội dung không chạm biên ở sheet cuối, số ô, kích thước ô, thứ tự chỉ số pose, điểm chân/đáy và ô thừa trong suốt.
 Pixel alpha dưới 8/255 được coi là nhiễu gần vô hình khi xác định biên và kiểm tra ô thừa trong PNG nguồn;
 chuẩn hóa loại nhiễu này, giữ alpha của phần còn lại. Ô thừa trong sheet cuối luôn hoàn toàn trong suốt.
 **Các kiểm tra kỹ thuật không chứng minh chất lượng đồ họa.** Chương trình chưa nhận diện được đúng pose,

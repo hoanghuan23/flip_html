@@ -1,0 +1,453 @@
+{
+  "title": "Dòng chảy xa bờ: hiểu để thoát hiểm",
+  "total_duration": 15.0,
+  "style": {
+    "palette": {
+      "deep_water": "#155E75",
+      "shallow_water": "#2A9D8F",
+      "wave_foam": "#F5F2E8",
+      "sand": "#E8C07D",
+      "character": "#F26B5E",
+      "warning": "#F4A261",
+      "text": "#17324D"
+    },
+    "font": "Arial Rounded MT Bold, Arial, sans-serif",
+    "notes": "Flat 2D top-down, màu đặc, không viền đen, không gradient phức tạp, không texture. Nền phủ kín toàn bộ canvas 1920x1080."
+  },
+  "assets": [
+    {
+      "id": "BG_01",
+      "category": "background",
+      "name": "Bản đồ bờ biển cố định",
+      "description": "SVG nền phủ kín 1920x1080: biển nước sâu màu deep_water từ y=0 đến khoảng y=660, dải nước nông màu shallow_water từ y=660 đến y=800, cát màu sand từ y=800 đến y=1080. Bờ biển nằm ngang ở phần dưới, không có vùng trong suốt."
+    },
+    {
+      "id": "RIP_01",
+      "category": "object",
+      "name": "Dải dòng chảy xa bờ",
+      "description": "SVG dải nước hẹp liền mạch ở giữa khung, rộng khoảng 130 đơn vị, hơi thuôn, chạy từ sát bờ tại y=800 lên khơi đến y=180, tâm x=960, cắt qua vùng sóng yếu. Màu shallow_water, không viền, giữ nguyên hình dạng và vị trí ở mọi phase; chỉ thay đổi opacity để tăng độ rõ."
+    },
+    {
+      "id": "WAVE_01",
+      "category": "effect",
+      "name": "Vùng sóng ven bờ",
+      "description": "SVG gồm ba dải bọt sóng ngang màu wave_foam ở khoảng y=700, y=740 và y=775, mỗi dải bị ngắt tại vùng trung tâm x=880 đến x=1040 để biểu thị nơi sóng yếu. Các dải giữ nguyên bố cục, chỉ chuyển động nhẹ lặp lại."
+    },
+    {
+      "id": "ARROW_01",
+      "category": "ui",
+      "name": "Mũi tên hướng dòng",
+      "description": "SVG mũi tên mảnh màu text, đặt dọc theo tâm dòng chảy từ y=610 hướng lên y=300, đầu mũi tên chỉ ra khơi. Đây chỉ là lớp chú thích, không thay thế dải RIP_01."
+    },
+    {
+      "id": "C_01",
+      "category": "character",
+      "name": "Mẫu người bơi top-down",
+      "description": "Một SVG nhân vật duy nhất nhìn từ trên xuống: đầu tròn, thân bầu dục, hai tay và hai chân là bốn viên nang cùng màu character và cùng tỷ lệ, mặt tối giản bằng hai chấm màu text. Mọi tư thế chỉ thay đổi bằng xoay, dịch chuyển hoặc co giãn các bộ phận của cùng mẫu, không vẽ lại nhân vật."
+    },
+    {
+      "id": "WARN_01",
+      "category": "ui",
+      "name": "Biểu tượng cảnh báo",
+      "description": "SVG hình tròn phẳng màu warning, bên trong là dấu chấm than màu text, kích thước khoảng 70 đơn vị, đặt gần nhân vật khi nhân vật đang gặp nguy hiểm."
+    },
+    {
+      "id": "CAP_01",
+      "category": "ui",
+      "name": "Caption tiếng Việt",
+      "description": "Lớp chữ SVG hoặc text-rendered UI màu text, căn giữa ở vùng trên cùng canvas, cỡ lớn dễ đọc, tối đa một dòng ngắn cho mỗi phase."
+    }
+  ],
+  "phases": [
+    {
+      "id": 1,
+      "name": "Hook: bị kéo ra khơi",
+      "duration": 2.0,
+      "branch_from": null,
+      "narration": "Vì sao bị kéo ra khơi?",
+      "caption": "Vì sao bị kéo ra khơi?",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "static",
+        "detail": "Toàn cảnh bản đồ bờ biển cố định; nhân vật ở gần cửa dòng chảy giữa vùng sóng yếu."
+      },
+      "initial_state": "BG_01, RIP_01 và WAVE_01 đã hiện đầy đủ. C_01 ở x=760,y=690, ngoài mép trái dải dòng; ARROW_01 mờ; WARN_01 ẩn.",
+      "final_state": "C_01 ở x=930,y=650, tiến vào mép dải RIP_01; ARROW_01 hiện rõ; bản đồ và dải dòng không đổi.",
+      "actions": [
+        {
+          "target": "C_01",
+          "type": "move",
+          "from": {
+            "x": 760,
+            "y": 690
+          },
+          "to": {
+            "x": 930,
+            "y": 650
+          },
+          "start": 0.0,
+          "end": 1.8,
+          "easing": "easeInOut",
+          "note": "Di chuyển ngắn vào cửa dòng chảy, vẫn giữ tư thế bơi top-down."
+        },
+        {
+          "target": "ARROW_01",
+          "type": "fade",
+          "from": {
+            "opacity": 0.0
+          },
+          "to": {
+            "opacity": 1.0
+          },
+          "start": 0.2,
+          "end": 0.8,
+          "easing": "easeInOut",
+          "note": "Làm rõ hướng ra khơi sau khi câu hỏi hook xuất hiện."
+        },
+        {
+          "target": "WAVE_01",
+          "type": "loop",
+          "from": {
+            "offsetY": 0
+          },
+          "to": {
+            "offsetY": 10
+          },
+          "start": 0.0,
+          "end": 2.0,
+          "easing": "linear",
+          "note": "Sóng ven bờ chuyển động nhẹ lặp lại."
+        }
+      ],
+      "sound": "Âm nước biển ngắn, có nhịp hút nhẹ."
+    },
+    {
+      "id": 2,
+      "name": "Sóng đẩy nước vào bờ",
+      "duration": 2.5,
+      "branch_from": null,
+      "narration": "Sóng liên tục đẩy nước vào bờ.",
+      "caption": "Sóng đẩy nước vào bờ",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "static",
+        "detail": "Giữ nguyên toàn cảnh; các dải bọt sóng chuyển động nhẹ về phía cát."
+      },
+      "initial_state": "C_01 ở x=930,y=650 tại mép RIP_01; ARROW_01 hiện; WARN_01 ẩn; BG_01, RIP_01 và WAVE_01 giữ nguyên vị trí.",
+      "final_state": "C_01 vẫn ở x=930,y=650; các dải WAVE_01 hoàn tất một nhịp chuyển động hướng vào bờ; các asset khác không đổi.",
+      "actions": [
+        {
+          "target": "WAVE_01",
+          "type": "loop",
+          "from": {
+            "offsetY": 0
+          },
+          "to": {
+            "offsetY": 18
+          },
+          "start": 0.0,
+          "end": 2.5,
+          "easing": "linear",
+          "note": "Tạo cảm giác sóng liên tục đẩy nước xuống phía bờ cát."
+        }
+      ],
+      "sound": "Nhịp sóng đều, hơi dồn vào bờ."
+    },
+    {
+      "id": 3,
+      "name": "Nước dồn qua lối hẹp",
+      "duration": 3.0,
+      "branch_from": null,
+      "narration": "Nước dồn qua lối hẹp, chảy mạnh ra khơi.",
+      "caption": "Dồn qua lối hẹp, chảy ra khơi",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "static",
+        "detail": "Làm rõ vùng sóng yếu ở giữa và dải RIP_01 liền mạch chạy từ bờ ra khơi."
+      },
+      "initial_state": "C_01 ở x=930,y=650, sát cửa RIP_01; RIP_01 opacity=0.7; ARROW_01 hiện; WARN_01 ẩn.",
+      "final_state": "C_01 ở x=960,y=420, bị kéo dọc theo tâm RIP_01; RIP_01 opacity=1.0 nhưng hình dạng và vị trí không đổi.",
+      "actions": [
+        {
+          "target": "RIP_01",
+          "type": "fade",
+          "from": {
+            "opacity": 0.7
+          },
+          "to": {
+            "opacity": 1.0
+          },
+          "start": 0.0,
+          "end": 1.0,
+          "easing": "easeInOut",
+          "note": "Tăng độ rõ của cùng một dải dòng, không đổi hình hoặc vị trí."
+        },
+        {
+          "target": "C_01",
+          "type": "move",
+          "from": {
+            "x": 930,
+            "y": 650
+          },
+          "to": {
+            "x": 960,
+            "y": 420
+          },
+          "start": 0.8,
+          "end": 2.8,
+          "easing": "linear",
+          "note": "Nhân vật trôi nhanh ra khơi theo dải RIP_01."
+        },
+        {
+          "target": "WAVE_01",
+          "type": "loop",
+          "from": {
+            "offsetY": 0
+          },
+          "to": {
+            "offsetY": 12
+          },
+          "start": 0.0,
+          "end": 3.0,
+          "easing": "linear",
+          "note": "Giữ chuyển động sóng nhẹ ở hai bên vùng dòng."
+        }
+      ],
+      "sound": "Âm nước tăng lực, thêm tiếng hút nước trầm."
+    },
+    {
+      "id": 4,
+      "name": "Nguy hiểm: hoảng sợ và kiệt sức",
+      "duration": 3.5,
+      "branch_from": null,
+      "narration": "Dòng chảy kéo người ra xa; bơi ngược dễ kiệt sức.",
+      "caption": "Bơi ngược dòng dễ kiệt sức",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "static",
+        "detail": "Toàn cảnh vẫn giữ bờ phía dưới, biển phía trên và nhân vật ở xa bờ trong RIP_01."
+      },
+      "initial_state": "C_01 ở x=960,y=420 trong RIP_01, tư thế bơi bình thường; RIP_01 rõ; ARROW_01 hiện; WARN_01 ẩn.",
+      "final_state": "C_01 ở x=960,y=250, vẫn nằm trong RIP_01, tư thế căng thẳng; WARN_01 hiện rõ cạnh nhân vật; các asset bản đồ không đổi.",
+      "actions": [
+        {
+          "target": "C_01",
+          "type": "move",
+          "from": {
+            "x": 960,
+            "y": 420
+          },
+          "to": {
+            "x": 960,
+            "y": 250
+          },
+          "start": 0.0,
+          "end": 2.0,
+          "easing": "linear",
+          "note": "Tiếp tục kéo nhân vật ra xa bờ theo dòng."
+        },
+        {
+          "target": "C_01",
+          "type": "morph",
+          "from": {
+            "pose": "bơi bình thường"
+          },
+          "to": {
+            "pose": "hoảng sợ, tay chân xoay lệch và co giật nhẹ"
+          },
+          "start": 1.5,
+          "end": 3.2,
+          "easing": "easeInOut",
+          "note": "Chỉ xoay và co giãn các bộ phận của C_01, không tạo mẫu nhân vật mới."
+        },
+        {
+          "target": "WARN_01",
+          "type": "fade",
+          "from": {
+            "opacity": 0.0
+          },
+          "to": {
+            "opacity": 1.0
+          },
+          "start": 0.7,
+          "end": 1.3,
+          "easing": "easeInOut",
+          "note": "Biểu tượng chỉ xuất hiện khi nguy hiểm được nhấn mạnh."
+        },
+        {
+          "target": "WAVE_01",
+          "type": "loop",
+          "from": {
+            "offsetY": 0
+          },
+          "to": {
+            "offsetY": 10
+          },
+          "start": 0.0,
+          "end": 3.5,
+          "easing": "linear",
+          "note": "Sóng vẫn chuyển động ở hai bên dòng."
+        }
+      ],
+      "sound": "Nhạc căng thẳng ngắn, nhịp tim nhẹ."
+    },
+    {
+      "id": 5,
+      "name": "Thoát hiểm: bình tĩnh rồi bơi ngang",
+      "duration": 2.0,
+      "branch_from": null,
+      "narration": "Bình tĩnh, bơi song song với bờ.",
+      "caption": "Bình tĩnh, bơi song song với bờ",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "static",
+        "detail": "Giữ nguyên bản đồ; nhân vật rời khỏi dải RIP_01 theo phương ngang rồi hướng về bờ."
+      },
+      "initial_state": "C_01 ở x=960,y=250 trong RIP_01 với tư thế hoảng sợ; WARN_01 hiện; ARROW_01 hiện.",
+      "final_state": "C_01 ở x=1180,y=650, ngoài RIP_01 và gần vùng nước nông, tư thế bình tĩnh hướng về bờ; WARN_01 đã biến mất; ARROW_01 vẫn là chú thích nhỏ.",
+      "actions": [
+        {
+          "target": "WARN_01",
+          "type": "fade",
+          "from": {
+            "opacity": 1.0
+          },
+          "to": {
+            "opacity": 0.0
+          },
+          "start": 0.0,
+          "end": 0.35,
+          "easing": "easeInOut",
+          "note": "Biểu tượng cảnh báo biến mất trước khi nhân vật bơi bình tĩnh."
+        },
+        {
+          "target": "C_01",
+          "type": "morph",
+          "from": {
+            "pose": "hoảng sợ"
+          },
+          "to": {
+            "pose": "bình tĩnh, thân và tay chân thẳng theo hướng bơi"
+          },
+          "start": 0.35,
+          "end": 0.8,
+          "easing": "easeInOut",
+          "note": "Thể hiện giữ bình tĩnh trước mọi chuyển động bơi."
+        },
+        {
+          "target": "C_01",
+          "type": "move",
+          "from": {
+            "x": 960,
+            "y": 250
+          },
+          "to": {
+            "x": 1180,
+            "y": 250
+          },
+          "start": 0.8,
+          "end": 1.25,
+          "easing": "linear",
+          "note": "Bơi song song với bờ để ra khỏi dải dòng."
+        },
+        {
+          "target": "C_01",
+          "type": "move",
+          "from": {
+            "x": 1180,
+            "y": 250
+          },
+          "to": {
+            "x": 1180,
+            "y": 650
+          },
+          "start": 1.25,
+          "end": 2.0,
+          "easing": "easeInOut",
+          "note": "Sau khi ra ngoài dòng, bơi dần về phía bờ."
+        }
+      ],
+      "sound": "Nhạc dịu xuống, tiếng nước đều và ổn định."
+    },
+    {
+      "id": 6,
+      "name": "Nếu không thoát được",
+      "duration": 2.0,
+      "branch_from": 4,
+      "narration": "Không thoát? Nổi, vẫy tay, kêu cứu.",
+      "caption": "Không thoát? Nổi, vẫy tay, kêu cứu",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "static",
+        "detail": "Nhánh lựa chọn quay lại bằng dissolve về snapshot cuối phase 4: nhân vật vẫn ở giữa RIP_01, chưa bơi thoát; điều kiện không thoát được được đọc trước khi đổi tư thế cứu hộ."
+      },
+      "initial_state": "Dissolve về trạng thái phase 4: C_01 ở x=960,y=250 trong RIP_01, tư thế hoảng sợ; WARN_01 hiện; RIP_01 rõ; phase 5 không xảy ra trong nhánh này.",
+      "final_state": "C_01 vẫn ở x=960,y=250 trong RIP_01 nhưng chuyển sang tư thế nổi, một tay vẫy và mặt hướng lên; WARN_01 biến mất để không nằm sau thông điệp cầu cứu.",
+      "actions": [
+        {
+          "target": "CAP_01",
+          "type": "fade",
+          "from": {
+            "opacity": 0.0
+          },
+          "to": {
+            "opacity": 1.0
+          },
+          "start": 0.0,
+          "end": 0.3,
+          "easing": "easeInOut",
+          "note": "Hiển thị điều kiện không thoát được trước khi đổi tư thế."
+        },
+        {
+          "target": "C_01",
+          "type": "morph",
+          "from": {
+            "pose": "hoảng sợ"
+          },
+          "to": {
+            "pose": "nổi ngửa, thân ngang, một tay vẫy và chân thả lỏng"
+          },
+          "start": 0.5,
+          "end": 1.2,
+          "easing": "easeInOut",
+          "note": "Dùng chính C_01, chỉ xoay và dịch chuyển các bộ phận để thể hiện nổi và vẫy tay."
+        },
+        {
+          "target": "C_01",
+          "type": "loop",
+          "from": {
+            "bob": 0
+          },
+          "to": {
+            "bob": 8
+          },
+          "start": 1.2,
+          "end": 2.0,
+          "easing": "easeInOut",
+          "note": "Lặp nhịp nổi nhẹ trên mặt nước trong khi kêu cứu."
+        },
+        {
+          "target": "WARN_01",
+          "type": "fade",
+          "from": {
+            "opacity": 1.0
+          },
+          "to": {
+            "opacity": 0.0
+          },
+          "start": 1.2,
+          "end": 1.5,
+          "easing": "easeInOut",
+          "note": "Ẩn cảnh báo khi ý nghĩa hình ảnh đã chuyển sang hành động cầu cứu."
+        }
+      ],
+      "sound": "Nhạc dừng, giữ tiếng nước và một tiếng gọi cứu hộ rõ."
+    }
+  ]
+}
