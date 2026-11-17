@@ -193,9 +193,26 @@ chương trình chèn thư viện bên dưới. Tái sử dụng nhân vật/đ�
 Mỗi asset được nhắc đến trong actions phải có <use>, kể cả khi opacity=0.
 Background ở dưới cùng; các lớp còn lại theo vị trí không gian và điểm tương tác,
 đảm bảo bộ phận đang giải thích không bị che. Được vẽ thêm mũi tên và nhãn
-tối đa 3 từ trong artwork để làm rõ ý Plan, không thêm vật thể ngoài câu chuyện.
+trong artwork để làm rõ ý Plan, không thêm vật thể ngoài câu chuyện.
 Ưu tiên nền ít tương phản, chủ thể rõ khối, hiệu ứng gắn vùng tác động và chú giải
 dễ đọc; bóng/gradient đã nằm trong thư viện, không phủ thêm hiệu ứng che cấu tạo.
+
+CHÚ GIẢI THÀNH PHẦN
+- Chủ động chú giải các thành phần và quá trình cần nhận diện để hiểu phase,
+  theo đúng tên gọi và nội dung Plan; tránh gắn nhãn cho mọi chi tiết trang trí.
+- Không giới hạn số từ trong nhãn. Viết đủ nghĩa, dễ hiểu; nhãn dài được ngắt
+  dòng bằng tspan và nới hộp theo chữ, không cắt chữ hoặc thu chữ quá nhỏ.
+- Dùng hộp chữ bo góc, nền sáng, viền mảnh và chữ đậm tương phản rõ. Màu hộp,
+  viền và đường dẫn theo palette, có thể dùng sắc ấm/lạnh để liên hệ với đối tượng.
+  Giữ font, cỡ chữ và kiểu hộp nhất quán giữa các phase, đủ đọc trên màn hình nhỏ.
+- Nối mép hộp với đúng bộ phận hoặc vùng cần giải thích bằng đường dẫn mảnh,
+  thẳng hoặc gấp khúc, có đầu mũi tên rõ ở phía đối tượng. Phân biệt đường chú
+  giải với mũi tên biểu diễn chuyển động hoặc tác động; không để đường xuyên chữ.
+- Đặt hộp trong khoảng trống của vùng y=0..792, chừa đệm quanh chữ; tránh chồng
+  nhãn, giao cắt đường dẫn hoặc che chủ thể, vùng tương tác và dải caption.
+- Cho chú giải xuất hiện cùng nội dung liên quan và ẩn khi đối tượng biến mất.
+  Khi đối tượng chuyển động hoặc đổi pose, giữ đầu chỉ dẫn gắn đúng vùng đích
+  trong toàn khoảng hiển thị bằng wrapper/animation phù hợp, không chỉ ở khung đầu.
 
 DÀN CẢNH VÀ DIỄN BIẾN
 Đọc name, caption, narration, trạng thái và actions để xác định ý chính của phase.
