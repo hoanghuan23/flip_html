@@ -3,12 +3,48 @@ Luồng kịch bản → AI phân tích → Scene Plan → PNG nền/sprite shee
 - `analyze_text.py`: sinh và in kịch bản AI. Sửa `NOI_DUNG` hoặc dùng `--input noi_dung.txt`.
 - `generate_preview.py`: đọc kịch bản đã lưu, phân tích timeline, gọi `codex_server` sinh PNG và dựng HTML. Cần Pillow để kiểm tra, chuẩn hóa và ghép PNG; `--plan-only` chỉ cần thư viện chuẩn.
 
-Luồng SVG dùng `plant_kurzge.py`, `generate_kurzge.py` và `flat_motion_ai.py`,
-độc lập với luồng PNG ở trên. AI tự chọn số phase, thời lượng từng phase và
+Luồng chính dùng `plant_kurzge.py`, `generate_kurzge.py` và `image_motion_ai.py`:
+API `generate_image` (`/generate-image`) vẽ thư viện PNG, SVG/CSS dàn cảnh và diễn hoạt. AI tự chọn số phase, thời lượng từng phase và
 `total_duration` theo nội dung và chuyển động. Không còn `--duration`, thời lượng
 mặc định hoặc giới hạn chữ theo tốc độ đọc. Video không có giọng đọc; `narration`
 là chữ giải thích ngắn trên màn hình. Tổng duration phải khớp `total_duration`,
 và mọi action phải nằm trong phase tương ứng.
+
+Xuất các preview đã có thành video bằng **`render_hyperframes.py`** (một file,
+chỉ dùng thư viện chuẩn Python). Đầu vào là thư mục preview, `index.html` của
+playlist hoặc từng phase HTML; hỗ trợ cả SVG `phase_N.html` và PNG/sprite
+`phase_N/index.html`. Nhiều đầu vào được ghép đúng thứ tự truyền vào:
+
+```bash
+# Xuất toàn bộ phase của một preview:
+python3 render_hyperframes.py --input preview_samset --output videos/samset.mp4
+# Ghép nhiều preview thành một video:
+python3 render_hyperframes.py --input preview_samset preview_conbao --output videos/tong_hop.mp4
+# Chỉ chọn các phase cần xuất, theo thứ tự mong muốn:
+python3 render_hyperframes.py --input preview_samset/phase_2.html preview_samset/phase_4.html --output videos/chon_loc.mp4
+# Chỉ tạo project HTML để xem/sửa trước, chưa cần công cụ render:
+python3 render_hyperframes.py --input preview_samset --output videos/samset.mp4 --prepare-only
+```
+
+Render cần **Node.js >=22, Chrome và FFmpeg/ffprobe**. Mặc định script chạy
+`npx --yes hyperframes@0.9.33` (lần đầu cần mạng để tải CLI). Có thể cài một lần
+bằng `npm install -g hyperframes@0.9.33` rồi thêm
+`--hyperframes-command hyperframes`. Script không cần khóa API AI.
+
+Project được giữ ở `videos/samset_hyperframes/`, gồm `index.html`,
+`compositions/`, bản sao asset/runtime và `preview_manifest.json` ghi nguồn,
+thứ tự và thời lượng. Dùng `--project-dir` để chọn nơi khác; project và MP4 phải
+nằm ngoài thư mục preview đầu vào. Có thể mở để chỉnh trong HyperFrames desktop app
+hoặc chạy `npx hyperframes@0.9.33 preview videos/samset_hyperframes`.
+
+Script kiểm tra project, lưu ảnh các điểm giữa cảnh, render rồi xác nhận thời
+lượng MP4 bằng ffprobe. Mặc định 30 fps, chất lượng `delivery`; có thể dùng
+`--quality draft --fps 15` để thử nhanh. Dùng `--overwrite` nếu MP4 đã tồn tại.
+Phase thiếu hoặc không có `renderAt(time)` sẽ báo lỗi, không âm thầm bỏ cảnh.
+Video giữ animation và chữ đã có trong SVG, chỉ lấy vùng stage của PNG/sprite,
+không đưa nút điều khiển vào video, không thêm nhạc hoặc giọng đọc và không sửa
+preview gốc. Kích thước canvas lấy từ cảnh đầu tiên (PNG mặc định 1920×1080).
+Các cảnh được nối bằng cut; không sinh lại hình hoặc thay đổi kịch bản.
 
 Chạy từ nội dung đến preview bằng một lệnh (cần API văn bản):
 
@@ -21,24 +57,31 @@ python3 plant_kurzge.py --input noi_dung.txt --output kich_ban_moi.json
 python3 generate_kurzge.py --script kich_ban_moi.json --output preview_khac
 ```
 
-Mặc định `--renderer auto` dùng AI vẽ SVG cho mọi kịch bản, kể cả dòng chảy xa bờ,
-tái sử dụng thư viện asset chung giữa các phase. `--renderer ai` có cùng hành vi.
-Vị trí, thứ tự, thời lượng, di chuyển và nhánh `branch_from` lấy từ kịch bản.
+Lệnh chạy giữ nguyên, mặc định sinh ảnh cho **toàn bộ phase**:
 
-AI tự vẽ nền, nhân vật và đồ vật phù hợp chủ đề vào `assets.svg`.
-Các phase tái sử dụng đúng SVG này (và các pose của cùng nhân vật) bằng `<use>`;
-không tự chèn biển, người bơi hoặc dòng chảy. Các cảnh dùng chung hình vector,
-chi tiết và bóng đổ, giữ dải chữ phía dưới để giải thích diễn biến.
-Phong cách mặc định là **Detailed Flat Vector Illustration / Semi-Flat Infographic**,
-áp dụng cho mọi chủ đề: SVG có các bộ phận, chi tiết cấu tạo, chất liệu và điểm nhấn
-để nhận diện đối tượng rõ hơn. Cho phép gradient nhẹ, highlight và bóng đổ vector;
-không filter, blur, texture hoặc ảnh thật. Góc nhìn theo nội dung và `camera.view`
-trong kịch bản, có thể nhìn ngang, chính diện, nhìn từ trên, góc xiên hoặc mặt cắt.
-Các asset trong cùng cảnh phải thống nhất phối cảnh, tỷ lệ và hướng sáng;
-nhân vật có tư thế và điểm tiếp xúc với đồ vật hợp lý.
+```bash
+python3 generate_kurzge.py --script conbao_hinhthanh.json --output preview_conbao_hinhthanh
+```
+
+`--renderer auto` và `--renderer ai` đều dùng cùng luồng chính qua `/generate-image`
+cho toàn bộ phase. Nền, nhân vật, đồ vật,
+ký hiệu và từng pose được sinh thành PNG riêng. API nhận đúng `prompt`, `model`
+và header `x-api-key`, dùng cấu hình `IMAGE_API_*`/`IMAGE_MODEL` (hoặc cấu hình
+Codex hiện có). Cần Pillow để kiểm tra PNG và alpha thật của asset nền trong suốt.
+Không tự xóa nền, không chuyển sang vẽ SVG khi API ảnh lỗi.
+
+Ảnh gốc lưu trong `assets/`, cache theo prompt/model/cấu hình tại `image_cache/`.
+`assets.svg` ghép thư viện PNG bằng data URI để mở HTML trực tiếp, kể cả trong
+iframe sandbox. AI văn bản chỉ dàn cảnh bằng `<use>` và CSS animation; không nhận
+base64 ảnh và không vẽ lại chủ thể. Các pose dùng chung kích thước, gốc local và
+được crossfade tại mốc morph. Vị trí, camera, thời lượng và `branch_from` lấy từ JSON;
+chữ giải thích được chương trình ghép ở dải phía dưới.
+
 `assets.meta.json` và fingerprint trên từng phase kiểm tra cache theo kịch bản,
-thư viện và phiên bản renderer. Đổi caption không vẽ lại asset; đổi asset thì các
-phase cũ không được ghép nhầm vào bản mới. Các prompt thực tế lưu trong `prompts/`.
+thư viện và phiên bản renderer. Lặp lại cùng lệnh với cùng JSON trong output sẽ
+tự tiếp tục: preview SVG cũ được dựng lại bằng thư viện ảnh mới, phase hợp lệ được
+giữ lại. Output chứa kịch bản khác vẫn được bảo vệ. Đổi caption không gọi lại API
+ảnh. Prompt ảnh và dàn cảnh được lưu trong `prompts/`.
 
 Ví dụ đầu vào khác chủ đề nằm ở `examples/ball_conveyor.txt`:
 
@@ -54,11 +97,11 @@ python3 generate_kurzge.py --resume --output preview_ai
 python3 generate_kurzge.py --resume --output preview_ai --phase 2
 ```
 
-Sinh SVG mới cần API văn bản; sau khi sinh, preview chạy offline. SVG dùng CSS animation,
+Sinh preview mới cần API ảnh và API văn bản; sau khi sinh, preview chạy offline. SVG dùng CSS animation,
 có thể mở từng `phase_N.html` hoặc dùng trình phát với Play/Pause và thanh tua.
 `--resume` dùng kịch bản đã lưu, không gọi lại bước phân tích. Renderer AI dùng
 cache hợp lệ.
-`--plan-only` vẫn xuất prompt cho chế độ AI. Font dùng Be Vietnam Pro nếu máy
+`--plan-only` xuất prompt ảnh cho mọi asset/pose và prompt dàn cảnh, không gọi API. Font dùng Be Vietnam Pro nếu máy
 có sẵn, nếu không dùng system-ui; preview không tải font mạng.
 
 ```bash
@@ -180,7 +223,8 @@ Sheet cuối hỏng có thể ghép lại từ PNG nguồn còn hợp lệ; asse
 `--html-only` từ chối cache sai/thiếu. SVG và metadata cũ được giữ nguyên, không dùng làm cache PNG.
 
 Dùng `--output thu_muc_khac` để thử nghiệm riêng và truyền cùng `--output` khi resume.
-Mở `preview/index.html` trên trình duyệt. Không tích hợp HyperFrames, âm thanh hay xuất MP4 trong pipeline này.
+Mở `preview/index.html` trên trình duyệt. Xuất MP4 là bước riêng bằng
+`render_hyperframes.py` sau khi đã xem và chốt preview.
 
 Phase 2 đã hiệu chỉnh theo `bug_phase2.md`: cô bé vào từ mép trái, mèo chờ sát bồn cây,
 bạn nhỏ đứng sẵn dưới mái hiên rồi bước sang phải để nhập nhóm. Tán ô nằm sau nhân vật;

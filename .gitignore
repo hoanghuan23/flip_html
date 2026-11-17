@@ -1,10 +1,10 @@
 .env
 __pycache__/
+preview*
 
-preview/
-preview_1/
+tests/
+videos/
 
 mario_animation_video/
-
 rain_chart_video/
 

@@ -29,7 +29,7 @@ API_KEY = os.getenv("CODEX_API_TOKEN")
 MODEL = os.getenv("CODEX_MODEL")
 
 NOI_DUNG = """
- 
+ mô tả cách một cơn bão được tạo ra
 """
 
 
@@ -107,7 +107,8 @@ Nội dung:
 
 PROMPT = """
 
-Nhiệm vụ: biến nội dung đầu vào thành kịch bản video giải thích ngắn.
+Nhiệm vụ: phát triển nội dung đầu vào thành kịch bản video giải thích chính xác,
+dễ hiểu cho người xem phổ thông, không yêu cầu kiến thức chuyên môn.
 Chỉ trả về MỘT đối tượng JSON hợp lệ, không markdown, không giải thích.
 
 MỤC TIÊU:
@@ -121,32 +122,43 @@ THÔNG SỐ
 - Canvas 1920x1080, gốc (0,0) ở góc trên trái
 - Ngôn ngữ chữ trên màn hình: tiếng Việt
 
-PHONG CÁCH (áp dụng cho mọi chủ đề)
-- Detailed Flat Vector Illustration / Semi-Flat Infographic: SVG rõ nét,
-  có cấu tạo, các bộ phận và chi tiết nhận diện phù hợp từng đối tượng.
-  Cho phép gradient nhẹ, highlight và bóng đổ vector opacity 0.12-0.20;
-  giữ cùng hướng sáng trong cảnh. Không filter/blur, texture, ảnh thật hoặc render 3D.
-- Nhân vật có tỷ lệ, tư thế, khớp tay/chân và điểm tiếp xúc với đồ vật hợp lý
-  theo hành động và góc nhìn. Chi tiết nhỏ phải tương phản, dễ đọc.
-- Giữ ngôn ngữ đồ họa; cảnh, nhân vật và đồ vật phải theo nội dung đầu vào.
-- Palette gồm 6-10 màu theo vai trò tổng quát: background, primary, secondary,
-  accent, skin, danger, text, white. Gợi ý xanh #153e8c/#1f5fbf/#3aa5dc,
-  vàng #f4c97a/#ffd84d, cam #ff7f50, đỏ #e63946, trắng #ffffff.
-- Chọn góc nhìn theo nội dung: nhìn ngang, chính diện, nhìn từ trên, góc xiên
-  hoặc mặt cắt; không bắt buộc góc nhìn cố định. Ghi rõ trong camera.view.
-  Giữ phối cảnh/tỷ lệ giữa các asset và các phase nối tiếp; khi đổi góc phải
-  ghi rõ cut và mô tả nền/asset/pose phù hợp.
-- Nhân vật và đồ vật dùng một mẫu SVG chung xuyên suốt; có thể khai báo
-  tư thế khác bằng morph, nhưng giữ ngoại hình, màu, kích thước tương đối.
-- Nền phủ toàn khung. Vùng diễn hoạt chính y=0..792, chừa y=792..1080
-  cho dải chữ lớn căn giữa, tương tự bố cục preview_reference.
+PHONG CÁCH VÀ YÊU CẦU DỰNG HÌNH
+- Detailed Flat Vector Illustration / Semi-Flat Infographic; quy tắc vẽ SVG chi tiết
+  do renderer đảm nhiệm. Plan tập trung vào nội dung và ý nghĩa chuyển động.
+- Định nghĩa palette theo vai trò màu, dùng nhất quán cho toàn video.
+- Chọn camera.view trong top-down, side, section theo điều cần giải thích.
+  Giữ góc nhìn và tỷ lệ giữa các phase nối tiếp; khi đổi góc, ghi rõ chuyển cảnh
+  trong camera.detail và mô tả asset/pose phù hợp, không tự thêm trường JSON.
+- Vùng diễn hoạt chính y=0..792; chừa y=792..1080 cho chữ do chương trình đặt.
+
+PHÁT TRIỂN NỘI DUNG
+- Đầu vào xác định chủ đề, mục tiêu và dữ kiện cốt lõi, không phải kịch bản phải
+  giữ nguyên từng câu. Được viết lại, sắp xếp, mở rộng và hoàn thiện cách giải thích
+  nhưng phải giữ ý nghĩa cốt lõi; ưu tiên tính chính xác và logic.
+- Với chủ đề kiến thức, bổ sung các điều kiện, khái niệm, bước cơ chế và hệ quả
+  cần thiết từ kiến thức khoa học hoặc phổ thông đáng tin cậy. Giải thích thuật ngữ
+  bằng từ quen thuộc; lược giản có chủ đích nhưng không làm sai cơ chế.
+  Không khẳng định điều chưa chắc chắn hoặc bịa số liệu để làm phần giải thích hấp dẫn.
+- Với sự kiện thực tế, chỉ dùng dữ kiện sự việc đã được cung cấp trong đầu vào;
+  không tự suy đoán tên riêng, số liệu, địa điểm, nguyên nhân, diễn biến hay kết quả
+  còn thiếu. Không coi kiến thức tổng quát là bằng chứng về sự kiện cụ thể, không
+  ngụ ý đã xác minh bên ngoài. Phần bối cảnh kiến thức bổ sung phải được phân biệt
+  rõ bằng chữ, không biến giả thuyết hoặc minh họa thành sự thật của sự kiện.
+- Với câu chuyện hư cấu, được sáng tạo chi tiết phụ, hành động và bối cảnh phù hợp.
+- added=true cho phase có ý giải thích hoặc chi tiết được bổ sung ngoài đầu vào;
+  cờ này không cho phép bịa dữ kiện thực tế.
 
 CẤU TRÚC GIẢI THÍCH
-1. Hook: nêu hiện tượng hoặc đặt câu hỏi.
-2. Cơ chế hoặc diễn biến (1-2 phase).
-3. Hệ quả hoặc kết quả.
-4. Cách xử lý hoặc thông điệp chốt nếu phù hợp nội dung.
-AI chọn số phase và độ dài phù hợp; mỗi phase chỉ truyền đạt một ý.
+1. Nêu hiện tượng hoặc câu hỏi cần giải thích.
+2. Giới thiệu điều kiện và khái niệm cần biết, rồi triển khai cơ chế hoặc diễn biến.
+3. Cho thấy hệ quả hoặc kết quả; thêm cách xử lý hoặc thông điệp chốt nếu phù hợp.
+Trước khi chia phase, xác định chuỗi bước để người chưa biết chủ đề hiểu vì sao
+và bằng cách nào hiện tượng xảy ra. Không giới hạn cơ chế ở 1-2 phase hoặc bỏ
+bước trung gian quan trọng chỉ để video ngắn hơn; tránh kéo dài bằng ý lặp lại.
+Mỗi phase truyền đạt một ý: initial_state nêu điều kiện/nguyên nhân đã biết,
+actions thể hiện diễn biến, final_state nêu thay đổi/kết quả khi phù hợp.
+Phase giới thiệu hoặc kết luận không cần ép thành một cơ chế nhân quả mới.
+Giới thiệu khái niệm mới bằng hình ảnh và chữ dễ hiểu trước khi dùng ở bước sau.
 Dành đủ thời gian nhìn chuyển động, đọc chữ và nhận ra kết quả trước khi chuyển phase.
 Không rút ngắn hoặc kéo dài phase để khớp một tổng thời lượng có sẵn.
 Trạng thái cuối phase này = trạng thái đầu phase tiếp theo nếu nối liên tục.
@@ -159,16 +171,33 @@ CHỮ VÀ NỘI DUNG
   Không lặp lại caption, không viết đoạn dài làm tràn vùng chữ phía dưới canvas.
 - caption: tối đa 8 từ, hiển thị trên màn hình.
 - "sound": luôn là chuỗi rỗng vì preview không dùng âm thanh.
-- Chỉ dùng thông tin trong nội dung đầu vào hoặc kiến thức phổ thông chắc chắn đúng.
-  Không bịa số liệu, tên riêng, thống kê; không suy đoán danh tính dự án,
-  loại công trình hay địa điểm cụ thể còn thiếu. "added": true chỉ dành cho
-  ý giải thích phổ thông bổ sung, không cho phép bịa dữ kiện của sự việc thực tế.
+- Chữ bổ sung ý nghĩa cho hình: giải thích quan hệ hoặc lý do thay đổi thay vì
+  chỉ kể tên vật thể hay nhắc lại chuyển động. Nếu ý quá dài, chia thêm phase.
+
+HÀNH ĐỘNG GIẢI THÍCH
+- Chọn action theo quá trình thật được mô tả: vật nào chuyển động, bộ phận nào
+  tương tác, tác động ở đâu, theo hướng nào và tạo ra thay đổi gì. Ghi ý nghĩa,
+  thứ tự và điểm tương tác trong note; không chỉ ghi tên hiệu ứng.
+- Không dùng scale/rotate/fade toàn bộ đối tượng để thay thế quá trình có cấu tạo
+  hoặc nhiều bước. Chỉ dùng khi đúng ý nghĩa: scale cho thay đổi kích thước,
+  rotate cho sự quay, fade cho xuất hiện/ẩn hoặc chuyển giữa các pose.
+- Khi cần chuyển động độc lập, tách đối tượng thành các asset bộ phận trong
+  giới hạn 10 asset; khi cần đổi hình/tư thế, dùng các pose qua morph.
+  Phối hợp move và pose để thấy được bước trung gian quan trọng, thay vì chỉ
+  mờ hình đầu sang hình cuối rồi coi quá trình đã được giải thích.
+- Mũi tên/hiệu ứng chỉ dẫn hướng di chuyển, tác động hoặc quan hệ đã nêu;
+  ghi rõ ý nghĩa của chúng trong description hoặc action.note, không dùng để trang trí.
+- Trình tự thời gian phải đúng quan hệ đã biết: tác động trước, kết quả sau;
+  các quá trình đồng thời có thể chồng thời gian nếu vẫn đọc được từng bước.
 
 ASSET
-- Mọi asset đều được vẽ bằng SVG (hình học đơn giản). Không dùng ảnh bitmap, sprite sheet.
-- "description" phải đủ cụ thể (hình khối, kích thước tương đối, màu theo vai trò
-  trong palette) để vẽ lại giống hệt ở mọi phase.
+- Mọi asset đều được vẽ bằng SVG. Không dùng ảnh bitmap, sprite sheet.
+- "description" nêu vai trò, hình dạng, cấu tạo/bộ phận liên quan đến action,
+  điểm nối/tiếp xúc, kích thước theo viewBox, màu theo palette và góc nhìn cần thiết.
+  Với asset tách bộ phận, nêu chúng thuộc đối tượng nào và cách lắp khớp khi đặt tâm.
 - Mỗi asset có ID duy nhất (chữ ASCII, số, gạch dưới), tái sử dụng giữa các phase. Tối đa 10 asset.
+- Các pose giữ nhận diện và tỷ lệ của cùng đối tượng. Tái sử dụng mẫu cho vật cùng
+  loại; nếu quá phức tạp, chia diễn biến qua phase thay vì yêu cầu tính năng mới.
 - Không khai báo caption/narration thành asset: chương trình tự dựng lớp chữ.
 - Background dùng gốc trên trái (0,0), kích thước 1920x1080. Nhân vật/đồ vật
   dùng gốc ở tâm (0,0), mô tả kích thước bằng đơn vị viewBox; actions đặt tâm lên khung.
@@ -181,14 +210,18 @@ QUY TẮC KỸ THUẬT
 - duration và total_duration là số giây hữu hạn, lớn hơn 0.
 - from/to luôn là object; move dùng x/y, rotate dùng angle (độ), scale dùng scale,
   fade dùng opacity (0..1), morph dùng pose mô tả tư thế, loop dùng offsetX/offsetY và period.
-- initial_state và final_state nêu rõ vị trí, tư thế, opacity của asset hiện diện.
+- initial_state và final_state nêu vị trí, tư thế, opacity và trạng thái liên quan
+  đến nội dung của asset hiện diện; phải khớp from/to, note và kết quả các actions.
 - Chỉ dùng asset đã khai báo trong "assets".
 - Mỗi phase phải có camera, initial_state, final_state và ít nhất 1 action.
-- Chỉ dùng chuyển động CSS làm được: di chuyển, xoay, co giãn, mờ hiện, lặp.
-  Đổi tư thế nhân vật = "morph" (xoay hoặc co giãn các bộ phận); không dùng "pose".
+- Chỉ dùng move, rotate, scale, fade, morph, loop trong schema hiện có.
+  morph dùng from.pose/to.pose mô tả các pose SVG tĩnh để renderer mờ chuyển;
+  không phải nội suy đường path, không có action tên "pose" hoặc hệ xương tự động.
 - Không thêm hành động không đóng góp cho câu chuyện.
 - Không sinh HTML/CSS/JS/SVG, không sinh ảnh.
 - Tổng duration các phase = total_duration.
+- Tự kiểm tra trước khi trả JSON: hình + chữ có giải thích đủ các bước, action
+  có dựng được với asset/pose đã mô tả và có dẫn đúng từ initial_state đến final_state?
 
 SCHEMA
 {
@@ -226,7 +259,8 @@ def request_text(prompt, *, api_url=None, api_key=None, model=None):
         headers={"Content-Type": "application/json", "x-api-key": API_KEY if api_key is None else api_key},
         method="POST",
     )
-    with urlopen(request, timeout=600) as response:
+    # Chờ API không giới hạn thời gian, kể cả khi socket có timeout mặc định.
+    with urlopen(request, timeout=None) as response:
         data = json.load(response)
     if (not isinstance(data, dict) or data.get("success") is not True
             or not isinstance(data.get("result"), str) or not data["result"].strip()):

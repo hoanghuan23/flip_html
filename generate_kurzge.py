@@ -1,6 +1,6 @@
 """Dựng video preview HTML từ kịch bản JSON của plant_kurzge.py.
 
-AI vẽ thư viện asset SVG chung và diễn hoạt các phase theo phong cách Flat.
+API generate_image vẽ thư viện PNG chung; AI dàn cảnh và diễn hoạt mọi phase.
 Trình phát ghép các phase theo timeline, có Play/Pause, tua và phụ đề.
 
 python generate_kurzge.py --script kich_ban.json --output preview
@@ -18,7 +18,7 @@ from urllib.error import HTTPError, URLError
 import xml.etree.ElementTree as ET
 
 from plant_kurzge import ROOT, generate_script, request_text, validate
-import flat_motion_ai as general
+import image_motion_ai as general
 
 WIDTH, HEIGHT = 1920, 1080
 BACKGROUND = "#153e8c"
@@ -36,7 +36,7 @@ FORBIDDEN = re.compile(
 
 PHASE_HTML = """<!doctype html>
 <html lang="vi"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
 <title><<TITLE>></title>
 <style>html,body{margin:0;height:100%;background:<<BACKGROUND>>;overflow:hidden}svg{width:100%;height:100%;display:block}svg text{font-family:"Be Vietnam Pro",system-ui,sans-serif}</style>
 </head><body><<SVG>>
@@ -135,8 +135,8 @@ def clean_svg(raw, *, require_animation=True):
 
 def select_renderer(script, requested="auto"):
     if requested not in {"auto", "ai"}:
-        raise ValueError("Chỉ hỗ trợ renderer auto hoặc ai.")
-    return "ai"
+        raise ValueError("Chỉ hỗ trợ renderer auto hoặc ai (cùng dùng generate_image).")
+    return "image"
 
 
 def write_phase(output, index, phase, svg, script):
@@ -182,8 +182,8 @@ def main(argv=None):
     sources.add_argument("--input", type=Path,
                          help="File nội dung: gọi AI sinh kịch bản và tự chọn thời lượng, sau đó dựng preview.")
     parser.add_argument("--renderer", choices=("auto", "ai"), default="auto",
-                        help="auto hoặc ai: AI vẽ SVG Flat theo kịch bản, dùng chung thư viện asset.")
-    parser.add_argument("--plan-only", action="store_true", help="Chỉ lưu prompt từng phase, chưa gọi AI vẽ.")
+                        help="auto/ai: sinh PNG qua generate_image và diễn hoạt toàn bộ phase.")
+    parser.add_argument("--plan-only", action="store_true", help="Chỉ lưu prompt ảnh và dàn cảnh, chưa gọi API.")
     sources.add_argument("--resume", action="store_true", help="Tiếp tục: dùng kịch bản và các phase đã vẽ trong output.")
     parser.add_argument("--redo", action="store_true", help="Vẽ lại cả phase đã có (dùng với --phase).")
     parser.add_argument("--phase", type=int, help="Chỉ dựng phase này (đánh số từ 1); bỏ qua để dựng tất cả.")
@@ -192,9 +192,17 @@ def main(argv=None):
     output = args.output.resolve()
     if args.phase is not None and args.phase < 1:
         parser.error("--phase phải từ 1 trở lên.")
-    if output.exists() and any(output.iterdir()) and not args.resume:
-        parser.error(f"{output} đã có dữ liệu. Dùng --resume hoặc chọn --output khác.")
     script_path = output / "kich_ban.json"
+    if output.exists() and any(output.iterdir()) and not args.resume:
+        # Repeating the same command can migrate an SVG preview and reuse image cache.
+        try:
+            same_script = args.script is not None and json.loads(args.script.read_text(encoding="utf-8")) == json.loads(script_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            same_script = False
+        if not same_script:
+            parser.error(f"{output} đã có dữ liệu khác. Dùng --resume hoặc chọn --output khác.")
+        args.resume = True
+        print("Đã có cùng kịch bản trong output; tiếp tục và kiểm tra cache…", flush=True)
     source = script_path if args.resume else (args.input or args.script)
     if not source.is_file():
         parser.error(f"Không tìm thấy file: {source}.")
@@ -218,6 +226,8 @@ def main(argv=None):
     renderer = select_renderer(script, args.renderer)
     print(f"  Renderer: {renderer}.", flush=True)
     ai = general.Renderer(script, output, request_text, clean_svg).prepare() if not args.plan_only else None
+    if args.plan_only:
+        general.write_asset_prompts(script, output)
     for index in selected:
         phase = phases[index - 1]
         svg_path = output / f"phase_{index}.svg"
@@ -227,8 +237,7 @@ def main(argv=None):
         if args.plan_only:
             prompts = output / "prompts"
             prompts.mkdir(exist_ok=True)
-            (prompts / "assets.txt").write_text(general.library_prompt(script), encoding="utf-8")
-            prompt = general.phase_prompt(script, index, "<<ASSET_LIBRARY: sinh bằng assets.txt>>", previous_svg)
+            prompt = general.phase_prompt(script, index, general.prompt_library(script), previous_svg)
             (prompts / f"phase_{index}.txt").write_text(prompt, encoding="utf-8")
             print(f"  Phase {index}: đã lưu prompt.", flush=True)
             continue
