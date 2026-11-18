@@ -63,6 +63,85 @@ class ApiTests(unittest.TestCase):
         data = draft(); data['scenes'][1]['id'] = 'one'
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
 
+    def test_category_style_pair_uses_shared_configuration(self):
+        data = dict(draft(), categoryId='science', styleId='outlined-cartoon')
+        response = self.client.post('/api/previews', json=data)
+        self.assertEqual(response.status_code, 201, response.text)
+        self.assertIn('#78ccc4', self.client.get(response.json()['phases'][0]['url']).text)
+        data['styleId'] = 'flat'
+        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
+        data['categoryId'] = 'technology'
+        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
+        data['styleId'] = 'detailed-vector'
+        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
+        data['categoryId'] = 'unknown'
+        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
+
+    def test_preview_validation_uses_current_style_config(self):
+        path = self.root / 'style_config.json'
+        config = {'categories': {'science': {'label': 'Tên ban đầu',
+                  'allowed_styles': ['detailed-vector', 'flat']}},
+                  'default_style': 'detailed-vector'}
+        with patch('backend.models.STYLE_CONFIG_PATH', path):
+            path.write_text(json.dumps(config), encoding='utf-8')
+            data = dict(draft(), categoryId='science', styleId='flat')
+            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
+            config['categories']['science'] = {'label': 'Tên vừa đổi',
+                                             'allowed_styles': ['detailed-vector']}
+            path.write_text(json.dumps(config), encoding='utf-8')
+            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
+            path.write_text('{invalid', encoding='utf-8')
+            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
+
+    def test_new_configured_styles_create_preview_and_keep_draft_style(self):
+        path = self.root / 'style_config.json'
+        styles = ['flat', 'flat-with-black', 'halftone-line', 'future-style']
+        config = {'categories': {'news_current_affairs': {
+            'label': 'Thời sự - tin tức', 'allowed_styles': styles}}, 'default_style': 'flat'}
+        path.write_text(json.dumps(config), encoding='utf-8')
+        with patch('backend.models.STYLE_CONFIG_PATH', path):
+            for style in styles:
+                data = dict(draft(), categoryId='news_current_affairs', styleId=style)
+                response = self.client.post('/api/previews', json=data)
+                self.assertEqual(response.status_code, 201, response.text)
+                snapshot = response.json()
+                saved = json.loads((self.root / 'previews' / snapshot['id'] / 'draft.json').read_text())
+                self.assertEqual(saved['styleId'], style)
+                self.assertIn('window.renderAt', self.client.get(snapshot['phases'][0]['url']).text)
+            data['styleId'] = 'not-configured'
+            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
+            data['styleId'] = '../flat'
+            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
+
+    def test_style_sample_serves_demo_html_and_leaves_missing_samples_empty(self):
+        # Use a separate skills directory; never modify the user's demos.
+        sample_root = self.root / 'sample-project'
+        with patch('backend.app.ROOT', sample_root):
+            app = create_app(self.root / 'sample-storage')
+        with TestClient(app) as client:
+            endpoint = '/api/styles/outlined-cartoon/preview'
+            self.assertEqual(client.get(endpoint).json(), {'url': None})
+            demo = sample_root / 'skills' / 'outlined-cartoon' / 'demo' / 'index.html'
+            demo.parent.mkdir(parents=True)
+            # An image alone no longer counts as a demo.
+            (demo.parent / 'preview.png').write_bytes(b'png sample')
+            self.assertEqual(client.get(endpoint).json(), {'url': None})
+            demo.write_text('<!doctype html><h1>Outlined cartoon</h1>', encoding='utf-8')
+            metadata = client.get(endpoint)
+            self.assertEqual(metadata.headers['cache-control'], 'no-store')
+            demo_url = metadata.json()['url']
+            self.assertEqual(demo_url, '/api/styles/outlined-cartoon/demo/index.html')
+            response = client.get(demo_url)
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.headers['content-type'].startswith('text/html'))
+            self.assertEqual(response.content, demo.read_bytes())
+            demo.unlink()
+            self.assertEqual(client.get(endpoint).json(), {'url': None})
+            self.assertEqual(client.get(demo_url).status_code, 404)
+            self.assertEqual(client.get('/api/styles/outlined-cartoon/demo/PROMPT.md').status_code, 404)
+            self.assertEqual(client.get('/api/styles/unknown/preview').status_code, 404)
+            self.assertEqual(client.get('/api/styles/unknown/demo/index.html').status_code, 404)
+
     def test_export_config_validation_and_deduplication(self):
         snapshot = self.preview()
         for config in [{'fps': 15}, {'quality': 'other'}, {'filename': '../outside'}, {'filename': '\n'}]:

@@ -23,16 +23,12 @@ export default function ScenePanel({
   onSelect,
   editRequest,
   notify,
-  onPreview,
-  previewBusy,
 }: {
   project: ProjectDraft;
   patch: (p: Partial<ProjectDraft>) => void;
   selectedId: string;
   onSelect: (id: string) => void;
   notify: (t: string, error?: boolean) => void;
-  onPreview: () => void;
-  previewBusy: boolean;
   editRequest?: { id: string; chat?: boolean; key: number };
 }) {
   const [editing, setEditing] = useState<Scene | null>(null);
@@ -154,9 +150,8 @@ export default function ScenePanel({
   }
   const total = project.scenes.reduce((n, p) => n + p.duration, 0);
   return (
-    <section className={s.card} id="kich-ban">
+    <section className={s.embeddedScript} id="kich-ban">
       <SectionHeading
-        number={3}
         title="Câu chuyện bắt đầu thành hình"
         subtitle="Đọc lại, tinh chỉnh từng cảnh, rồi sẵn sàng cho những chuyển động."
         action={
@@ -183,7 +178,7 @@ export default function ScenePanel({
           </div>
           <h3>Mỗi câu chuyện hay đều có một khởi đầu</h3>
           <p>
-            Nhập nội dung và chọn “AI tạo kịch bản” ở bước 2.
+            Nhập nội dung và chọn “Tạo kịch bản” ở bước 1.
             <br />
             Các cảnh của bạn sẽ xuất hiện ở đây.
           </p>
@@ -466,20 +461,6 @@ export default function ScenePanel({
                 </aside>
               </>
             )}
-          </div>
-          <div className={s.sectionFooter}>
-            <span className={s.muted}>
-              Chữ giải thích hiển thị trên màn hình · chưa có giọng đọc
-            </span>
-            <button
-              className={s.primary}
-              disabled={previewBusy || !!editing || busy}
-              onClick={onPreview}
-            >
-              <Film size={17} />
-              {previewBusy ? "Đang tạo preview…" : "Đồng ý & tạo animation"}
-              <span aria-hidden="true">↗</span>
-            </button>
           </div>
         </>
       )}

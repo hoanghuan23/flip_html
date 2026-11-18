@@ -191,7 +191,7 @@ export default function PreviewPanel({
   return (
     <section className={s.card} id="xem-truoc">
       <SectionHeading
-        number={4}
+        number={3}
         title="Nhìn ý tưởng chuyển động"
         subtitle="Duyệt từng cảnh. Khi đã ưng ý, hãy biến nó thành một video hoàn chỉnh."
         action={
@@ -227,7 +227,7 @@ export default function PreviewPanel({
             <Play size={28} strokeWidth={1.3} />
           </div>
           <h3>Sân khấu đang chờ câu chuyện của bạn</h3>
-          <p>Duyệt kịch bản rồi chọn “Đồng ý & tạo animation”.</p>
+          <p>Duyệt kịch bản, chọn phong cách rồi bấm “Tạo đồ họa” ở mục 2.</p>
           <span className={s.outlineBadge}>HTML PREVIEW · 1920 × 1080</span>
         </div>
       ) : (

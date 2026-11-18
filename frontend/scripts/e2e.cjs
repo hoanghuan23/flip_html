@@ -73,6 +73,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await page.goto(process.env.STUDIO_URL || "http://127.0.0.1:8000", {
       waitUntil: "networkidle0",
     });
+    assert.equal(await page.$eval("#input-file", (panel) => panel.hidden), true);
+    await click("Tải tài liệu", true);
+    await page.waitForFunction(() => document.querySelector("#input-text").hidden);
     const fileInput = await page.$("#noi-dung input[type=file]");
     await fileInput.uploadFile(path.resolve("storage/qa/sample.txt"));
     await page.waitForFunction(() =>
@@ -85,9 +88,14 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       document.querySelector("#source-text").value.includes("DOCX tiếng Việt"),
     );
     report.checks.push("TXT and DOCX uploads preserve Vietnamese text");
+    await click("Nhập văn bản", true);
     await click("Thử với nội dung mẫu");
-    await click("AI tạo kịch bản");
+    assert.equal(await page.$("#kich-ban"), null);
+    await click("Tạo kịch bản", true);
     await page.waitForSelector('button[aria-label="Sửa cảnh 1"]');
+    assert.ok(await page.$("#noi-dung #kich-ban"));
+    assert.equal(await page.$$eval('nav[aria-label="Các bước tạo video"] a', (links) => links.length), 3);
+    report.checks.push("generated script appears inside step 1 with three navigation steps");
     for (let i = 1; i <= 5; i++) {
       await page.$eval(`button[aria-label="Sửa cảnh ${i}"]`, (button) =>
         button.click(),
@@ -112,7 +120,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         .textContent.includes("Cùng khám phá nhé!"),
     );
     await page.click('aside button[aria-label="Đóng chat"]');
-    await click("Đồng ý & tạo animation");
+    await click("Tạo đồ họa", true);
     await page.waitForSelector("#xem-truoc iframe");
     await page.waitForFunction(
       () =>

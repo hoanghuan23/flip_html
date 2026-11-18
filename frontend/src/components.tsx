@@ -1,6 +1,15 @@
-import { useEffect, useRef, type ReactNode, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import { X, Check, Sparkles } from "lucide-react";
-import { styles, type StyleId } from "./types";
+import { type StyleId, type CategoryId } from "./types";
+import { getStyle } from "./styleCatalog";
+import { categories } from "./styleConfig";
+import { api } from "./services";
 import s from "./Studio.module.css";
 
 export function SectionHeading({
@@ -9,19 +18,22 @@ export function SectionHeading({
   subtitle,
   action,
 }: {
-  number: number;
+  number?: number;
   title: string;
   subtitle: string;
   action?: ReactNode;
 }) {
+  const Heading = number === undefined ? "h3" : "h2";
   return (
     <div className={s.sectionHeading}>
       <div className={s.headingLeft}>
-        <span className={s.stepNumber}>
-          {number.toString().padStart(2, "0")}
-        </span>
+        {number !== undefined && (
+          <span className={s.stepNumber}>
+            {number.toString().padStart(2, "0")}
+          </span>
+        )}
         <div>
-          <h2>{title}</h2>
+          <Heading>{title}</Heading>
           <p>{subtitle}</p>
         </div>
       </div>
@@ -88,10 +100,10 @@ export function Art({
   styleId: StyleId;
   large?: boolean;
 }) {
-  const style = styles.find((p) => p.id === styleId)!;
+  const style = getStyle(styleId);
   return (
     <div
-      className={`${s.art} ${large ? s.artLarge : ""} ${s[styleId]}`}
+      className={`${s.art} ${large ? s.artLarge : ""} ${s[styleId] || ""}`}
       style={
         {
           "--art-bg": style.colors[0],
@@ -121,66 +133,121 @@ export function Art({
     </div>
   );
 }
+function StyleSample({ styleId, name }: { styleId: StyleId; name: string }) {
+  const [demo, setDemo] = useState<{ styleId: StyleId; url: string }>();
+  useEffect(() => {
+    let cancelled = false;
+    setDemo(undefined);
+    api<{ url: string | null }>(`/api/styles/${styleId}/preview`)
+      .then(({ url }) => {
+        if (!cancelled && url) setDemo({ styleId, url });
+      })
+      .catch(() => {
+        /* Missing samples leave the frame empty. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [styleId]);
+  return (
+    <div className={s.styleSample} aria-label={`Hình mẫu ${name}`}>
+      {demo?.styleId === styleId && (
+        <iframe
+          key={styleId}
+          src={demo.url}
+          title={`Bản demo ${name}`}
+          sandbox="allow-scripts"
+          onError={() => setDemo(undefined)}
+        />
+      )}
+    </div>
+  );
+}
+
 export function StylePicker({
+  categoryId,
+  onCategoryChange,
   value,
   onChange,
   onGenerate,
   busy,
   canGenerate,
 }: {
+  categoryId: CategoryId;
+  onCategoryChange: (id: CategoryId) => void;
   value: StyleId;
   onChange: (id: StyleId) => void;
   onGenerate: () => void;
   busy: boolean;
   canGenerate: boolean;
 }) {
-  const selected = styles.find((p) => p.id === value)!;
+  const selected = getStyle(value);
+  const category = categories.find((p) => p.id === categoryId)!;
+  const availableStyles = [...new Set(category.allowedStyles)].map(getStyle);
   return (
     <section className={s.card} id="phong-cach">
       <SectionHeading
         number={2}
-        title="Chọn một chất riêng"
-        subtitle="Một ý tưởng, nhiều cách kể. Bạn thích phong cách nào?"
+        title="Danh mục & phong cách đồ họa"
+        subtitle="Chọn danh mục để xem phong cách phù hợp hoặc chọn Tất cả phong cách."
       />
-      <div className={s.styleLayout}>
-        <div className={s.styleGrid}>
-          {styles.map((style) => (
+      <div className={s.categorySection}>
+        <p className={s.fieldLabel} id="category-heading">
+          DANH MỤC KỊCH BẢN
+        </p>
+        <div
+          className={s.categoryList}
+          role="group"
+          aria-labelledby="category-heading"
+        >
+          {categories.map((item) => (
             <button
-              key={style.id}
-              className={`${s.styleCard} ${style.id === value ? s.selected : ""}`}
-              aria-pressed={style.id === value}
-              onClick={() => onChange(style.id)}
+              key={item.id}
+              className={`${s.categoryButton} ${item.id === categoryId ? s.activeCategory : ""}`}
+              aria-pressed={item.id === categoryId}
+              onClick={() => onCategoryChange(item.id)}
             >
-              <Art styleId={style.id} />
-              <span>
-                {style.name}
-                {style.id === value && <Check size={16} />}
-              </span>
+              {item.label}
             </button>
           ))}
         </div>
-        <div className={s.stylePreview}>
-          <div className={s.previewLabel}>
-            <span>HÌNH MẪU · {selected.name.toLocaleUpperCase("vi")}</span>
-            <span className={s.selectedBadge}>
-              <Check size={12} /> Đã chọn
-            </span>
+      </div>
+      <div className={s.styleLayout}>
+        <div className={s.styleList}>
+          <p className={s.styleHeading}>
+            {categoryId === "all_styles"
+              ? category.label
+              : `Phong cách cho “${category.label}”`} ({availableStyles.length} lựa chọn)
+          </p>
+          <div className={s.styleGrid}>
+            {availableStyles.map((style) => (
+              <button
+                key={style.id}
+                className={`${s.styleCard} ${style.id === value ? s.selected : ""}`}
+                aria-pressed={style.id === value}
+                onClick={() => onChange(style.id)}
+              >
+                <span>
+                  {style.name}
+                  {style.id === value && <Check size={16} />}
+                </span>
+                <p className={s.styleDescription}>{style.description}</p>
+              </button>
+            ))}
           </div>
-          <Art styleId={value} large />
-          <p>{selected.description}</p>
+        </div>
+        <div className={s.stylePreview}>
+          <StyleSample styleId={value} name={selected.name} />
         </div>
       </div>
-      <div className={s.sectionFooter}>
-        <span className={s.muted}>
-          Bạn có thể đổi phong cách trước khi tạo animation.
-        </span>
+      <div className={`${s.sectionFooter} ${s.styleFooter}`}>
         <button
           className={s.primary}
           disabled={!canGenerate || busy}
           onClick={onGenerate}
         >
           <Sparkles size={17} className={busy ? s.spin : ""} />
-          {busy ? "Đang chuẩn bị kịch bản…" : "AI tạo kịch bản"}
+          {busy ? "Đang tạo preview…" : "Tạo đồ họa"}
           <span aria-hidden="true">↗</span>
         </button>
       </div>

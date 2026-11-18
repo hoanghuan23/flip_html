@@ -1,7 +1,8 @@
 # AI Video Studio
 
-Frontend React + TypeScript cho pipeline video Python. Giao diện có bốn bước:
-nhập nội dung, chọn phong cách, chỉnh kịch bản, xem trước và xuất MP4.
+Frontend React + TypeScript cho pipeline video Python. Giao diện có ba bước:
+nhập nội dung và chỉnh kịch bản, chọn phong cách, xem trước và xuất MP4.
+Sau khi chọn **Tạo kịch bản**, danh sách cảnh hiển thị ngay trong mục 1.
 
 AI và chat hiện dùng dữ liệu mẫu. Preview HTML được tạo trên backend và chính
 những file đó được HyperFrames render thành MP4 thật. Video không có âm thanh.
@@ -46,32 +47,65 @@ khả năng render thực tế. Pipeline giữ phiên bản **0.9.33** của d�
 
 ## Phát triển
 
-Chạy backend ở cổng 8000 như trên. Trong terminal thứ hai:
+Chạy backend dev ở cổng 8001 từ thư mục gốc dự án:
+
+```bash
+python3 -m uvicorn backend.app:app --host 127.0.0.1 --port 8001 --reload
+```
+
+Trong terminal thứ hai:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Mở **http://127.0.0.1:5173**. Vite chuyển tiếp `/api` đến backend. Frontend
+Mở **http://127.0.0.1:5173**. Vite chuyển tiếp `/api` đến backend ở cổng 8001.
+Nếu chỉ chạy Vite, API và hình mẫu HTML sẽ không tải được. Frontend
 không chứa khóa API, không gọi AI thật và không yêu cầu dịch vụ cloud.
+Lưu file React/CSS hoặc `skills/style_config.json` để Vite tự cập nhật giao
+diện. Không cần build lại khi phát triển. Cổng 8000 phục vụ bản build trong
+`frontend/dist`, nên cần `npm run build` sau khi sửa giao diện ở chế độ đó.
 
 ## Luồng xuất video
 
-1. Nhập nội dung (hoặc thử nội dung mẫu), chọn phong cách và tạo kịch bản mẫu.
+1. Nhập nội dung (hoặc thử nội dung mẫu) và chọn **Tạo kịch bản**.
 2. Chỉnh cảnh, thời lượng và chữ giải thích. Chat mẫu hỗ trợ rút ngắn, giọng vui
    hơn và viết lại chữ giải thích cho cảnh đang chọn.
-3. Chọn **Đồng ý & tạo animation**. Duyệt các phase bằng phát/dừng và thanh tua.
+3. Chọn danh mục/phong cách ở mục 2 và bấm **Tạo đồ họa**. Duyệt các phase bằng phát/dừng và thanh tua.
 4. Chọn **Xuất video**, đặt tên, FPS 24/30/60 và chất lượng Nháp/Tiêu chuẩn/Cao.
 5. Chọn **Bắt đầu xuất**. Máy chủ chuẩn bị project, kiểm tra HyperFrames, chụp
    khung hình, render và xác minh MP4 bằng ffprobe.
-6. Khi hoàn tất, video xuất hiện ngay ở bước 4. Chọn **Tải video xuống** để tải
+6. Khi hoàn tất, video xuất hiện ngay ở bước 3. Chọn **Tải video xuống** để tải
    đúng file đang xem. MP4 có HTTP Range nên hỗ trợ tua trong trình phát.
 
 Mặc định: MP4 1920×1080, 16:9, 30 fps, chất lượng Cao. Chất lượng ánh xạ đến
 `draft`, `looks`, `delivery`. Thời lượng từng cảnh >0 đến 120 giây, tối đa 100
 cảnh và tổng thời lượng tối đa 30 phút. Một tác vụ chạy tại một thời điểm;
 những tác vụ khác đợi trong hàng đợi. Giới hạn mỗi tác vụ là 60 phút.
+
+Mục 2 lấy tên danh mục trực tiếp từ `categories.*.label` trong
+`skills/style_config.json`. Mỗi danh mục chỉ hiển thị các phong cách thuộc
+`allowed_styles`; nếu phong cách đang chọn không còn được phép, ứng dụng tự
+chuyển sang phong cách hợp lệ (ưu tiên `default_style`). Lựa chọn danh mục
+được lưu cùng bản nháp. Các preset cũ vẫn được đọc và chuyển đổi khi mở lại.
+Cấu hình được frontend import trực tiếp từ file JSON. Khi chạy `npm run dev`,
+Vite tự cập nhật sau khi lưu file; bản production cần build lại. Giữ nguyên
+ID danh mục khi đổi tên để các bản nháp tiếp tục sử dụng danh mục đó.
+Danh sách phong cách lấy đầy đủ, theo thứ tự trong `allowed_styles`. Thêm ID
+mới sẽ tự hiện lựa chọn và đọc `skills/<styleId>/demo/index.html`; không cần
+thêm ID vào danh sách cố định trong frontend. Flat with black và Halftone line
+có tên, chú thích và bảng màu riêng. ID khác dùng tên suy ra từ ID và chú thích
+mặc định; animation vẫn dùng mẫu minh họa kiểm soát sẵn (bảng màu Flat nếu
+chưa có bảng màu riêng), không tự chuyển các hình trong demo thành animation.
+
+Thẻ chọn phong cách chỉ hiển thị tên và chú thích. Khung mẫu lớn hiển thị
+`skills/<styleId>/demo/index.html`, ví dụ `skills/flat/demo/index.html`,
+trong iframe có thể cuộn để xem toàn bộ nội dung dài. Các demo hiện tại dùng
+CSS và SVG nhúng trực tiếp trong HTML. Nếu chưa có file, khung để trống.
+HTML được backend đọc trực tiếp; sau khi thêm hoặc thay demo, tải lại trang
+hoặc chuyển phong cách để cập nhật, không cần build lại frontend.
+Flat là phong cách riêng, được phép trong các danh mục có Outlined cartoon.
 
 ## Dữ liệu và khôi phục
 
@@ -105,9 +139,11 @@ Biến môi trường tùy chọn, đặt khi khởi động backend:
 
 | Endpoint | Nội dung |
 | --- | --- |
-| `POST /api/previews` | `{projectId, title, styleId, scenes}` → snapshot và URL phase |
+| `POST /api/previews` | `{projectId, title, categoryId, styleId, scenes}` → snapshot và URL phase |
 | `GET /api/previews/{id}` | Kiểm tra snapshot còn tồn tại |
 | `GET /api/previews/{id}/phase_N.html` | HTML phase kiểm soát sẵn, có `renderAt(time)` |
+| `GET /api/styles/{styleId}/preview` | URL demo HTML, hoặc `null` nếu chưa có file |
+| `GET /api/styles/{styleId}/demo/index.html` | Trang demo HTML của phong cách |
 | `POST /api/exports` | `{snapshotId, config: {filename, fps, quality}}` → tác vụ, HTTP 202 |
 | `GET /api/exports/{id}` | Trạng thái, giai đoạn, tiến độ nếu CLI cung cấp, lỗi/kết quả |
 | `GET /api/exports/{id}/video` | MP4 inline, hỗ trợ Range |

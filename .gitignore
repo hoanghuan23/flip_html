@@ -1,6 +1,10 @@
 .env
 __pycache__/
 preview*
+!backend/previews.py
+!skills/*/demo/preview.png
+!skills/*/demo/preview.jpg
+!skills/*/demo/preview.jpeg
 
 tests/
 videos/
@@ -13,4 +17,7 @@ frontend/dist/
 frontend/*.tsbuildinfo
 storage/
 .venv/
+
+ketqua/
+kichban/
 

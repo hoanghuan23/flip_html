@@ -24,6 +24,7 @@ import { api, ApiError, generatePreview, videoService } from "./services";
 import { Modal, errorText } from "./components";
 import InputPanel from "./InputPanel";
 import { StylePicker } from "./components";
+import { styleForCategory } from "./styleConfig";
 import ScenePanel from "./ScenePanel";
 import PreviewPanel from "./PreviewPanel";
 import s from "./Studio.module.css";
@@ -55,6 +56,15 @@ export default function App() {
   const [renameText, setRenameText] = useState("");
   const [regenerateOpen, setRegenerateOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+  const scriptScrollRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (scriptScrollRef.current !== project.id || !project.scenes.length) return;
+    scriptScrollRef.current = null;
+    document
+      .getElementById("kich-ban")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [project.id, project.scenes]);
 
   useEffect(() => {
     if (!toast || toast.error) return;
@@ -88,6 +98,7 @@ export default function App() {
     const id = project.id;
     try {
       const scenes = await videoService.generateScript(project.sourceContent);
+      scriptScrollRef.current = id;
       dispatch({
         type: "patch",
         id,
@@ -101,9 +112,6 @@ export default function App() {
       });
       setSelectedId(scenes[0].id);
       notify("Kịch bản mẫu đã sẵn sàng. Bạn có thể sửa từng cảnh.");
-      document
-        .getElementById("kich-ban")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) {
       notify(errorText(e), true);
     } finally {
@@ -185,9 +193,8 @@ export default function App() {
         </a>
         <nav className={s.nav} aria-label="Các bước tạo video">
           {[
-            ["noi-dung", "Nội dung"],
+            ["noi-dung", "Nội dung & kịch bản"],
             ["phong-cach", "Phong cách"],
-            ["kich-ban", "Kịch bản"],
             ["xem-truoc", "Xem trước & xuất"],
           ].map(([id, label], i) => (
             <a href={`#${id}`} key={id}>
@@ -228,7 +235,7 @@ export default function App() {
               từ ý tưởng đến video.
             </strong>
             <span>
-              4 bước đơn giản để bắt đầu <ArrowRight size={15} />
+              3 bước đơn giản để bắt đầu <ArrowRight size={15} />
             </span>
           </div>
         </div>
@@ -257,27 +264,37 @@ export default function App() {
           project={project}
           patch={patch}
           notify={notify}
-        />
-        <StylePicker
-          value={project.styleId}
-          onChange={(styleId) => patch({ styleId })}
           busy={scriptBusy}
-          canGenerate={!!project.sourceContent.trim()}
           onGenerate={() =>
             project.scenes.length
               ? setRegenerateOpen(true)
               : void createScript()
           }
-        />
-        <ScenePanel
-          project={project}
-          patch={patch}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          editRequest={editRequest}
-          notify={notify}
-          onPreview={() => void buildPreview()}
-          previewBusy={previewBusy}
+        >
+          {project.scenes.length > 0 && (
+            <ScenePanel
+              project={project}
+              patch={patch}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              editRequest={editRequest}
+              notify={notify}
+            />
+          )}
+        </InputPanel>
+        <StylePicker
+          categoryId={project.categoryId}
+          onCategoryChange={(categoryId) =>
+            patch({
+              categoryId,
+              styleId: styleForCategory(categoryId, project.styleId),
+            })
+          }
+          value={project.styleId}
+          onChange={(styleId) => patch({ styleId })}
+          busy={previewBusy}
+          canGenerate={!!project.scenes.length && !scriptBusy}
+          onGenerate={() => void buildPreview()}
         />
         <PreviewPanel
           project={project}

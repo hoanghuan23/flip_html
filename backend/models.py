@@ -1,8 +1,27 @@
-from typing import Literal
+from typing import Annotated, Literal
 import math
+from pathlib import Path
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-StyleId = Literal['cartoon', 'dark', 'watercolor', 'pixel', 'sketch', 'flat']
+STYLE_CONFIG_PATH = Path(__file__).resolve().parent.parent / 'skills' / 'style_config.json'
+ConfigStyleId = Annotated[str, Field(pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')]
+LEGACY_STYLE_IDS = {'detailed-vector', 'outlined-cartoon', 'cartoon', 'dark', 'watercolor', 'pixel', 'sketch', 'flat'}
+
+
+class StyleCategory(BaseModel):
+    label: str = Field(min_length=1)
+    allowed_styles: list[ConfigStyleId] = Field(min_length=1)
+
+
+class StyleConfiguration(BaseModel):
+    categories: dict[str, StyleCategory] = Field(min_length=1)
+    default_style: ConfigStyleId
+
+
+def load_style_config():
+    return StyleConfiguration.model_validate_json(
+        STYLE_CONFIG_PATH.read_text(encoding='utf-8')
+    ).model_dump()
 
 
 class Scene(BaseModel):
@@ -30,11 +49,26 @@ class Scene(BaseModel):
 class PreviewRequest(BaseModel):
     projectId: str = Field(min_length=1, max_length=100)
     title: str = Field(min_length=1, max_length=160)
-    styleId: StyleId
+    categoryId: str | None = None
+    styleId: ConfigStyleId
     scenes: list[Scene] = Field(min_length=1, max_length=100)
 
     @model_validator(mode='after')
     def valid_timeline(self):
+        try:
+            config = load_style_config()
+        except (OSError, ValueError):
+            raise ValueError('Không đọc được cấu hình danh mục. Hãy kiểm tra skills/style_config.json.')
+        if self.categoryId is not None:
+            category = config['categories'].get(self.categoryId)
+            if category is None:
+                raise ValueError('Danh mục kịch bản không hợp lệ.')
+            if self.styleId not in category['allowed_styles']:
+                raise ValueError(f"Phong cách không được phép cho danh mục {category['label']}.")
+        elif self.styleId not in LEGACY_STYLE_IDS and not any(
+            self.styleId in category['allowed_styles'] for category in config['categories'].values()
+        ):
+            raise ValueError('Phong cách không tồn tại trong cấu hình.')
         if len({scene.id for scene in self.scenes}) != len(self.scenes):
             raise ValueError('ID cảnh phải khác nhau.')
         if sum(s.duration for s in self.scenes) > 1800:

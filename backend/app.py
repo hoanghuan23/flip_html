@@ -7,16 +7,18 @@ import shutil
 import uuid
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 from .jobs import JobManager, ROOT
-from .models import ExportRequest, PreviewRequest
+from .models import ExportRequest, PreviewRequest, load_style_config
 from .previews import create_preview
 
 
 def create_app(storage_root: Path | None = None):
     storage = (storage_root or Path(os.environ.get('VIDEO_STORAGE_DIR', ROOT / 'storage'))).resolve()
+    styles_root = ROOT / 'skills'
 
     @asynccontextmanager
     async def lifespan(app):
@@ -55,6 +57,34 @@ def create_app(storage_root: Path | None = None):
     def preview(request: PreviewRequest):
         snapshot_id = uuid.uuid4().hex
         return create_preview(request, storage / 'previews' / snapshot_id, snapshot_id)
+
+    def current_style_config():
+        try:
+            return load_style_config()
+        except (OSError, ValidationError):
+            raise HTTPException(503, 'Không đọc được cấu hình danh mục. Hãy kiểm tra skills/style_config.json.')
+
+    def sample_directory(style_id):
+        allowed_styles = {style for category in current_style_config()['categories'].values()
+                          for style in category['allowed_styles']}
+        if style_id not in allowed_styles:
+            raise HTTPException(404, 'Phong cách không tồn tại.')
+        return styles_root / style_id / 'demo'
+
+    @app.get('/api/styles/{style_id}/preview')
+    def style_preview(style_id: str):
+        path = sample_directory(style_id) / 'index.html'
+        return JSONResponse(
+            {'url': f'/api/styles/{style_id}/demo/index.html' if path.is_file() else None},
+            headers={'Cache-Control': 'no-store'},
+        )
+
+    @app.get('/api/styles/{style_id}/demo/index.html')
+    def style_demo(style_id: str):
+        path = sample_directory(style_id) / 'index.html'
+        if not path.is_file():
+            raise HTTPException(404, 'Chưa có bản demo.')
+        return FileResponse(path, media_type='text/html', headers={'Cache-Control': 'no-store'})
 
     @app.get('/api/previews/{snapshot_id}')
     def get_preview(snapshot_id: str):

@@ -1,10 +1,13 @@
-export type StyleId =
-  | "cartoon"
-  | "dark"
-  | "watercolor"
-  | "pixel"
-  | "sketch"
-  | "flat";
+import {
+  defaultCategoryId,
+  defaultStyleId,
+  isCategoryId,
+  restoreStyle,
+  styleForCategory,
+  type CategoryId,
+  type StyleId,
+} from "./styleConfig";
+export type { CategoryId, StyleId } from "./styleConfig";
 export interface Scene {
   id: string;
   name: string;
@@ -52,6 +55,7 @@ export interface ProjectDraft {
   title: string;
   sourceContent: string;
   sourceFilename?: string;
+  categoryId: CategoryId;
   styleId: StyleId;
   scenes: Scene[];
   messages: ChatMessage[];
@@ -65,60 +69,12 @@ export const defaultConfig: ExportConfig = {
   fps: 30,
   quality: "delivery",
 };
-export const styles: {
-  id: StyleId;
-  name: string;
-  description: string;
-  colors: string[];
-}[] = [
-  {
-    id: "cartoon",
-    name: "Hoạt hình 2D",
-    description:
-      "Nét vẽ thân thiện, màu sắc ấm áp. Dành cho những câu chuyện và nội dung giải thích dễ hiểu.",
-    colors: ["#f4ede3", "#237c83", "#ffd18c"],
-  },
-  {
-    id: "dark",
-    name: "Tối giản tối",
-    description:
-      "Tương phản sâu, màu tím và điểm sáng tinh tế. Một góc nhìn hiện đại, tập trung vào nội dung.",
-    colors: ["#111b35", "#4233a7", "#a9a2ff"],
-  },
-  {
-    id: "watercolor",
-    name: "Màu nước",
-    description:
-      "Sắc xanh dịu nhẹ, không gian thoáng và những mảng màu mềm. Phù hợp câu chuyện thiên nhiên.",
-    colors: ["#edf5ee", "#81aab4", "#ecd7a8"],
-  },
-  {
-    id: "pixel",
-    name: "Pixel art",
-    description:
-      "Cảm hứng trò chơi cổ điển với sắc xanh tím và những chi tiết hình học vui nhộn.",
-    colors: ["#242740", "#5262a5", "#f8be72"],
-  },
-  {
-    id: "sketch",
-    name: "Phác thảo giấy",
-    description:
-      "Tông giấy ấm, nét vẽ mộc mạc. Biến ý tưởng thành một trang sổ tay chuyển động.",
-    colors: ["#f2eadc", "#a59b83", "#d0b78a"],
-  },
-  {
-    id: "flat",
-    name: "Flat đậm màu",
-    description:
-      "Mảng màu rõ ràng, cam san hô và vàng nổi bật. Truyền đạt ý tưởng bằng hình khối đơn giản.",
-    colors: ["#fff0e8", "#e46f65", "#ffd16d"],
-  },
-];
 export const newProject = (): ProjectDraft => ({
   id: crypto.randomUUID(),
   title: "Dự án chưa đặt tên",
   sourceContent: "",
-  styleId: "cartoon",
+  categoryId: defaultCategoryId,
+  styleId: styleForCategory(defaultCategoryId, defaultStyleId),
   scenes: [],
   messages: [],
   updatedAt: new Date().toISOString(),
@@ -126,6 +82,7 @@ export const newProject = (): ProjectDraft => ({
 export const previewInput = (p: ProjectDraft) => ({
   projectId: p.id,
   title: p.title,
+  categoryId: p.categoryId,
   styleId: p.styleId,
   scenes: p.scenes,
 });
@@ -145,6 +102,7 @@ export function parseDraft(value: unknown): ProjectDraft {
   if (!value || typeof value !== "object")
     throw new Error("Bản nháp không hợp lệ.");
   const p = value as ProjectDraft;
+  const savedStyle = restoreStyle(p.styleId);
   if (
     typeof p.id !== "string" ||
     !p.id ||
@@ -152,7 +110,8 @@ export function parseDraft(value: unknown): ProjectDraft {
     !p.title.trim() ||
     p.title.length > 160 ||
     typeof p.sourceContent !== "string" ||
-    !styles.some((s) => s.id === p.styleId) ||
+    !savedStyle ||
+    (p.categoryId !== undefined && !isCategoryId(p.categoryId)) ||
     !Array.isArray(p.scenes) ||
     p.scenes.length > 100 ||
     !Array.isArray(p.messages) ||
@@ -178,12 +137,14 @@ export function parseDraft(value: unknown): ProjectDraft {
     p.scenes.reduce((n, s) => n + s.duration, 0) > 1800
   )
     throw new Error("File JSON không đúng định dạng bản nháp AI Video Studio.");
+  const categoryId = p.categoryId ?? defaultCategoryId;
   // Rebuild optional data explicitly; imported files never supply playable URLs.
   return {
     id: p.id,
     title: p.title,
     sourceContent: p.sourceContent,
-    styleId: p.styleId,
+    categoryId,
+    styleId: styleForCategory(categoryId, savedStyle),
     scenes: p.scenes,
     messages: p.messages,
     updatedAt: new Date().toISOString(),

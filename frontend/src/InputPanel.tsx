@@ -1,10 +1,11 @@
-import { useRef, useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
   UploadCloud,
   FileText,
   X,
   AlignLeft,
   ArrowUpRight,
+  Sparkles,
 } from "lucide-react";
 import { SectionHeading, errorText } from "./components";
 import type { ProjectDraft } from "./types";
@@ -14,10 +15,16 @@ export default function InputPanel({
   project,
   patch,
   notify,
+  onGenerate,
+  busy,
+  children,
 }: {
   project: ProjectDraft;
   patch: (p: Partial<ProjectDraft>) => void;
   notify: (t: string, error?: boolean) => void;
+  onGenerate: () => void;
+  busy: boolean;
+  children?: ReactNode;
 }) {
   const [tab, setTab] = useState<"text" | "file">("text");
   const [dragging, setDragging] = useState(false);
@@ -45,7 +52,7 @@ export default function InputPanel({
       if (!content.trim()) throw new Error("File không có văn bản để sử dụng.");
       patch({ sourceContent: content, sourceFilename: file.name });
       notify(
-        "Đã đọc văn bản từ file. Bạn có thể chỉnh sửa trước khi tiếp tục.",
+        "Đã đọc văn bản từ file. Chuyển sang “Nhập văn bản” nếu muốn chỉnh sửa.",
       );
     } catch (e) {
       notify(`Không thể đọc tài liệu. ${errorText(e)}`, true);
@@ -66,25 +73,40 @@ export default function InputPanel({
         title="Bắt đầu từ ý tưởng của bạn"
         subtitle="Một bài viết, một câu chuyện, hay đơn giản là điều bạn muốn chia sẻ."
       />
-      <div className={s.tabs} role="group" aria-label="Cách nhập nội dung">
+      <div
+        className={s.tabs}
+        role="tablist"
+        aria-label="Cách nhập nội dung"
+        onKeyDown={(event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+            return;
+          }
+          event.preventDefault();
+          let next: "text" | "file" = tab === "text" ? "file" : "text";
+          if (event.key === "Home") next = "text";
+          if (event.key === "End") next = "file";
+          setTab(next);
+          document.getElementById(`input-tab-${next}`)?.focus();
+        }}
+      >
         <button
-          aria-pressed={tab === "text"}
+          id="input-tab-text"
+          role="tab"
+          aria-selected={tab === "text"}
+          tabIndex={tab === "text" ? 0 : -1}
           aria-controls="input-text"
-          onClick={() => {
-            setTab("text");
-            document.getElementById("source-text")?.focus();
-          }}
+          onClick={() => setTab("text")}
           className={tab === "text" ? s.tabActive : ""}
         >
           <AlignLeft size={16} /> Nhập văn bản
         </button>
         <button
-          aria-pressed={tab === "file"}
+          id="input-tab-file"
+          role="tab"
+          aria-selected={tab === "file"}
+          tabIndex={tab === "file" ? 0 : -1}
           aria-controls="input-file"
-          onClick={() => {
-            setTab("file");
-            fileRef.current?.click();
-          }}
+          onClick={() => setTab("file")}
           className={tab === "file" ? s.tabActive : ""}
         >
           <UploadCloud size={16} /> Tải tài liệu
@@ -93,6 +115,9 @@ export default function InputPanel({
       <div className={s.inputLayout}>
         <div
           id="input-file"
+          role="tabpanel"
+          aria-labelledby="input-tab-file"
+          hidden={tab !== "file"}
           className={`${s.dropzone} ${dragging ? s.dragging : ""} ${tab === "file" ? s.dropzoneActive : ""}`}
           onDragOver={(e) => {
             e.preventDefault();
@@ -142,7 +167,13 @@ export default function InputPanel({
             </div>
           )}
         </div>
-        <div id="input-text" className={s.textInput}>
+        <div
+          id="input-text"
+          role="tabpanel"
+          aria-labelledby="input-tab-text"
+          hidden={tab !== "text"}
+          className={s.textInput}
+        >
           <label htmlFor="source-text" className={s.fieldLabel}>
             VĂN BẢN ĐẦU VÀO
           </label>
@@ -156,22 +187,35 @@ export default function InputPanel({
             <span>
               {project.sourceContent.length.toLocaleString("vi")} ký tự
             </span>
-            <span>Thời lượng theo kịch bản</span>
+            <span>AI đề xuất thời lượng theo nội dung kịch bản</span>
           </div>
-          <button
-            className={s.textButton}
-            onClick={() =>
-              patch({
-                sourceContent:
-                  "Bão nhiệt đới hình thành như thế nào? Hãy giải thích vai trò của nước biển ấm, hơi ẩm và gió trong quá trình một cụm mây dông phát triển thành bão.",
-                sourceFilename: undefined,
-              })
-            }
-          >
-            Thử với nội dung mẫu: Bão nhiệt đới <ArrowUpRight size={13} />
-          </button>
+          <div className={s.inputActions}>
+            <button
+              className={s.textButton}
+              onClick={() =>
+                patch({
+                  sourceContent:
+                    "Bão nhiệt đới hình thành như thế nào? Hãy giải thích vai trò của nước biển ấm, hơi ẩm và gió trong quá trình một cụm mây dông phát triển thành bão.",
+                  sourceFilename: undefined,
+                })
+              }
+            >
+              Thử với nội dung mẫu: Bão nhiệt đới <ArrowUpRight size={13} />
+            </button>
+            <button
+              type="button"
+              className={s.primary}
+              disabled={!project.sourceContent.trim() || busy}
+              onClick={onGenerate}
+              aria-busy={busy}
+            >
+              <Sparkles size={17} className={busy ? s.spin : ""} />
+              {busy ? "Đang tạo kịch bản…" : "Tạo kịch bản"}
+            </button>
+          </div>
         </div>
       </div>
+      {children}
     </section>
   );
 }
