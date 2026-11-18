@@ -1,0 +1,147 @@
+{
+  "categories": {
+    "news_current_affairs": {
+      "label": "Tin tức - Thời sự",
+      "allowed_styles": [
+        "flat",
+        "flat-with-black",
+        "halftone-line"
+      ]
+    },
+    "politics_society": {
+      "label": "Chính trị - Xã hội",
+      "allowed_styles": [
+        "flat-with-black",
+        "flat",
+        "halftone-line"
+      ]
+    },
+    "economy_finance": {
+      "label": "Kinh tế - Tài chính",
+      "allowed_styles": [
+        "isometric-mono",
+        "teal-spot",
+        "flat"
+      ]
+    },
+    "science": {
+      "label": "Khoa học",
+      "allowed_styles": [
+        "flat",
+        "isometric-mono",
+        "ink-sketch",
+        "teal-spot"
+      ]
+    },
+    "education": {
+      "label": "Giáo dục",
+      "allowed_styles": [
+        "outlined-cartoon",
+        "flat",
+        "framed-panel",
+        "line-interior"
+      ]
+    },
+    "technology": {
+      "label": "Công nghệ - AI",
+      "allowed_styles": [
+        "isometric-mono",
+        "bold-pop",
+        "teal-spot",
+        "framed-panel"
+      ]
+    },
+    "health": {
+      "label": "Y tế - Sức khỏe",
+      "allowed_styles": [
+        "flat",
+        "outlined-cartoon",
+        "teal-spot"
+      ]
+    },
+    "environment": {
+      "label": "Môi trường - Khí hậu",
+      "allowed_styles": [
+        "flat",
+        "ink-sketch",
+        "isometric-mono"
+      ]
+    },
+    "transportation": {
+      "label": "Giao thông - Hạ tầng",
+      "allowed_styles": [
+        "flat-with-black",
+        "isometric-mono",
+        "flat"
+      ]
+    },
+    "disasters_accidents": {
+      "label": "Thiên tai - Tai nạn",
+      "allowed_styles": [
+        "flat-with-black",
+        "flat",
+        "halftone-line"
+      ]
+    },
+    "law_security": {
+      "label": "Pháp luật - An ninh",
+      "allowed_styles": [
+        "flat-with-black",
+        "halftone-line"
+      ]
+    },
+    "culture_entertainment": {
+      "label": "Văn hóa - Giải trí",
+      "allowed_styles": [
+        "bold-pop",
+        "grainy-gouache",
+        "outlined-cartoon"
+      ]
+    },
+    "sports": {
+      "label": "Thể thao",
+      "allowed_styles": [
+        "bold-pop",
+        "outlined-cartoon",
+        "flat"
+      ]
+    },
+    "lifestyle": {
+      "label": "Đời sống - Con người",
+      "allowed_styles": [
+        "outlined-cartoon",
+        "line-interior",
+        "flat"
+      ]
+    },
+    "travel": {
+      "label": "Du lịch - Khám phá",
+      "allowed_styles": [
+        "flat",
+        "grainy-gouache",
+        "ink-sketch"
+      ]
+    },
+    "all_styles": {
+      "label": "Tất cả phong cách",
+      "allowed_styles": [
+        "bold-pop",
+        "detailed-vector",
+        "flat",
+        "flat-with-black",
+        "framed-panel",
+        "grainy-gouache",
+        "halftone-line",
+        "ink-sketch",
+        "isometric-mono",
+        "line-interior",
+        "one-line",
+        "outlined-cartoon",
+        "teal-spot",
+        "two-colour-brush",
+        "vintage-emblem"
+      ]
+    }
+  },
+  "default_style": "detailed-vector"
+}
