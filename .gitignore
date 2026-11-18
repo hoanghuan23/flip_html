@@ -8,3 +8,9 @@ videos/
 mario_animation_video/
 rain_chart_video/
 
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+storage/
+.venv/
+

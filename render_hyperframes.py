@@ -327,14 +327,30 @@ def run(command: list[str], cwd: Path):
     subprocess.run(command, cwd=cwd, check=True)
 
 
-def verify_video(output: Path, duration: float, fps: int):
+def verify_video(output: Path, duration: float, fps: int, width: int | None = None,
+                 height: int | None = None):
     if not output.is_file() or output.stat().st_size == 0:
         raise PreviewError(f"HyperFrames chưa tạo video hợp lệ: {output}")
-    result = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+    result = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                             "-show_entries", "format=duration:stream=width,height,avg_frame_rate,codec_name",
                              "-of", "json", str(output)], check=True, capture_output=True, text=True)
-    actual = positive(json.loads(result.stdout)["format"]["duration"], "Thời lượng video")
+    metadata = json.loads(result.stdout)
+    actual = positive(metadata["format"]["duration"], "Thời lượng video")
     if abs(actual - duration) > 2 / fps + 0.01:
         raise PreviewError(f"Thời lượng MP4 {actual}s khác timeline {duration}s.")
+    streams = metadata.get("streams", [])
+    if not streams:
+        raise PreviewError("MP4 không chứa luồng video.")
+    video = streams[0]
+    if width is not None and (video.get("width"), video.get("height")) != (width, height):
+        raise PreviewError(f"Kích thước MP4 không khớp {width}×{height}.")
+    rate = str(video.get("avg_frame_rate", "0/1")).split("/")
+    try:
+        actual_fps = float(rate[0]) / (float(rate[1]) if len(rate) == 2 else 1)
+    except (ValueError, ZeroDivisionError):
+        raise PreviewError("Không xác định được FPS của MP4.")
+    if not math.isfinite(actual_fps) or abs(actual_fps - fps) > 0.01:
+        raise PreviewError(f"FPS của MP4 {actual_fps:g} khác cấu hình {fps}.")
 
 
 def main(argv=None) -> int:
@@ -380,7 +396,8 @@ def main(argv=None) -> int:
         output.parent.mkdir(parents=True, exist_ok=True)
         run(command + ["render", "--fps", str(args.fps), "--quality", args.quality,
                        "--output", str(output)], project)
-        verify_video(output, manifest["duration"], args.fps)
+        print("Xác minh MP4…", flush=True)
+        verify_video(output, manifest["duration"], args.fps, manifest["width"], manifest["height"])
         print(f"Video hoàn chỉnh: {output}")
         return 0
     except (PreviewError, OSError, subprocess.CalledProcessError, KeyError) as exc:

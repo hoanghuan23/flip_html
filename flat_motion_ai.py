@@ -3,69 +3,18 @@
 import hashlib
 import html
 import json
+from pathlib import Path
 import textwrap
 import xml.etree.ElementTree as ET
 
 VERSION = "flat-detailed-v3"
 NS = "http://www.w3.org/2000/svg"
-STYLE = """Phong cách Detailed Editorial Vector Illustration + Light 2.5D Scientific Explainer.
-Áp dụng cho mọi chủ đề theo Plan, không mặc định một loại cảnh hay đồ vật.
-Style trong JSON cung cấp palette, font, nhận diện và quy ước nội dung; nâng mức
-diễn họa theo chuẩn này mà không đổi các ràng buộc đó, kể cả khi notes còn ghi flat.
-Góc nhìn theo camera.view và camera.detail của Plan: top-down (từ trên),
-side (nhìn ngang) hoặc section (mặt cắt). Giữ phối cảnh, hướng nhìn và tỷ lệ
-giữa nền, nhân vật, bộ phận và đồ vật; chỉ đổi góc khi Plan yêu cầu, dùng pose phù hợp.
 
-HÌNH KHỐI EDITORIAL VÀ CHIỀU SÂU 2.5D NHẸ
-- Đối tượng phức tạp cần silhouette đặc trưng và nhiều lớp vector có cấu trúc:
-  khối chính, bộ phận chức năng, mặt tiếp giáp, vùng sáng/tối và điểm tương tác.
-  Không thay bằng icon, vài ellipse/circle chồng lên nhau hoặc hình xoắn đơn độc.
-  Dùng path với đường cong Bézier cho đường bao tự nhiên; hình cơ bản phù hợp
-  với bộ phận đơn giản, không phải khuôn mẫu cho mọi đối tượng.
-- Tạo thể tích bằng các mặt/lớp chồng hợp lý, linearGradient/radialGradient mềm,
-  highlight tiết chế và bóng tiếp xúc/bóng đổ vector opacity 0.12-0.20.
-  Chọn một hướng sáng, giữ nhất quán trong cảnh và giữa các pose cùng góc nhìn.
-  Thể hiện ranh giới bề mặt, chiều sâu và chất liệu mà không tăng trang trí vô nghĩa.
-- Chỉ dùng phối cảnh nhẹ khi phù hợp camera. Với section, giữ đúng mặt cắt,
-  vị trí các lớp và cao độ; với top-down, giữ hình chiếu từ trên, không thêm
-  đường chân trời hoặc nghiêng thành isometric để tạo cảm giác 3D.
-- Người và động vật có tỷ lệ, tư thế, khớp nối và điểm tiếp xúc hợp lý.
-  Không photorealistic, 3D thực, texture, ảnh raster, filter hoặc blur.
-Màu theo palette và vai trò trong Plan, tương phản đủ với nền. Giữ màu, hình dạng
-nhận diện và kích thước tương đối của cùng asset giữa các phase, trừ thay đổi được mô tả.
-Canvas 1920x1080. Diễn hoạt chính y=0..792; vùng y=792..1080 chương trình tự
-đặt dải chữ, không đưa đối tượng quan trọng vào đó. Không tự vẽ caption/narration.
 
-NGUYÊN TẮC ĐỒ HỌA GIẢI THÍCH
-- Hình phải giúp nhận ra đối tượng và hiện tượng ngay cả khi ẩn caption.
-  Mỗi phase có một trọng tâm; dùng khoảng trống, tương phản, lớp hình và thứ tự
-  chuyển động để dẫn sự chú ý. Ưu tiên khả năng đọc ở màn hình nhỏ hơn số chi tiết.
-- Người xem phải nhận ra trạng thái ban đầu, diễn biến trung gian và kết quả.
-  Khi có quan hệ nhân quả, làm rõ vật gây tác động, nơi tương tác và thay đổi tạo ra.
-- Tách rõ vật thể, đường chuyển động và chú giải. Chỉ chồng hình khi thể hiện
-  tiếp xúc/che khuất có ý nghĩa; không che bộ phận đang giải thích.
-- Mũi tên, đường dẫn, nhãn và hiệu ứng phải có nghĩa cụ thể theo Plan, phân biệt
-  chỉ dẫn với vật thể thật; dùng ít, nhất quán, không giao cắt làm nhầm hướng hay đối tượng.
-- Plan quyết định kiến thức và diễn biến cốt lõi. Chỉ cụ thể hóa cách vẽ và bố trí;
-  không tự thêm nguyên nhân, bước cơ chế, dữ kiện hoặc kết quả, không biến minh họa
-  hay giả thuyết thành sự thật. Nếu có xung đột, ưu tiên nội dung Plan hơn hiệu ứng đẹp.
-
-VẬN DỤNG THEO ĐỐI TƯỢNG (chỉ khi Plan có, không tự thêm vào cảnh khác)
-- Mây: khối tích nhiều tầng với đường bao tự nhiên, mặt sáng, lõi tối và chân mây;
-  phân biệt cụm dông rời, tháp phát triển cao, dải cong và hệ có tổ chức theo pose.
-  Không dùng icon dự báo thời tiết. Biển: phân lớp nước, mặt sóng và sắc độ có
-  hướng; khí quyển: lớp màu bán trong suốt khi Plan cần phân biệt các vùng khí.
-- Hiện tượng vô hình: giữ bối cảnh nguồn, đường đi và tác động quan sát được;
-  hạt, vùng màu hay đường bao chỉ là ký hiệu phụ đúng quy ước của Plan.
-  Với bốc hơi, làm rõ mặt nước cung cấp ẩm và không khí ẩm đi lên nếu Plan mô tả;
-  không biến hơi nước vô hình thành khói trắng. Giọt ngưng tụ khác ký hiệu hơi ẩm.
-- Hệ mây xoáy: nhiều cụm mây kết nối thành dải, có khoảng cách và chiều sâu,
-  không thay toàn bộ hệ bằng một nét xoắn. Giữ chiều xoáy/bán cầu do Plan chỉ định;
-  không tự thêm mắt bão hoặc chi tiết của giai đoạn chưa được yêu cầu.
-- Gió/dòng khí: đường cong Bézier mượt, đầu mũi tên rõ, không che khối chính;
-  phân biệt sơ đồ hướng gió tĩnh với mẫu khí đang chuyển động. Cùng nguyên tắc
-  nguồn -> đường truyền -> tác động áp dụng cho chất lỏng, máy móc và chủ đề khác.
-"""
+def load_style():
+    """Đọc trực tiếp Skill mặc định theo vị trí module, không cache nội dung."""
+    path = Path(__file__).resolve().parent / "skills" / "detailed-vector" / "SKILL.md"
+    return path.read_text(encoding="utf-8")
 
 
 def text_lines(text, y, size, fill, width, weight=800):
@@ -98,28 +47,23 @@ def asset_spec(script):
 def library_prompt(script):
     return ("Vẽ thư viện SVG dùng chung cho TOÀN BỘ video. Chỉ trả một <svg xmlns=\""
             + NS + "\" viewBox=\"0 0 1920 1080\"><defs id=\"shared-assets\">...</defs></svg>.\n"
-            + STYLE + """
+            + load_style() + """
+Canvas 1920x1080. Diễn hoạt chính y=0..792; vùng y=792..1080 chương trình tự
+đặt dải chữ, không đưa đối tượng quan trọng vào đó. Không tự vẽ caption/narration.
+
 Mỗi asset và mỗi pose bên dưới phải có đúng một <g id="ID"> trong defs.
 Background vẽ tại (0,0), phủ 1920x1080. Asset khác có tâm (0,0), vẽ kích thước
 đúng description; KHÔNG đặt sẵn ở tọa độ của phase. Không <symbol>.
-Các pose của cùng đối tượng giữ ngoại hình, màu, tỷ lệ và mức độ chi tiết,
-trừ biến đổi tư thế, hình dạng hoặc góc nhìn mà Plan yêu cầu. Dùng cùng gốc local
-và điểm neo tương ứng để chuyển pose không làm đối tượng nhảy vị trí hoặc đổi cỡ ngoài ý muốn.
+Dùng cùng gốc local và điểm neo tương ứng để chuyển pose không làm đối tượng
+nhảy vị trí hoặc đổi cỡ ngoài ý muốn.
 
 CẤU TẠO PHỤC VỤ CHUYỂN ĐỘNG
 Đọc description, initial_state, final_state và actions (kể cả note, from/to.pose)
-trong toàn video trước khi vẽ. Mỗi asset/pose phải có bộ phận, khớp, bề mặt và
-điểm tiếp xúc cần cho hành động; silhouette phải phân biệt được trạng thái liên quan.
-Xây từ các lớp hình học có chủ đích: đường bao Bézier, khối/bề mặt chính,
-vùng tối, highlight và chi tiết chức năng theo quy mô thực của asset trên canvas.
-Gradient phân biệt thể tích và lớp vật chất, không chỉ tô bóng một icon đơn giản.
+trong toàn video trước khi vẽ.
 Bộ phận cần chuyển động độc lập và đã được Plan tách asset phải có hình riêng,
 đúng kích thước/điểm nối để lắp khớp; không vẽ lặp bộ phận đó vào thân chính.
 Không mặc định các nhóm con trong một <use> có thể được phase điều khiển riêng.
-Với morph, vẽ đủ mọi pose được liệt kê, thể hiện đúng biến đổi nội dung của pose,
-không chỉ khác màu/kích thước hoặc sao chép hình gốc rồi xoay/co giãn; ngoại lệ
-là khi chính Plan yêu cầu thay đổi màu, cỡ hoặc hướng nhìn đó. Giữ các mốc cấu trúc
-tương ứng qua pose để khi mờ chuyển vẫn nhận ra cùng đối tượng đang biến đổi.
+Với morph, vẽ đủ mọi pose được liệt kê.
 Không tự tạo hệ xương, action mới hoặc yêu cầu nội suy path; thư viện là hình tĩnh.
 
 RÀNG BUỘC SVG
@@ -128,12 +72,10 @@ Gradient, clip và mask chỉ tham chiếu id nội bộ bằng url(#ID); không
 Tiền tố id phụ theo asset (ví dụ CLOUD_01-shade); tránh id dành cho chương trình
 program-assets/program-captions. Khai báo đủ mọi id được href/url(#ID) tham chiếu,
 không tham chiếu vòng. Khi dùng lại <use>, không nhân bản bộ phận vốn đã có trong hình.
-Bóng đổ là hình vector có opacity, không filter. Chỉ SVG hình học và text nhãn ngắn.
+Chỉ SVG hình học và text nhãn ngắn.
 Không CSS/style, animation, script, SMIL, image, foreignObject hoặc tài nguyên ngoài.
 Thư viện là dữ liệu tĩnh để phase dùng <use href="#ID"> và chuyển động bằng CSS.
-Giữ toàn SVG dưới 250000 byte; dùng lượng phần tử vừa đủ cho silhouette và cấu tạo,
-không rải hàng nghìn hạt/sóng/highlight. Tái dùng hình tĩnh và gradient nội bộ
-khi phù hợp; ưu tiên path gọn thay vì nhiều chi tiết nhỏ khó nhìn.
+Giữ toàn SVG dưới 250000 byte.
 """ + "\nSTYLE:\n" + json.dumps(script.get("style", {}), ensure_ascii=False)
             + "\nASSETS VÀ POSES:\n" + json.dumps(asset_spec(script), ensure_ascii=False)
             + "\nTRẠNG THÁI VÀ ACTIONS TOÀN VIDEO (để chọn cấu tạo, tỷ lệ và pose):\n"
@@ -186,28 +128,21 @@ def phase_prompt(script, index, library, previous=None):
     phase = script["phases"][index - 1]
     before = script["phases"][(phase.get("branch_from") or index - 1) - 1] if index > 1 else None
     return ("Dàn cảnh MỘT phase bằng SVG + CSS animation. Chỉ trả một <svg xmlns=\""
-            + NS + "\" viewBox=\"0 0 1920 1080\">...</svg>.\n" + STYLE + """
+            + NS + "\" viewBox=\"0 0 1920 1080\">...</svg>.\n" + load_style() + """
+Canvas 1920x1080. Diễn hoạt chính y=0..792; vùng y=792..1080 chương trình tự
+đặt dải chữ, không đưa đối tượng quan trọng vào đó. Không tự vẽ caption/narration.
+
 Chỉ đặt <style> và <g id="artwork"> trực tiếp dưới SVG. Không tự tạo defs:
 chương trình chèn thư viện bên dưới. Tái sử dụng nhân vật/đồ vật/nền bằng
 <use href="#ASSET_ID"> hoặc pose đã định nghĩa; không vẽ lại hình chính.
 Mỗi asset được nhắc đến trong actions phải có <use>, kể cả khi opacity=0.
-Background ở dưới cùng; các lớp còn lại theo vị trí không gian và điểm tương tác,
-đảm bảo bộ phận đang giải thích không bị che. Được vẽ thêm mũi tên và nhãn
-trong artwork để làm rõ ý Plan, không thêm vật thể ngoài câu chuyện.
-Ưu tiên nền ít tương phản, chủ thể rõ khối, hiệu ứng gắn vùng tác động và chú giải
-dễ đọc; bóng/gradient đã nằm trong thư viện, không phủ thêm hiệu ứng che cấu tạo.
+Được vẽ thêm mũi tên và nhãn trong artwork để làm rõ ý Plan,
+không thêm vật thể ngoài câu chuyện.
+Bóng/gradient đã nằm trong thư viện, không phủ thêm hiệu ứng che cấu tạo.
 
 CHÚ GIẢI THÀNH PHẦN
-- Chủ động chú giải các thành phần và quá trình cần nhận diện để hiểu phase,
-  theo đúng tên gọi và nội dung Plan; tránh gắn nhãn cho mọi chi tiết trang trí.
-- Không giới hạn số từ trong nhãn. Viết đủ nghĩa, dễ hiểu; nhãn dài được ngắt
-  dòng bằng tspan và nới hộp theo chữ, không cắt chữ hoặc thu chữ quá nhỏ.
-- Dùng hộp chữ bo góc, nền sáng, viền mảnh và chữ đậm tương phản rõ. Màu hộp,
-  viền và đường dẫn theo palette, có thể dùng sắc ấm/lạnh để liên hệ với đối tượng.
-  Giữ font, cỡ chữ và kiểu hộp nhất quán giữa các phase, đủ đọc trên màn hình nhỏ.
-- Nối mép hộp với đúng bộ phận hoặc vùng cần giải thích bằng đường dẫn mảnh,
-  thẳng hoặc gấp khúc, có đầu mũi tên rõ ở phía đối tượng. Phân biệt đường chú
-  giải với mũi tên biểu diễn chuyển động hoặc tác động; không để đường xuyên chữ.
+- Nhãn dài được ngắt dòng bằng tspan và nới hộp theo chữ,
+  không cắt chữ hoặc thu chữ quá nhỏ.
 - Đặt hộp trong khoảng trống của vùng y=0..792, chừa đệm quanh chữ; tránh chồng
   nhãn, giao cắt đường dẫn hoặc che chủ thể, vùng tương tác và dải caption.
 - Cho chú giải xuất hiện cùng nội dung liên quan và ẩn khi đối tượng biến mất.
@@ -291,7 +226,8 @@ class Renderer:
     def prepare(self):
         path = self.output / "assets.svg"
         meta_path = self.output / "assets.meta.json"
-        fingerprint = digest({"version": VERSION, "prompt": library_prompt(self.script)})
+        prompt = library_prompt(self.script)
+        fingerprint = digest({"version": VERSION, "prompt": prompt})
         try:
             data, meta = path.read_text(encoding="utf-8"), json.loads(meta_path.read_text())
             if meta["fingerprint"] == fingerprint and meta["sha256"] == digest(data):
@@ -302,11 +238,13 @@ class Renderer:
             print("  Đang vẽ thư viện asset chung cho video…", flush=True)
             prompts = self.output / "prompts"
             prompts.mkdir(exist_ok=True)
-            (prompts / "assets.txt").write_text(library_prompt(self.script), encoding="utf-8")
-            self.library = self.generate(library_prompt(self.script), lambda raw: validate_library(raw, self.script, self.cleaner))
+            (prompts / "assets.txt").write_text(prompt, encoding="utf-8")
+            self.library = self.generate(prompt, lambda raw: validate_library(raw, self.script, self.cleaner))
             path.write_text(self.library, encoding="utf-8")
             meta_path.write_text(json.dumps({"fingerprint": fingerprint, "sha256": digest(self.library)}, indent=2), encoding="utf-8")
-        self.fingerprint = digest({"version": VERSION, "script": self.script, "library": self.library})
+        # Phụ thuộc prompt asset (gồm Skill), kể cả khi SVG sinh lại giống hệt.
+        self.fingerprint = digest({"version": VERSION, "script": self.script, "library": self.library,
+                                   "assets": fingerprint})
         return self
 
     def clean_phase(self, raw, index):

@@ -1,0 +1,13 @@
+{
+  "skill": "detailed-vector",
+  "name": "Detailed Vector",
+  "description": "Detailed Editorial Vector Illustration + Light 2.5D Scientific Explainer cho video giải thích theo Plan.",
+  "visual_identity": {
+    "illustration": "Detailed Editorial Vector Illustration",
+    "depth": "Light 2.5D Scientific Explainer",
+    "forms": "Silhouette đặc trưng, nhiều lớp vector có cấu trúc và đường bao Bézier tự nhiên.",
+    "lighting": "Gradient mềm, highlight tiết chế, bóng vector và hướng sáng nhất quán.",
+    "palette": "Theo palette, font và nhận diện của Plan.",
+    "perspective": "Theo camera của Plan: top-down, side hoặc section."
+  }
+}
