@@ -96,30 +96,10 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     assert.ok(await page.$("#noi-dung #kich-ban"));
     assert.equal(await page.$$eval('nav[aria-label="Các bước tạo video"] a', (links) => links.length), 3);
     report.checks.push("generated script appears inside step 1 with three navigation steps");
-    for (let i = 1; i <= 5; i++) {
-      await page.$eval(`button[aria-label="Sửa cảnh ${i}"]`, (button) =>
-        button.click(),
-      );
-      await fill("#kich-ban input[type=number]", "0.5");
-      if (i === 1) {
-        await fill(
-          "#kich-ban label:first-child input",
-          "Cảnh đã chỉnh trong trình duyệt",
-        );
-      }
-      await click("Lưu cảnh");
-      await page.waitForFunction(
-        () => !document.querySelector("#kich-ban input[type=number]"),
-      );
-    }
-    await click("Chat với AI", true);
-    await click("Đổi giọng vui hơn", true);
-    await page.waitForFunction(() =>
-      document
-        .querySelector("#kich-ban")
-        .textContent.includes("Cùng khám phá nhé!"),
-    );
-    await page.click('aside button[aria-label="Đóng chat"]');
+    assert.equal(await page.$eval('button[aria-label="Sửa cảnh 1"]', (button) => button.disabled), true);
+    assert.equal(await page.$$eval("#kich-ban button", (buttons) => buttons
+      .filter((button) => /Chat với AI|Thêm cảnh/.test(button.textContent))
+      .every((button) => button.disabled)), true);
     await click("Tạo đồ họa", true);
     await page.waitForSelector("#xem-truoc iframe");
     await page.waitForFunction(
@@ -160,7 +140,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         .textContent.includes("5/5 phase sẵn sàng"),
     );
     report.checks.push(
-      "scene editing, demo chat, preview playback, stale preview export guard",
+      "readonly AI script, preview playback, stale preview export guard",
     );
     await click("Xuất video", true);
     await page.waitForSelector("dialog[open]");

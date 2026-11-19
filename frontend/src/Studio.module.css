@@ -956,6 +956,22 @@
   justify-content: flex-end;
   gap: 3px;
 }
+.scriptStatus {
+  margin: 16px 0 0;
+  padding: 12px 16px;
+  border: 1px solid #e7e0f8;
+  border-radius: 8px;
+  background: #faf8ff;
+  color: #69538c;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.scriptStatus[role="alert"] {
+  color: #9a3333;
+  border-color: #efcaca;
+  background: #fff7f7;
+}
 .iconButton,
 .deleteButton {
   display: inline-flex;

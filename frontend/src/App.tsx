@@ -4,7 +4,6 @@ import {
   FolderOpen,
   Check,
   Plus,
-  Download,
   Upload,
   Pencil,
   Trash2,
@@ -19,8 +18,9 @@ import {
   parseDraft,
   type ProjectDraft,
   type PreviewSnapshot,
+  type ScriptJob,
 } from "./types";
-import { api, ApiError, generatePreview, videoService } from "./services";
+import { api, ApiError, createScriptJob, getScriptJob, generatePreview, scriptStages } from "./services";
 import { Modal, errorText } from "./components";
 import InputPanel from "./InputPanel";
 import { StylePicker } from "./components";
@@ -43,14 +43,21 @@ export default function App() {
     [dispatch, project.id],
   );
   const [projectsOpen, setProjectsOpen] = useState(false);
-  const [scriptBusy, setScriptBusy] = useState(false);
+  const [startingScripts, setStartingScripts] = useState<string[]>([]);
+  const startingRef = useRef(new Set<string>());
+  const [scriptJobs, setScriptJobs] = useState<Record<string, ScriptJob>>({});
+  const [scriptErrors, setScriptErrors] = useState<Record<string, string>>({});
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const scriptBusy = startingScripts.includes(project.id) || !!project.scriptJobId;
+  const scriptStatus = scriptErrors[project.id] || (project.scriptJobId
+    ? scriptStages[scriptJobs[project.scriptJobId]?.stage] || "Đang theo dõi tác vụ AI…"
+    : startingScripts.includes(project.id) ? "Đang gửi yêu cầu…" : undefined);
+  const pendingScripts = JSON.stringify(state.projects
+    .filter((p) => p.scriptJobId)
+    .map((p) => ({ projectId: p.id, jobId: p.scriptJobId! })));
   const [previewBusy, setPreviewBusy] = useState(false);
   const [selectedId, setSelectedId] = useState("");
-  const [editRequest, setEditRequest] = useState<{
-    id: string;
-    chat?: boolean;
-    key: number;
-  }>();
   const [deleteId, setDeleteId] = useState<string>();
   const [renameId, setRenameId] = useState<string>();
   const [renameText, setRenameText] = useState("");
@@ -91,31 +98,70 @@ export default function App() {
     };
   }, [project.id, project.snapshot?.id, patch, notify]);
 
+  useEffect(() => {
+    const pending: { projectId: string; jobId: string }[] = JSON.parse(pendingScripts);
+    if (!pending.length) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      await Promise.all(pending.map(async ({ projectId, jobId }) => {
+        try {
+          const job = await getScriptJob(jobId);
+          if (cancelled) return;
+          const current = stateRef.current.projects.find((p) => p.id === projectId);
+          if (!current || current.scriptJobId !== jobId) return;
+          setScriptJobs((jobs) => ({ ...jobs, [jobId]: job }));
+          setScriptErrors((errors) => ({ ...errors, [projectId]: "" }));
+          if (job.status === "succeeded" && job.result) {
+            scriptScrollRef.current = projectId;
+            dispatch({ type: "patch", id: projectId, patch: {
+              scenes: job.result.scenes, scriptId: job.id, scriptJobId: undefined,
+              messages: [],
+              ...(current.title === "Dự án chưa đặt tên" ? { title: job.result.title } : {}),
+            } });
+            if (stateRef.current.activeId === projectId) {
+              setSelectedId(job.result.scenes[0]?.id || "");
+              notify("Kịch bản đã sẵn sàng. Bản JSON chi tiết đã được lưu trên máy chủ.");
+            }
+          } else if (job.status === "rejected" || job.status === "failed") {
+            const message = job.error || "Không thể tạo kịch bản. Hãy thử lại.";
+            dispatch({ type: "patch", id: projectId, patch: { scriptJobId: undefined } });
+            setScriptErrors((errors) => ({ ...errors, [projectId]: message }));
+            if (stateRef.current.activeId === projectId) notify(message, true);
+          }
+        } catch (error) {
+          if (cancelled) return;
+          const missing = error instanceof ApiError && error.status === 404;
+          if (missing) dispatch({ type: "patch", id: projectId, patch: { scriptJobId: undefined } });
+          setScriptErrors((errors) => ({ ...errors, [projectId]: missing
+            ? errorText(error)
+            : "Tạm mất kết nối máy chủ. Đang tự kết nối lại để theo dõi kịch bản…" }));
+        }
+      }));
+      if (!cancelled) timer = setTimeout(() => void poll(), 1500);
+    }
+    void poll();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [pendingScripts, dispatch, notify]);
+
   async function createScript() {
-    if (!project.sourceContent.trim() || scriptBusy) return;
+    if (!project.sourceContent.trim() || scriptBusy || startingRef.current.has(project.id)) return;
     setRegenerateOpen(false);
-    setScriptBusy(true);
     const id = project.id;
+    startingRef.current.add(id);
+    setStartingScripts((ids) => [...ids, id]);
+    setScriptErrors((errors) => ({ ...errors, [id]: "" }));
     try {
-      const scenes = await videoService.generateScript(project.sourceContent);
-      scriptScrollRef.current = id;
-      dispatch({
-        type: "patch",
-        id,
-        patch: {
-          scenes,
-          messages: [],
-          ...(project.title === "Dự án chưa đặt tên"
-            ? { title: "Bão nhiệt đới hình thành như thế nào?" }
-            : {}),
-        },
-      });
-      setSelectedId(scenes[0].id);
-      notify("Kịch bản mẫu đã sẵn sàng. Bạn có thể sửa từng cảnh.");
-    } catch (e) {
-      notify(errorText(e), true);
+      const job = await createScriptJob(id, project.sourceContent);
+      setScriptJobs((jobs) => ({ ...jobs, [job.id]: job }));
+      dispatch({ type: "patch", id, patch: { scriptJobId: job.id } });
+    } catch (error) {
+      const message = errorText(error);
+      setScriptErrors((errors) => ({ ...errors, [id]: message }));
+      if (stateRef.current.activeId === id) notify(message, true);
     } finally {
-      setScriptBusy(false);
+      startingRef.current.delete(id);
+      setStartingScripts((ids) => ids.filter((item) => item !== id));
     }
   }
   async function buildPreview() {
@@ -134,17 +180,6 @@ export default function App() {
     } finally {
       setPreviewBusy(false);
     }
-  }
-  function exportDraft() {
-    const blob = new Blob([JSON.stringify({ version: 1, project }, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${project.title.replace(/[/\\]/g, "-")}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   async function importDraft(file?: File) {
     if (!file) return;
@@ -171,13 +206,6 @@ export default function App() {
     } finally {
       if (importRef.current) importRef.current.value = "";
     }
-  }
-  function editPhase(id: string, chat?: boolean) {
-    setSelectedId(id);
-    document
-      .getElementById("kich-ban")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setEditRequest({ id, chat, key: Date.now() });
   }
   return (
     <>
@@ -265,6 +293,8 @@ export default function App() {
           patch={patch}
           notify={notify}
           busy={scriptBusy}
+          status={scriptStatus}
+          statusError={!!scriptErrors[project.id]}
           onGenerate={() =>
             project.scenes.length
               ? setRegenerateOpen(true)
@@ -274,11 +304,8 @@ export default function App() {
           {project.scenes.length > 0 && (
             <ScenePanel
               project={project}
-              patch={patch}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              editRequest={editRequest}
-              notify={notify}
             />
           )}
         </InputPanel>
@@ -300,7 +327,6 @@ export default function App() {
           project={project}
           patch={patch}
           notify={notify}
-          onEdit={editPhase}
           onRegenerate={() => void buildPreview()}
           previewBusy={previewBusy}
         />
@@ -310,7 +336,7 @@ export default function App() {
           </span>
           <p>Được tạo từ ý tưởng. Được chuyển động bởi HyperFrames.</p>
           <span>
-            <CircleHelp size={14} /> Local workspace · AI demo
+            <CircleHelp size={14} /> Local workspace · Kịch bản AI
           </span>
         </footer>
       </main>
@@ -331,12 +357,12 @@ export default function App() {
       )}
       {regenerateOpen && (
         <Modal
-          title="Tạo lại kịch bản mẫu?"
+          title="Tạo lại kịch bản?"
           onClose={() => setRegenerateOpen(false)}
         >
           <p className={s.confirmCopy}>
-            Các cảnh và cuộc trò chuyện hiện tại sẽ được thay bằng bộ kịch bản
-            mẫu. Bạn có thể tải JSON trước để giữ bản chỉnh sửa.
+            Bảng hiện tại chỉ được thay khi AI tạo thành công kịch bản mới.
+            File JSON chi tiết của mỗi lần tạo được lưu riêng trên máy chủ.
           </p>
           <div className={s.modalFooter}>
             <button
@@ -480,9 +506,6 @@ export default function App() {
             ))}
           </div>
           <div className={s.draftActions}>
-            <button className={s.secondary} onClick={exportDraft}>
-              <Download size={16} /> Tải JSON dự án đang mở
-            </button>
             <button
               className={s.secondary}
               onClick={() => importRef.current?.click()}

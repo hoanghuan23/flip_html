@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { newProject, parseDraft, sceneValid, signature } from "./types";
-import { MockVideoService } from "./services";
+import { api, createScriptJob, getScriptJob } from "./services";
+import { afterEach, vi } from "vitest";
 import { categories, styleForCategory } from "./styleConfig";
 
 describe("draft and snapshot contracts", () => {
@@ -87,16 +88,28 @@ describe("category style configuration", () => {
     expect(parseDraft({ ...p, styleId: "flat" }).styleId).toBe("flat");
   });
 });
-describe("AI demonstration boundary", () => {
-  it("loads example scenes and revises only the requested scene", async () => {
-    const service = new MockVideoService();
-    const scenes = await service.generateScript("Bài viết");
-    const result = await service.reviseScript(scenes[0], "Rút ngắn cảnh");
-    expect(result.scene!.id).toBe(scenes[0].id);
-    expect(result.scene!.duration).toBeLessThan(scenes[0].duration);
-    expect(scenes[0].duration).toBe(6);
-    expect(
-      (await service.reviseScript(scenes[0], "Yêu cầu không hỗ trợ")).scene,
-    ).toBeUndefined();
+describe("AI script API boundary", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("posts user content to the Python backend and polls its job", async () => {
+    const job = { id: "a".repeat(32), projectId: "p", status: "queued", stage: "queued", result: null, error: null };
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(job)));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await createScriptJob("p", "Ý tưởng của tôi")).toEqual(job);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ projectId: "p", content: "Ý tưởng của tôi" });
+    expect(await getScriptJob(job.id)).toEqual(job);
+    expect(fetchMock.mock.calls[1][0]).toBe(`/api/scripts/${job.id}`);
+  });
+  it("reports a missing job and a network failure without demo fallback", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "Không tìm thấy tác vụ" }), { status: 404 })));
+    await expect(getScriptJob("a".repeat(32))).rejects.toThrow("Không tìm thấy tác vụ");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    await expect(api("/api/scripts")).rejects.toThrow("Không kết nối được máy chủ");
+  });
+  it("keeps safe canonical references but never resumes imported pending jobs", () => {
+    const p = newProject();
+    const id = "b".repeat(32);
+    expect(parseDraft({ ...p, scriptId: id, scriptJobId: id }).scriptId).toBe(id);
+    expect(parseDraft({ ...p, scriptJobId: id }).scriptJobId).toBeUndefined();
+    expect(parseDraft({ ...p, scriptId: "https://untrusted" }).scriptId).toBeUndefined();
   });
 });

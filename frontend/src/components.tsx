@@ -189,7 +189,7 @@ export function StylePicker({
       <SectionHeading
         number={2}
         title="Danh mục & phong cách đồ họa"
-        subtitle="Chọn danh mục để xem phong cách phù hợp hoặc chọn Tất cả phong cách."
+        subtitle="Chọn danh mục và phong cách. Preview hiện sử dụng đồ họa mẫu minh họa."
       />
       <div className={s.categorySection}>
         <p className={s.fieldLabel} id="category-heading">

@@ -40,14 +40,12 @@ export default function PreviewPanel({
   project,
   patch,
   notify,
-  onEdit,
   onRegenerate,
   previewBusy,
 }: {
   project: ProjectDraft;
   patch: (p: Partial<ProjectDraft>) => void;
   notify: (t: string, error?: boolean) => void;
-  onEdit: (id: string, chat?: boolean) => void;
   onRegenerate: () => void;
   previewBusy: boolean;
 }) {
@@ -309,7 +307,8 @@ export default function PreviewPanel({
               <div className={s.playerActions}>
                 <button
                   className={s.secondarySmall}
-                  onClick={() => phase && onEdit(phase.id)}
+                  disabled
+                  title="Phiên bản hiện tại chỉ hỗ trợ xem kịch bản."
                 >
                   <Pencil size={14} /> Sửa phase này
                 </button>
@@ -322,7 +321,8 @@ export default function PreviewPanel({
                 </button>
                 <button
                   className={s.secondarySmall}
-                  onClick={() => phase && onEdit(phase.id, true)}
+                  disabled
+                  title="Phiên bản hiện tại chỉ hỗ trợ xem kịch bản."
                 >
                   <MessageSquare size={14} /> Chat với AI
                 </button>

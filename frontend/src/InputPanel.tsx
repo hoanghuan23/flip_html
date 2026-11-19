@@ -17,6 +17,8 @@ export default function InputPanel({
   notify,
   onGenerate,
   busy,
+  status,
+  statusError,
   children,
 }: {
   project: ProjectDraft;
@@ -24,6 +26,8 @@ export default function InputPanel({
   notify: (t: string, error?: boolean) => void;
   onGenerate: () => void;
   busy: boolean;
+  status?: string;
+  statusError?: boolean;
   children?: ReactNode;
 }) {
   const [tab, setTab] = useState<"text" | "file">("text");
@@ -31,7 +35,7 @@ export default function InputPanel({
   const [reading, setReading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   async function read(file?: File) {
-    if (!file) return;
+    if (!file || busy || reading) return;
     if (!/\.(txt|docx)$/i.test(file.name)) {
       notify("Chọn file .txt hoặc .docx.", true);
       return;
@@ -121,6 +125,7 @@ export default function InputPanel({
           className={`${s.dropzone} ${dragging ? s.dragging : ""} ${tab === "file" ? s.dropzoneActive : ""}`}
           onDragOver={(e) => {
             e.preventDefault();
+            if (busy) return;
             setDragging(true);
           }}
           onDragLeave={() => setDragging(false)}
@@ -141,12 +146,13 @@ export default function InputPanel({
             ref={fileRef}
             hidden
             type="file"
+            disabled={busy || reading}
             accept=".txt,.docx"
             onChange={(e) => void read(e.target.files?.[0])}
           />
           <button
             className={s.secondary}
-            disabled={reading}
+            disabled={busy || reading}
             onClick={() => fileRef.current?.click()}
           >
             Chọn file <ArrowUpRight size={15} />
@@ -157,6 +163,7 @@ export default function InputPanel({
               <FileText size={15} />
               <span>{project.sourceFilename}</span>
               <button
+                disabled={busy}
                 aria-label="Xóa tài liệu và văn bản"
                 onClick={() =>
                   patch({ sourceFilename: undefined, sourceContent: "" })
@@ -179,6 +186,7 @@ export default function InputPanel({
           </label>
           <textarea
             id="source-text"
+            disabled={busy || reading}
             value={project.sourceContent}
             onChange={(e) => patch({ sourceContent: e.target.value })}
             placeholder="Dán bài viết, kể một câu chuyện hoặc viết ý tưởng của bạn ở đây…"
@@ -189,9 +197,11 @@ export default function InputPanel({
             </span>
             <span>AI đề xuất thời lượng theo nội dung kịch bản</span>
           </div>
+        </div>
           <div className={s.inputActions}>
             <button
               className={s.textButton}
+              disabled={busy || reading}
               onClick={() =>
                 patch({
                   sourceContent:
@@ -205,7 +215,7 @@ export default function InputPanel({
             <button
               type="button"
               className={s.primary}
-              disabled={!project.sourceContent.trim() || busy}
+              disabled={!project.sourceContent.trim() || busy || reading}
               onClick={onGenerate}
               aria-busy={busy}
             >
@@ -213,8 +223,10 @@ export default function InputPanel({
               {busy ? "Đang tạo kịch bản…" : "Tạo kịch bản"}
             </button>
           </div>
-        </div>
       </div>
+      {status && <p className={s.scriptStatus} role={statusError ? "alert" : "status"}>
+        {status}
+      </p>}
       {children}
     </section>
   );

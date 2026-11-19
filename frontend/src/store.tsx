@@ -40,6 +40,9 @@ function initial(): State {
         return {
           ...validated,
           updatedAt: p.updatedAt,
+          scriptJobId:
+            typeof p.scriptJobId === "string" && /^[a-f0-9]{32}$/.test(p.scriptJobId)
+              ? p.scriptJobId : undefined,
           snapshot,
           jobId:
             p.jobId && /^[a-f0-9]{32}$/.test(p.jobId) ? p.jobId : undefined,
@@ -99,9 +102,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(KEY, JSON.stringify({ version: 1, ...state }));
         setSaveStatus("Đã lưu trên trình duyệt");
       } catch {
-        setSaveStatus("Không thể tự lưu · hãy tải JSON");
+        setSaveStatus("Không thể tự lưu bản nháp trên trình duyệt");
       }
-    }, 500);
+    }, state.projects.some((p) => p.scriptJobId) ? 0 : 500);
     return () => clearTimeout(timer);
   }, [state]);
   return (

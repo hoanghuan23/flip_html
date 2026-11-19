@@ -46,6 +46,18 @@ class Scene(BaseModel):
         return value.strip()
 
 
+class ScriptRequest(BaseModel):
+    projectId: str = Field(min_length=1, max_length=100)
+    content: str = Field(min_length=1, max_length=5 * 1024 * 1024)
+
+    @field_validator('content')
+    @classmethod
+    def nonblank_content(cls, value):
+        if not value.strip():
+            raise ValueError('Nội dung đầu vào trống.')
+        return value
+
+
 class PreviewRequest(BaseModel):
     projectId: str = Field(min_length=1, max_length=100)
     title: str = Field(min_length=1, max_length=160)

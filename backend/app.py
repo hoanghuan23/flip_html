@@ -12,8 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from .jobs import JobManager, ROOT
-from .models import ExportRequest, PreviewRequest, load_style_config
+from .models import ExportRequest, PreviewRequest, ScriptRequest, load_style_config
 from .previews import create_preview
+from .scripts import ScriptJobManager
 
 
 def create_app(storage_root: Path | None = None):
@@ -23,8 +24,12 @@ def create_app(storage_root: Path | None = None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.jobs = JobManager(storage)
-        yield
-        app.state.jobs.close()
+        app.state.scripts = ScriptJobManager(storage)
+        try:
+            yield
+        finally:
+            app.state.scripts.close()
+            app.state.jobs.close()
 
     app = FastAPI(title='AI Video Studio', lifespan=lifespan)
 
@@ -57,6 +62,21 @@ def create_app(storage_root: Path | None = None):
     def preview(request: PreviewRequest):
         snapshot_id = uuid.uuid4().hex
         return create_preview(request, storage / 'previews' / snapshot_id, snapshot_id)
+
+    @app.post('/api/scripts', status_code=202)
+    def script(request: ScriptRequest):
+        try:
+            return app.state.scripts.create(request)
+        except (OSError, RuntimeError):
+            raise HTTPException(503, 'Không thể tạo tác vụ kịch bản. Hãy kiểm tra máy chủ và thử lại.')
+
+    @app.get('/api/scripts/{script_id}')
+    def get_script(script_id: str):
+        checked_id(script_id)
+        try:
+            return app.state.scripts.read(script_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'Không tìm thấy tác vụ kịch bản trên máy chủ. Hãy tạo lại.')
 
     def current_style_config():
         try:

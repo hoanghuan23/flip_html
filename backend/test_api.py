@@ -64,7 +64,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
 
     def test_category_style_pair_uses_shared_configuration(self):
-        data = dict(draft(), categoryId='science', styleId='outlined-cartoon')
+        data = dict(draft(), categoryId='education', styleId='outlined-cartoon')
         response = self.client.post('/api/previews', json=data)
         self.assertEqual(response.status_code, 201, response.text)
         self.assertIn('#78ccc4', self.client.get(response.json()['phases'][0]['url']).text)
@@ -72,7 +72,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
         data['categoryId'] = 'technology'
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-        data['styleId'] = 'detailed-vector'
+        data['styleId'] = 'isometric-mono'
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
         data['categoryId'] = 'unknown'
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)

@@ -15,6 +15,14 @@ export interface Scene {
   description: string;
   duration: number;
 }
+export interface ScriptJob {
+  id: string;
+  projectId: string;
+  status: "queued" | "running" | "succeeded" | "rejected" | "failed";
+  stage: string;
+  error: string | null;
+  result: { title: string; scenes: Scene[] } | null;
+}
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -62,6 +70,8 @@ export interface ProjectDraft {
   updatedAt: string;
   snapshot?: PreviewSnapshot;
   jobId?: string;
+  scriptJobId?: string;
+  scriptId?: string;
   lastExportConfig?: ExportConfig;
 }
 export const defaultConfig: ExportConfig = {
@@ -143,6 +153,9 @@ export function parseDraft(value: unknown): ProjectDraft {
     id: p.id,
     title: p.title,
     sourceContent: p.sourceContent,
+    scriptId:
+      typeof p.scriptId === "string" && /^[a-f0-9]{32}$/.test(p.scriptId)
+        ? p.scriptId : undefined,
     categoryId,
     styleId: styleForCategory(categoryId, savedStyle),
     scenes: p.scenes,

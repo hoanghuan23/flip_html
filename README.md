@@ -20,6 +20,12 @@ mặc định hoặc giới hạn chữ theo tốc độ đọc. Video không c�
 là chữ giải thích ngắn trên màn hình. Tổng duration phải khớp `total_duration`,
 và mọi action phải nằm trong phase tương ứng.
 
+Prompt sinh kịch bản yêu cầu AI lập mốc diễn biến trước rồi mới chọn duration,
+tính thời gian đọc chữ song song với chuyển động và chỉ giữ kết quả thêm một
+nhịp ngắn khi cần. AI tự rà khoảng chờ trước, giữa và sau actions; hiệu ứng lặp
+không mang thông tin mới không được dùng để kéo dài phase. Quy tắc này áp dụng
+khi sinh kịch bản mới; các JSON và preview đã lưu giữ thời lượng cũ.
+
 Xuất các preview đã có thành video bằng **`render_hyperframes.py`** (một file,
 chỉ dùng thư viện chuẩn Python). Đầu vào là thư mục preview, `index.html` của
 playlist hoặc từng phase HTML; hỗ trợ cả SVG `phase_N.html` và PNG/sprite
