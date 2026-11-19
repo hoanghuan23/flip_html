@@ -1,4 +1,4 @@
-"""Sinh kịch bản video giải thích (Flat Motion Graphics) dạng JSON.
+"""Sinh kịch bản video giải thích dạng JSON, phong cách hình do skill quyết định.
 Dùng --output để lưu cho generate_kurzge.py."""
 
 import argparse
@@ -29,7 +29,14 @@ API_KEY = os.getenv("CODEX_API_TOKEN")
 MODEL = os.getenv("CODEX_MODEL")
 
 NOI_DUNG = """
- mô tả cách một cơn bão được tạo ra
+ # Vụ cháy căn hộ chung cư tại Hà Nội
+Khoảng 5 giờ sáng ngày 18/11/2026, một vụ hỏa hoạn xảy ra tại căn hộ tầng 8, tòa C2 chung cư Mandarin Garden, số 5 Nguyễn Thị Thập, phường Yên Hòa, Hà Nội.
+Thời điểm xảy ra vụ cháy, bên trong căn hộ có bốn người. Khi phát hiện hỏa hoạn, một người đã tự thoát ra ngoài. Ba người còn lại, gồm một người lớn và hai trẻ em, bị mắc kẹt bên trong.
+Sau khi nhận được tin báo, lực lượng Công an Hà Nội điều động 5 xe chữa cháy, một xe chỉ huy cùng 34 cán bộ, chiến sĩ đến hiện trường.
+Các chiến sĩ cứu hỏa nhanh chóng tiếp cận tòa nhà, phá cửa căn hộ để triển khai chữa cháy. Đồng thời, lực lượng cứu hộ hướng dẫn ba người mắc kẹt di chuyển ra ngoài bằng cầu thang bộ.
+Đến 5 giờ 40 phút, đám cháy được dập tắt hoàn toàn, không lan sang các khu vực lân cận.
+Cả bốn người trong căn hộ đều an toàn, sức khỏe ổn định. Tuy nhiên, nhiều đồ đạc bên trong bị thiêu rụi, các bức tường ám khói đen.
+Nguyên nhân vụ cháy đang được cơ quan chức năng điều tra.
 """
 
 
@@ -112,8 +119,8 @@ dễ hiểu cho người xem phổ thông, không yêu cầu kiến thức chuy�
 Chỉ trả về MỘT đối tượng JSON hợp lệ, không markdown, không giải thích.
 
 MỤC TIÊU:
-Kịch bản được dùng để tự động vẽ từng phase bằng SVG + CSS animation,
-sau đó ghép các phase thành video preview HTML.
+Kịch bản được dùng để sinh thư viện asset theo skill do renderer chọn,
+dàn cảnh và diễn hoạt bằng SVG + CSS, rồi ghép thành video preview HTML.
 
 THÔNG SỐ
 - Video không có giọng đọc hoặc âm thanh. AI tự quyết định thời lượng từng phase
@@ -123,9 +130,18 @@ THÔNG SỐ
 - Ngôn ngữ chữ trên màn hình: tiếng Việt
 
 PHONG CÁCH VÀ YÊU CẦU DỰNG HÌNH
-- Detailed Flat Vector Illustration / Semi-Flat Infographic; quy tắc vẽ SVG chi tiết
-  do renderer đảm nhiệm. Plan tập trung vào nội dung và ý nghĩa chuyển động.
-- Định nghĩa palette theo vai trò màu, dùng nhất quán cho toàn video.
+- Phong cách minh họa do skill được renderer chọn quyết định.
+  Plan tập trung vào nội dung, bố cục và ý nghĩa chuyển động.
+- style.palette ánh xạ tên vai trò sang mô tả ý nghĩa nhận diện, không phải mã hex
+  hoặc tên màu cố định; ví dụ "resident": "Nhận diện người trong căn hộ".
+  Skill quyết định sắc màu và cách phối; giữ nhận diện nhất quán cho toàn video.
+- Trang phục chỉ nêu vai trò nhận diện; để skill phối màu từng phần áo, quần,
+  mũ và giày, không bắt buộc toàn bộ trang phục cùng một màu.
+- Nền chỉ mô tả nội dung và vùng cần để trống; cách tô nền và trang trí theo skill.
+  Không yêu cầu sẵn mảng màu, họa tiết hoặc mức đơn giản hóa kiểu infographic.
+- style.notes chỉ ghi yêu cầu nội dung, bố cục, vùng chữ, độ tương phản và khả năng đọc.
+  Không cố định phong cách flat/phẳng, 2.5D, gradient, đổ bóng hoặc kiểu viền
+  trong notes hay description của asset/pose; cách thể hiện các yếu tố đó do skill quyết định.
 - Chọn camera.view trong top-down, side, section theo điều cần giải thích.
   Giữ góc nhìn và tỷ lệ giữa các phase nối tiếp; khi đổi góc, ghi rõ chuyển cảnh
   trong camera.detail và mô tả asset/pose phù hợp, không tự thêm trường JSON.
@@ -191,9 +207,10 @@ HÀNH ĐỘNG GIẢI THÍCH
   các quá trình đồng thời có thể chồng thời gian nếu vẫn đọc được từng bước.
 
 ASSET
-- Mọi asset đều được vẽ bằng SVG. Không dùng ảnh bitmap, sprite sheet.
+- Mỗi asset và pose là hình tĩnh dùng chung giữa các phase.
+  Renderer quyết định định dạng ảnh và cách vẽ theo skill; Plan không áp đặt SVG hay PNG.
 - "description" nêu vai trò, hình dạng, cấu tạo/bộ phận liên quan đến action,
-  điểm nối/tiếp xúc, kích thước theo viewBox, màu theo palette và góc nhìn cần thiết.
+  điểm nối/tiếp xúc, kích thước theo viewBox, vai trò nhận diện trong palette và góc nhìn cần thiết.
   Với asset tách bộ phận, nêu chúng thuộc đối tượng nào và cách lắp khớp khi đặt tâm.
 - Mỗi asset có ID duy nhất (chữ ASCII, số, gạch dưới), tái sử dụng giữa các phase. Tối đa 10 asset.
 - Các pose giữ nhận diện và tỷ lệ của cùng đối tượng. Tái sử dụng mẫu cho vật cùng
@@ -215,7 +232,7 @@ QUY TẮC KỸ THUẬT
 - Chỉ dùng asset đã khai báo trong "assets".
 - Mỗi phase phải có camera, initial_state, final_state và ít nhất 1 action.
 - Chỉ dùng move, rotate, scale, fade, morph, loop trong schema hiện có.
-  morph dùng from.pose/to.pose mô tả các pose SVG tĩnh để renderer mờ chuyển;
+  morph dùng from.pose/to.pose mô tả các pose tĩnh để renderer mờ chuyển;
   không phải nội suy đường path, không có action tên "pose" hoặc hệ xương tự động.
 - Không thêm hành động không đóng góp cho câu chuyện.
 - Không sinh HTML/CSS/JS/SVG, không sinh ảnh.
@@ -226,9 +243,8 @@ QUY TẮC KỸ THUẬT
 SCHEMA
 {
   "title": "",
-  "render_profile": "flat",
   "total_duration": 0,
-  "style": {"palette": {"role": "#hex"}, "font": "", "notes": ""},
+  "style": {"palette": {"role": "Mô tả ý nghĩa nhận diện; skill quyết định màu"}, "font": "", "notes": ""},
   "assets": [
     {"id": "BG_01", "category": "background|character|object|effect|ui",
      "name": "", "description": ""}

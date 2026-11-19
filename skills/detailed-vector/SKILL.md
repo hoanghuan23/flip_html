@@ -10,6 +10,9 @@ description: >-
 # Detailed Vector
 
 Phong cách Detailed Editorial Vector Illustration + Light 2.5D Scientific Explainer.
+Detailed editorial illustration with light 2.5D scientific explainer shading.
+Áp dụng cùng cách tạo khối và đổ bóng khi xuất SVG hoặc PNG; định dạng đầu ra
+do pipeline yêu cầu.
 Áp dụng cho mọi chủ đề theo Plan, không mặc định một loại cảnh hay đồ vật.
 Style trong JSON cung cấp palette, font, nhận diện và quy ước nội dung; nâng mức
 diễn họa theo chuẩn này mà không đổi các ràng buộc đó, kể cả khi notes còn ghi flat.
@@ -32,7 +35,7 @@ giữa nền, nhân vật, bộ phận và đồ vật; chỉ đổi góc khi Pl
   vị trí các lớp và cao độ; với top-down, giữ hình chiếu từ trên, không thêm
   đường chân trời hoặc nghiêng thành isometric để tạo cảm giác 3D.
 - Người và động vật có tỷ lệ, tư thế, khớp nối và điểm tiếp xúc hợp lý.
-  Không photorealistic, 3D thực, texture, ảnh raster, filter hoặc blur.
+  Không photorealistic, 3D thực, texture ảnh chụp, filter hoặc blur.
 Màu theo palette và vai trò trong Plan, tương phản đủ với nền. Giữ màu, hình dạng
 nhận diện và kích thước tương đối của cùng asset giữa các phase, trừ thay đổi được mô tả.
 

@@ -13,7 +13,7 @@ NS = "http://www.w3.org/2000/svg"
 
 def load_style():
     """Đọc trực tiếp Skill mặc định theo vị trí module, không cache nội dung."""
-    path = Path(__file__).resolve().parent / "skills" / "detailed-vector" / "SKILL.md"
+    path = Path(__file__).resolve().parent / "skills" / "flat" / "SKILL.md"
     return path.read_text(encoding="utf-8")
 
 

@@ -32,10 +32,13 @@ def image_specs(script):
 
 def asset_prompt(script, asset, pose):
     return ("Generate exactly ONE reusable PNG illustration asset, not a complete scene.\n"
-            "Detailed editorial illustration with light 2.5D scientific explainer shading. "
             "Keep palette, identity, lighting and anchor consistent across poses. "
             "No captions, watermark, invented labels or unrelated objects.\n"
-            + "ASSET: " + json.dumps({k: asset.get(k) for k in ("id", "name", "category", "description")}, ensure_ascii=False)
+            "Apply the illustration skill's visual style. The asset, pose, canvas and PNG output "
+            "requirements below take precedence over its example compositions and workflows. "
+            "Do not add example subjects or decor unless required by the Plan.\n"
+            + "ILLUSTRATION SKILL:\n" + vector.load_style()
+            + "\nASSET: " + json.dumps({k: asset.get(k) for k in ("id", "name", "category", "description")}, ensure_ascii=False)
             + "\nRender ONLY this pose: " + pose
             + "\nSTYLE: " + json.dumps(script.get("style", {}), ensure_ascii=False)
             + "\nCAMERA/STATE CONTEXT (choose the view specified for this pose): "
