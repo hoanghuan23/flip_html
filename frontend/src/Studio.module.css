@@ -276,6 +276,31 @@
   padding-bottom: 28px;
   scroll-margin-top: 100px;
 }
+.scriptHeadingActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.scriptToggle {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: 1px solid #e6e5ed;
+  border-radius: 8px;
+  background: #faf8ff;
+  color: #6752cc;
+  cursor: pointer;
+}
+.scriptToggle:hover {
+  background: #f0edfc;
+}
+.scriptToggle:focus-visible {
+  outline: 2px solid #6752cc;
+  outline-offset: 3px;
+}
 .headingLeft {
   display: flex;
   align-items: center;
@@ -1204,6 +1229,10 @@
   border-color: #baa7dc;
 }
 .phaseThumb {
+  display: grid;
+  place-items: center;
+  background: #f1edf8;
+  color: #a398b7;
   width: 56px;
   height: 40px;
   border-radius: 5px;

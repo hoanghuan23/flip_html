@@ -1,12 +1,14 @@
 ## Giao diện tạo video và xuất MP4
 
 Giao diện React + TypeScript và API FastAPI mới nằm trong `frontend/` và
-`backend/`. Có nhập TXT/DOCX, chọn phong cách, chỉnh cảnh, chat mẫu, preview
-HTML và xuất MP4 thật bằng HyperFrames; video hoàn chỉnh hiển thị ngay trên
-giao diện với nút tải xuống. Xem [hướng dẫn cài đặt, chạy và kiểm thử](frontend/README.md).
+`backend/`. Có nhập TXT/DOCX, AI sinh kịch bản đầy đủ, chọn phong cách và tạo
+PNG/HTML animation thật để xem, phát/dừng và tua. Mục 3 xuất toàn bộ phase
+thành MP4, theo dõi tiến trình, xem video và tải file. Các nút sửa/xóa/chat/tạo lại
+phase hiện chưa cho thao tác. Xem [hướng dẫn cài đặt, chạy và kiểm thử](frontend/README.md).
 
-AI/chat trong giao diện hiện dùng dữ liệu mẫu; pipeline AI Python bên dưới
-vẫn giữ cách sử dụng hiện có.
+Kịch bản và đồ họa chạy qua tác vụ nền riêng; chỉ công bố preview khi đủ mọi
+phase. Phong cách đã chọn được đưa vào cả sinh ảnh và diễn hoạt. CLI Python bên
+dưới giữ cách sử dụng hiện có; thêm `--style <id>` để chỉ định phong cách.
 
 Luồng kịch bản → AI phân tích → Scene Plan → PNG nền/sprite sheet → JavaScript sprite animation → HTML Preview được giữ trong **2 file**:
 

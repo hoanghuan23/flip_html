@@ -19,6 +19,10 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+class PreviewNotFoundError(FileNotFoundError):
+    """The requested snapshot is missing, independently of export storage."""
+
+
 class JobManager:
     def __init__(self, storage: Path):
         self.storage = storage
@@ -58,9 +62,10 @@ class JobManager:
     def create(self, request: ExportRequest):
         with self.lock:
             snapshot_root = self.storage / 'previews' / request.snapshotId
-            if not (snapshot_root / 'snapshot.json').is_file():
-                raise FileNotFoundError(request.snapshotId)
-            snapshot = json.loads((snapshot_root / 'snapshot.json').read_text())
+            try:
+                snapshot = json.loads((snapshot_root / 'snapshot.json').read_text())
+            except FileNotFoundError as error:
+                raise PreviewNotFoundError(request.snapshotId) from error
             config = request.config.model_dump()
             for path in self.jobs.glob('*/job.json'):
                 job = json.loads(path.read_text())
@@ -69,7 +74,8 @@ class JobManager:
                     return job
             job_id = uuid.uuid4().hex
             directory = self.jobs / job_id
-            directory.mkdir()
+            # Export storage may have been cleaned up since the server started.
+            directory.mkdir(parents=True)
             job = {'id': job_id, 'snapshotId': request.snapshotId,
                    'revision': snapshot['revision'], 'status': 'queued', 'stage': 'queued',
                    'createdAt': now(), 'updatedAt': now(), 'config': config,

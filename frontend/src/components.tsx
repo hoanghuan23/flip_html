@@ -172,6 +172,9 @@ export function StylePicker({
   onGenerate,
   busy,
   canGenerate,
+  hasScript,
+  status,
+  statusError,
 }: {
   categoryId: CategoryId;
   onCategoryChange: (id: CategoryId) => void;
@@ -180,6 +183,9 @@ export function StylePicker({
   onGenerate: () => void;
   busy: boolean;
   canGenerate: boolean;
+  hasScript: boolean;
+  status?: string;
+  statusError?: boolean;
 }) {
   const selected = getStyle(value);
   const category = categories.find((p) => p.id === categoryId)!;
@@ -189,7 +195,7 @@ export function StylePicker({
       <SectionHeading
         number={2}
         title="Danh mục & phong cách đồ họa"
-        subtitle="Chọn danh mục và phong cách. Preview hiện sử dụng đồ họa mẫu minh họa."
+        subtitle="Chọn phong cách để AI tạo hình ảnh và animation cho kịch bản của bạn."
       />
       <div className={s.categorySection}>
         <p className={s.fieldLabel} id="category-heading">
@@ -204,6 +210,7 @@ export function StylePicker({
             <button
               key={item.id}
               className={`${s.categoryButton} ${item.id === categoryId ? s.activeCategory : ""}`}
+              disabled={busy}
               aria-pressed={item.id === categoryId}
               onClick={() => onCategoryChange(item.id)}
             >
@@ -224,6 +231,7 @@ export function StylePicker({
               <button
                 key={style.id}
                 className={`${s.styleCard} ${style.id === value ? s.selected : ""}`}
+                disabled={busy}
                 aria-pressed={style.id === value}
                 onClick={() => onChange(style.id)}
               >
@@ -240,6 +248,8 @@ export function StylePicker({
           <StyleSample styleId={value} name={selected.name} />
         </div>
       </div>
+      {!hasScript && <p className={s.scriptStatus}>Hoàn tất tạo kịch bản ở mục 1 để tạo đồ họa.</p>}
+      {status && <p className={s.scriptStatus} role={statusError ? "alert" : "status"}>{status}</p>}
       <div className={`${s.sectionFooter} ${s.styleFooter}`}>
         <button
           className={s.primary}
@@ -247,8 +257,7 @@ export function StylePicker({
           onClick={onGenerate}
         >
           <Sparkles size={17} className={busy ? s.spin : ""} />
-          {busy ? "Đang tạo preview…" : "Tạo đồ họa"}
-          <span aria-hidden="true">↗</span>
+          {busy ? "Đang tạo đồ họa…" : "Tạo đồ họa"}
         </button>
       </div>
     </section>

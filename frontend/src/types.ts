@@ -37,6 +37,20 @@ export interface PreviewSnapshot {
   height: number;
   phases: { id: string; name: string; duration: number; url: string }[];
   sourceSignature: string;
+  scriptId?: string;
+  categoryId?: CategoryId;
+  styleId?: StyleId;
+  renderer?: string;
+}
+export interface GraphicsJob {
+  id: string;
+  projectId: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  stage: string;
+  completed: number;
+  total: number;
+  error: string | null;
+  result: PreviewSnapshot | null;
 }
 export interface ExportConfig {
   filename: string;
@@ -72,6 +86,7 @@ export interface ProjectDraft {
   jobId?: string;
   scriptJobId?: string;
   scriptId?: string;
+  graphicsJobId?: string;
   lastExportConfig?: ExportConfig;
 }
 export const defaultConfig: ExportConfig = {
@@ -91,10 +106,9 @@ export const newProject = (): ProjectDraft => ({
 });
 export const previewInput = (p: ProjectDraft) => ({
   projectId: p.id,
-  title: p.title,
+  scriptId: p.scriptId,
   categoryId: p.categoryId,
   styleId: p.styleId,
-  scenes: p.scenes,
 });
 export const signature = (p: ProjectDraft) => JSON.stringify(previewInput(p));
 export function sceneValid(s: Scene) {

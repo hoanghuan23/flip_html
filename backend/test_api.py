@@ -161,6 +161,27 @@ class ApiTests(unittest.TestCase):
         snapshot = self.preview()
         self.assertEqual(self.client.get('/api/previews/'+snapshot['id']+'/draft.json').status_code, 404)
 
+    def test_export_recreates_removed_output_root_without_changing_preview(self):
+        snapshot = self.preview()
+        source = self.root / 'previews' / snapshot['id']
+        before = {path.name: path.read_bytes() for path in source.iterdir()}
+        (self.root / 'exports').rmdir()
+        response = self.export(snapshot)
+        self.assertEqual(response.status_code, 202, response.text)
+        self.assertTrue((self.root / 'exports' / response.json()['id'] / 'job.json').is_file())
+        self.assertEqual({path.name: path.read_bytes() for path in source.iterdir()}, before)
+        self.assertEqual(self.client.get('/api/previews/'+snapshot['id']).status_code, 200)
+
+    def test_export_storage_errors_do_not_claim_preview_is_missing(self):
+        snapshot = self.preview()
+        for error in (FileNotFoundError('export storage removed'), PermissionError('not writable')):
+            with self.subTest(error=type(error).__name__), patch.object(
+                    self.client.app.state.jobs, 'write', side_effect=error):
+                response = self.export(snapshot)
+            self.assertEqual(response.status_code, 503, response.text)
+            self.assertIn('lưu tác vụ xuất video', response.json()['detail'])
+            self.assertNotIn('Preview không còn', response.json()['detail'])
+
     def test_video_range_and_attachment_use_the_same_file(self):
         job = self.export(self.preview(), filename='Câu chuyện').json()
         output = self.root / 'exports' / job['id'] / 'video.mp4'

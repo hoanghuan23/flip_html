@@ -11,8 +11,11 @@ VERSION = "flat-detailed-v3"
 NS = "http://www.w3.org/2000/svg"
 
 
-def load_style():
+def load_style(style_context=None):
     """Đọc trực tiếp Skill mặc định theo vị trí module, không cache nội dung."""
+    if style_context is not None:
+        from render_style import style_prompt
+        return style_prompt(style_context)
     path = Path(__file__).resolve().parent / "skills" / "flat" / "SKILL.md"
     return path.read_text(encoding="utf-8")
 
@@ -44,10 +47,10 @@ def asset_spec(script):
             for asset in script["assets"]]
 
 
-def library_prompt(script):
+def library_prompt(script, style_context=None):
     return ("Vẽ thư viện SVG dùng chung cho TOÀN BỘ video. Chỉ trả một <svg xmlns=\""
             + NS + "\" viewBox=\"0 0 1920 1080\"><defs id=\"shared-assets\">...</defs></svg>.\n"
-            + load_style() + """
+            + load_style(style_context) + """
 Canvas 1920x1080. Diễn hoạt chính y=0..792; vùng y=792..1080 chương trình tự
 đặt dải chữ, không đưa đối tượng quan trọng vào đó. Không tự vẽ caption/narration.
 
@@ -138,11 +141,11 @@ def validate_library(raw, script, cleaner):
     return ET.tostring(root, encoding="unicode")
 
 
-def phase_prompt(script, index, library, previous=None):
+def phase_prompt(script, index, library, previous=None, *, style_context=None):
     phase = script["phases"][index - 1]
     before = script["phases"][(phase.get("branch_from") or index - 1) - 1] if index > 1 else None
     return ("Dàn cảnh MỘT phase bằng SVG + CSS animation. Chỉ trả một <svg xmlns=\""
-            + NS + "\" viewBox=\"0 0 1920 1080\">...</svg>.\n" + load_style() + """
+            + NS + "\" viewBox=\"0 0 1920 1080\">...</svg>.\n" + load_style(style_context) + """
 Canvas 1920x1080. Diễn hoạt chính y=0..792; vùng y=792..1080 chương trình tự
 đặt dải chữ, không đưa đối tượng quan trọng vào đó. Không tự vẽ caption/narration.
 
@@ -240,9 +243,15 @@ silhouette có chồng mất ý, điểm tựa/điểm nối có khớp và tác
 
 
 class Renderer:
-    def __init__(self, script, output, request, cleaner):
+    def __init__(self, script, output, request, cleaner, *, style_context=None, on_progress=None):
         self.script, self.output, self.request, self.cleaner = script, output, request, cleaner
         self.library = None
+        self.style_context = style_context
+        self.on_progress = on_progress
+
+    def progress(self, stage, completed, total):
+        if self.on_progress:
+            self.on_progress(stage, completed, total)
 
     def generate(self, prompt, validator):
         error = ""
@@ -258,7 +267,7 @@ class Renderer:
     def prepare(self):
         path = self.output / "assets.svg"
         meta_path = self.output / "assets.meta.json"
-        prompt = library_prompt(self.script)
+        prompt = library_prompt(self.script, self.style_context)
         fingerprint = digest({"version": VERSION, "prompt": prompt})
         try:
             data, meta = path.read_text(encoding="utf-8"), json.loads(meta_path.read_text())
@@ -313,18 +322,23 @@ class Renderer:
         root.insert(0, defs)
         phase = self.script["phases"][index - 1]
         caption = phase.get("caption", "")
+        background, ink, secondary = '#f4c97a', '#3b2a12', '#6b4a1c'
+        if self.style_context is not None:
+            from render_style import caption_colors
+            background, ink = caption_colors(self.style_context)
+            secondary = ink
         captions = ('<g xmlns="' + NS + '" id="program-captions">'
-                    '<rect y="792" width="1920" height="288" fill="#f4c97a"/>'
+                    f'<rect y="792" width="1920" height="288" fill="{background}"/>'
                     + text_lines(caption, 890 if len(caption) > 48 else 918,
-                                 48 if len(caption) > 48 else 60, "#3b2a12", 48)
-                    + text_lines(phase.get("narration", ""), 1015, 36, "#6b4a1c", 86, 500) + '</g>')
+                                 48 if len(caption) > 48 else 60, ink, 48)
+                    + text_lines(phase.get("narration", ""), 1015, 36, secondary, 86, 500) + '</g>')
         root.append(ET.fromstring(captions))
         root.set("data-renderer", VERSION)
         root.set("data-fingerprint", self.fingerprint)
         return ET.tostring(root, encoding="unicode")
 
     def render(self, index, previous=None):
-        prompt = phase_prompt(self.script, index, self.library, previous)
+        prompt = phase_prompt(self.script, index, self.library, previous, style_context=self.style_context)
         prompts = self.output / "prompts"
         prompts.mkdir(exist_ok=True)
         (prompts / f"phase_{index}.txt").write_text(prompt, encoding="utf-8")

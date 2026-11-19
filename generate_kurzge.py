@@ -42,9 +42,9 @@ PHASE_HTML = """<!doctype html>
 </head><body><<SVG>>
 <script>
 var D=<<DURATION>>,manual=false;
-function seek(t){t=Math.max(0,Math.min(D,t));document.getAnimations().forEach(function(a){a.pause();a.currentTime=t*1000})}
+function seek(t){t=Number.isFinite(t)?Math.max(0,Math.min(D,t)):0;document.getAnimations().forEach(function(a){a.pause();a.currentTime=t*1000})}
 window.renderAt=function(t){manual=true;seek(t)};
-addEventListener("message",function(e){if(e.data&&typeof e.data.t==="number")seek(e.data.t)});
+addEventListener("message",function(e){if(e.source===parent&&e.data&&Number.isFinite(e.data.t))seek(e.data.t)});
 if(parent===window){var s=performance.now();(function f(n){if(!manual)seek(((n-s)/1000)%D);requestAnimationFrame(f)})(s)}else{seek(0)}
 </script></body></html>
 """
@@ -139,11 +139,11 @@ def select_renderer(script, requested="auto"):
     return "image"
 
 
-def write_phase(output, index, phase, svg, script):
+def write_phase(output, index, phase, svg, script, *, background=BACKGROUND):
     (output / f"phase_{index}.svg").write_text(svg + "\n", encoding="utf-8")
     title = html.escape(f"Phase {index} - {phase.get('name', '')}")
     page = (PHASE_HTML.replace("<<TITLE>>", title).replace("<<SVG>>", svg)
-            .replace("<<BACKGROUND>>", BACKGROUND)
+            .replace("<<BACKGROUND>>", background)
             .replace("<<DURATION>>", f"{phase['duration']:g}"))
     (output / f"phase_{index}.html").write_text(page, encoding="utf-8")
 
@@ -175,6 +175,70 @@ def write_index(script, output, fingerprint=None):
     return path
 
 
+def build_preview(script, output, request, *, style_context=None, on_progress=None,
+                  resume=True, redo=False, phase_number=None, plan_only=False, renderer="auto"):
+    """Shared CLI/web pipeline. Never generates a new screenplay."""
+    errors = validate(script)
+    if errors:
+        raise ValueError("Kịch bản không hợp lệ: " + "; ".join(errors))
+    output.mkdir(parents=True, exist_ok=True)
+    phases = script['phases']
+    background = BACKGROUND
+    if style_context is not None:
+        from render_style import caption_colors
+        background = caption_colors(style_context)[0]
+        (output / 'render_config.json').write_text(
+            json.dumps(style_context, ensure_ascii=False, indent=2) + "\n", encoding='utf-8')
+    selected = [phase_number] if phase_number else range(1, len(phases) + 1)
+    renderer = select_renderer(script, renderer)
+    print(f"  Renderer: {renderer}.", flush=True)
+    ai = general.Renderer(script, output, request, clean_svg, style_context=style_context, on_progress=on_progress).prepare() if not plan_only else None
+    if plan_only:
+        general.write_asset_prompts(script, output, style_context)
+    if on_progress:
+        on_progress('phases', 0, len(selected))
+    for done, index in enumerate(selected, 1):
+        phase = phases[index - 1]
+        svg_path = output / f"phase_{index}.svg"
+        reference_index = phase.get("branch_from") or index - 1
+        previous = output / f"phase_{reference_index}.svg"
+        previous_svg = previous.read_text(encoding="utf-8") if index > 1 and previous.is_file() else None
+        if plan_only:
+            prompts = output / "prompts"
+            prompts.mkdir(exist_ok=True)
+            prompt = general.phase_prompt(script, index, general.prompt_library(script), previous_svg, style_context=style_context)
+            (prompts / f"phase_{index}.txt").write_text(prompt, encoding="utf-8")
+            print(f"  Phase {index}: đã lưu prompt.", flush=True)
+            continue
+        if resume and not redo and svg_path.is_file():
+            try:
+                cached = svg_path.read_text(encoding="utf-8")
+                if f'data-fingerprint="{ai.fingerprint}"' not in cached:
+                    raise ValueError("Cache khác kịch bản/thư viện/phiên bản đồ họa.")
+                svg = ai.clean_phase(cached, index)
+                write_phase(output, index, phase, svg, script, background=background)
+                print(f"  Phase {index}: dùng bản đã vẽ.", flush=True)
+                if on_progress:
+                    on_progress('phases', done, len(selected))
+                continue
+            except (ValueError, ET.ParseError):
+                print(f"  Phase {index}: bản cũ không hợp lệ, vẽ lại.", flush=True)
+        print(f"  Phase {index}: {phase.get('name', '')} ({phase['duration']:g}s) - đang vẽ…", flush=True)
+        if previous_svg and f'data-fingerprint="{ai.fingerprint}"' not in previous_svg:
+            previous_svg = None
+        write_phase(output, index, phase, ai.render(index, previous_svg), script, background=background)
+        if on_progress:
+            on_progress('phases', done, len(selected))
+
+    if plan_only:
+        print(f"Đã lưu kịch bản và prompt tại {output}.")
+        return
+    index_path = write_index(script, output, ai.fingerprint if ai else None)
+    print(f"Mở {index_path} để Play/Pause và tua." if index_path else "Chưa có phase nào được dựng.")
+
+    return ai.fingerprint if ai else None
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sources = parser.add_mutually_exclusive_group(required=True)
@@ -183,6 +247,7 @@ def main(argv=None):
                          help="File nội dung: gọi AI sinh kịch bản và tự chọn thời lượng, sau đó dựng preview.")
     parser.add_argument("--renderer", choices=("auto", "ai"), default="auto",
                         help="auto/ai: sinh PNG qua generate_image và diễn hoạt toàn bộ phase.")
+    parser.add_argument("--style", help="ID phong cách trong skills/; bỏ qua để giữ cách chạy hiện có.")
     parser.add_argument("--plan-only", action="store_true", help="Chỉ lưu prompt ảnh và dàn cảnh, chưa gọi API.")
     sources.add_argument("--resume", action="store_true", help="Tiếp tục: dùng kịch bản và các phase đã vẽ trong output.")
     parser.add_argument("--redo", action="store_true", help="Vẽ lại cả phase đã có (dùng với --phase).")
@@ -222,46 +287,13 @@ def main(argv=None):
     script_path.write_text(json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"{script.get('title', '')}: {len(phases)} phase, {sum(p['duration'] for p in phases):g} giây.", flush=True)
 
-    selected = [args.phase] if args.phase else range(1, len(phases) + 1)
-    renderer = select_renderer(script, args.renderer)
-    print(f"  Renderer: {renderer}.", flush=True)
-    ai = general.Renderer(script, output, request_text, clean_svg).prepare() if not args.plan_only else None
-    if args.plan_only:
-        general.write_asset_prompts(script, output)
-    for index in selected:
-        phase = phases[index - 1]
-        svg_path = output / f"phase_{index}.svg"
-        reference_index = phase.get("branch_from") or index - 1
-        previous = output / f"phase_{reference_index}.svg"
-        previous_svg = previous.read_text(encoding="utf-8") if index > 1 and previous.is_file() else None
-        if args.plan_only:
-            prompts = output / "prompts"
-            prompts.mkdir(exist_ok=True)
-            prompt = general.phase_prompt(script, index, general.prompt_library(script), previous_svg)
-            (prompts / f"phase_{index}.txt").write_text(prompt, encoding="utf-8")
-            print(f"  Phase {index}: đã lưu prompt.", flush=True)
-            continue
-        if args.resume and not args.redo and svg_path.is_file():
-            try:
-                cached = svg_path.read_text(encoding="utf-8")
-                if f'data-fingerprint="{ai.fingerprint}"' not in cached:
-                    raise ValueError("Cache khác kịch bản/thư viện/phiên bản đồ họa.")
-                svg = ai.clean_phase(cached, index)
-                write_phase(output, index, phase, svg, script)
-                print(f"  Phase {index}: dùng bản đã vẽ.", flush=True)
-                continue
-            except ValueError:
-                print(f"  Phase {index}: bản cũ không hợp lệ, vẽ lại.", flush=True)
-        print(f"  Phase {index}: {phase.get('name', '')} ({phase['duration']:g}s) - đang vẽ…", flush=True)
-        if previous_svg and f'data-fingerprint="{ai.fingerprint}"' not in previous_svg:
-            previous_svg = None
-        write_phase(output, index, phase, ai.render(index, previous_svg), script)
-
-    if args.plan_only:
-        print(f"Đã lưu kịch bản và prompt tại {output}.")
-        return
-    index_path = write_index(script, output, ai.fingerprint if ai else None)
-    print(f"Mở {index_path} để Play/Pause và tua." if index_path else "Chưa có phase nào được dựng.")
+    from render_style import load_render_style
+    config_path = output / 'render_config.json'
+    style_context = (load_render_style(args.style) if args.style else
+                     json.loads(config_path.read_text(encoding='utf-8')) if config_path.is_file() else None)
+    build_preview(script, output, request_text, style_context=style_context,
+                  resume=args.resume, redo=args.redo, phase_number=args.phase,
+                  plan_only=args.plan_only, renderer=args.renderer)
 
 
 if __name__ == "__main__":

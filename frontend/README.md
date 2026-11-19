@@ -1,7 +1,7 @@
 # AI Video Studio
 
 Frontend React + TypeScript cho pipeline video Python. Giao diện có ba bước:
-nhập nội dung và xem kịch bản, chọn phong cách, xem trước và xuất MP4.
+nhập nội dung và xem kịch bản, chọn phong cách và xem HTML animation.
 Sau khi chọn **Tạo kịch bản**, danh sách cảnh hiển thị ngay trong mục 1.
 
 Kịch bản được AI phân tích thật qua `plant_kurzge.py`: kiểm tra đầu vào, sinh
@@ -9,8 +9,17 @@ JSON chi tiết, kiểm tra và yêu cầu sửa nếu cần. Bảng chỉ tríc
 thích, mô tả hình ảnh và thời lượng từng phase. Hiện chỉ hỗ trợ xem kịch bản;
 các nút sửa/thêm/xóa/chat được khóa.
 
-Preview vẫn dùng đồ họa mẫu minh họa, chưa dựng hình từ assets/actions trong
-JSON AI. HTML preview được HyperFrames render thành MP4 thật, không có âm thanh.
+Mục 2 dùng JSON đầy đủ của bước 1 để sinh thư viện PNG và SVG/CSS animation.
+Phong cách được chọn đi vào cả prompt sinh ảnh và prompt diễn hoạt. Mục 3 cho
+chọn phase, phát/dừng và tua; sửa/xóa/chat/tạo lại phase chỉ hiển thị ở trạng
+thái khóa. Tạo hoặc thử lại đồ họa ở mục 2. Video không có âm thanh.
+
+Bấm **Xuất video** ở mục 3, chọn tên file, FPS (24/30/60) và chất lượng rồi
+bấm **Bắt đầu xuất**. Toàn bộ phase của preview được ghép theo thứ tự thành
+một MP4, giữ hình ảnh, chữ và thời lượng. Có trạng thái xử lý, tiến độ khi CLI
+cung cấp, xem MP4 và **Tải MP4** khi hoàn tất. Tải lại trang hoặc chuyển dự án
+vẫn tiếp tục theo dõi đúng tác vụ. Mất kết nối tạm thời tự thử lại; lỗi xuất
+cho phép thử lại. Khi kịch bản/phong cách thay đổi, cập nhật đồ họa trước khi xuất.
 
 ## Chạy ứng dụng
 
@@ -77,28 +86,45 @@ CODEX_MODEL=your-model
 
 Dịch vụ nhận `{prompt, model}` qua POST với header `x-api-key`, trả
 `{success: true, result: "chuỗi JSON"}`. Không đặt khóa vào biến `VITE_*`.
-Khởi động lại backend sau khi đổi cấu hình.
+Sinh đồ họa còn cần API ảnh `/generate-image`. Mặc định suy ra URL từ máy chủ
+CODEX và dùng chung token/model; có thể đặt riêng:
+
+```dotenv
+IMAGE_API_BASE_URL=https://your-ai-service.example/generate-image
+IMAGE_API_KEY=your-image-token
+IMAGE_MODEL=your-image-model
+IMAGE_QUALITY=medium
+```
+
+API ảnh nhận `{prompt, model}` với `x-api-key`, trả PNG base64 trong
+`{success: true, data: [{b64_json: "..."}]}`. Không tự chuyển sang đồ họa mẫu
+khi thiếu cấu hình hoặc API ảnh lỗi. Khởi động lại backend sau khi đổi cấu hình.
 Lưu file React/CSS hoặc `skills/style_config.json` để Vite tự cập nhật giao
 diện. Không cần build lại khi phát triển. Cổng 8000 phục vụ bản build trong
 `frontend/dist`, nên cần `npm run build` sau khi sửa giao diện ở chế độ đó.
 
-## Luồng xuất video
+## Luồng tạo đồ họa
 
-1. Nhập nội dung (hoặc thử nội dung mẫu) và chọn **Tạo kịch bản**.
-2. Theo dõi AI kiểm tra, tạo và lưu kịch bản. Đọc các cảnh xuất hiện ở mục 1.
-   Đầu vào thiếu dữ kiện sẽ hiện lý do cần bổ sung. Tạo lại thất bại vẫn giữ bảng cũ.
-3. Chọn danh mục/phong cách ở mục 2 và bấm **Tạo đồ họa**. Duyệt các phase bằng phát/dừng và thanh tua.
-4. Chọn **Xuất video**, đặt tên, FPS 24/30/60 và chất lượng Nháp/Tiêu chuẩn/Cao.
-5. Chọn **Bắt đầu xuất**. Máy chủ chuẩn bị project, kiểm tra HyperFrames, chụp
-   khung hình, render và xác minh MP4 bằng ffprobe.
-6. Khi hoàn tất, video xuất hiện ngay ở bước 3. Chọn **Tải video xuống** để tải
-   đúng file đang xem. MP4 có HTTP Range nên hỗ trợ tua trong trình phát.
+1. Nhập nội dung hoặc tải TXT/DOCX, chọn **Tạo kịch bản** và đọc bảng ở mục 1.
+2. Chọn danh mục/phong cách ở mục 2 rồi bấm **Tạo đồ họa**.
+3. Theo dõi các giai đoạn chuẩn bị, sinh ảnh, dựng từng phase và kiểm tra.
+   Chỉ thay preview khi hoàn tất toàn bộ phase; lỗi giữa chừng vẫn giữ bản cũ.
+4. Ở mục 3, chọn phase, phát/dừng và tua để xem HTML animation thật.
+   Các nút chỉnh sửa, tạo lại và xuất video hiện chưa cho thao tác.
+5. Đổi phong cách hoặc tạo kịch bản mới sẽ đánh dấu preview cũ cần cập nhật.
+   Bấm **Tạo đồ họa** ở mục 2 để dựng bản mới.
 
-Mặc định: MP4 1920×1080, 16:9, 30 fps, chất lượng Cao. Chất lượng ánh xạ đến
-`draft`, `looks`, `delivery`. Thời lượng từng cảnh >0 đến 120 giây, tối đa 100
-cảnh và tổng thời lượng tối đa 30 phút. Một tác vụ xuất video chạy tại một thời điểm;
-những tác vụ xuất khác đợi trong hàng đợi. Giới hạn mỗi tác vụ xuất là 60 phút.
-Tạo kịch bản có hàng đợi riêng và không giới hạn thời gian chờ API AI.
+Canvas 1920×1080, không âm thanh. Giữ nguyên phase/actions và thời lượng từ
+kịch bản; không gọi lại AI phân tích nội dung khi tạo đồ họa. Danh sách cảnh
+trên trình duyệt không được dùng thay cho JSON đầy đủ.
+
+Kịch bản, đồ họa và xuất MP4 có hàng đợi riêng. Tác vụ kịch bản/đồ họa chạy
+trong tiến trình có thể dừng khi backend tắt, dùng thời gian chờ API hiện có.
+Khởi động lại backend đánh dấu tác vụ dang dở là lỗi; bấm tạo lại để tiếp tục.
+Gửi lặp trong lúc đang chạy trả cùng ID. Thử lại đồ họa lỗi với cùng đầu vào
+dùng thư mục/cache đã kiểm tra; bấm tạo sau khi thành công tạo một bản riêng.
+
+Các API xuất MP4 hiện có vẫn được giữ cho giai đoạn sau, chưa được gọi từ giao diện.
 
 Mục 2 lấy tên danh mục trực tiếp từ `categories.*.label` trong
 `skills/style_config.json`. Mỗi danh mục chỉ hiển thị các phong cách thuộc
@@ -112,8 +138,11 @@ Danh sách phong cách lấy đầy đủ, theo thứ tự trong `allowed_styles
 mới sẽ tự hiện lựa chọn và đọc `skills/<styleId>/demo/index.html`; không cần
 thêm ID vào danh sách cố định trong frontend. Flat with black và Halftone line
 có tên, chú thích và bảng màu riêng. ID khác dùng tên suy ra từ ID và chú thích
-mặc định; animation vẫn dùng mẫu minh họa kiểm soát sẵn (bảng màu Flat nếu
-chưa có bảng màu riêng), không tự chuyển các hình trong demo thành animation.
+mặc định. Renderer đọc `skills/<styleId>/SKILL.md` và `style.json` nếu có.
+Thiếu hướng dẫn hoặc cấu hình không hợp lệ sẽ báo lỗi, không dùng Flat thay thế.
+Phong cách quyết định cách vẽ và palette; đối tượng/camera/actions/thời lượng
+lấy từ kịch bản. Không đưa chủ đề, số vật thể hoặc trang trí trong demo vào video.
+Bản demo là tài liệu xem phong cách, không được chuyển trực tiếp thành animation.
 
 Thẻ chọn phong cách chỉ hiển thị tên và chú thích. Khung mẫu lớn hiển thị
 `skills/<styleId>/demo/index.html`, ví dụ `skills/flat/demo/index.html`,
@@ -126,7 +155,7 @@ Flat là phong cách riêng, được phép trong các danh mục có Outlined c
 ## Dữ liệu và khôi phục
 
 - Bản nháp tự lưu sau 500 ms trong localStorage, khóa `ai-video-studio:v1`.
-  ID tác vụ kịch bản đang chạy được lưu ngay để khôi phục khi tải lại.
+  ID tác vụ kịch bản/đồ họa đang chạy được lưu ngay để khôi phục khi tải lại.
   **Dự án của tôi** cho tạo, đổi tên, mở, xóa và nhập bản nháp JSON phiên bản 1.
   Không có nút tải JSON; bản đầy đủ được lưu trên máy chủ.
 - Tài liệu TXT/DOCX tối đa 5 MB được đọc trong trình duyệt. DOCX chỉ lấy văn
@@ -140,11 +169,20 @@ Flat là phong cách riêng, được phép trong các danh mục có Outlined c
 - Tác vụ tạo kịch bản chạy trong tiến trình riêng, độc lập hàng đợi xuất video.
   Tải lại trang tiếp tục theo dõi ID đã lưu; chuyển dự án không trộn kết quả.
   Backend khởi động lại đánh dấu tác vụ dang dở là lỗi, giữ nguyên file đã hoàn tất.
-- `storage/previews/<id>/` giữ snapshot, bản nháp dùng để dựng và HTML từng phase.
+- `storage/graphics/<id>/job.json` giữ trạng thái và tiến độ tác vụ đồ họa;
+  `worker.log` giữ thông tin tiến trình.
+- `storage/previews/<id>/` giữ bản sao `kich_ban.json`, `render_config.json`
+  (snapshot hướng dẫn/preset phong cách), `assets/`, `image_cache/`, `prompts/`,
+  `assets.svg`, SVG/HTML từng phase, playlist `index.html` và `render.log`.
+  `snapshot.json` chỉ được công bố sau khi đủ mọi phase đúng thứ tự/thời lượng.
+  Trước đó, GET preview/HTML trả 404; người dùng tiếp tục xem bản cũ.
+  JSON gốc bước 1 giữ nguyên. Đổi nội dung phong cách hoặc cấu hình API ảnh
+  làm cache tương ứng bị vô hiệu; không dùng nhầm ảnh của phong cách trước.
 - `storage/exports/<id>/` giữ `job.json`, `render.log`, `video.mp4` và project
   HyperFrames. Các thư mục này không được Git theo dõi và không tự xóa.
-- Mỗi tác vụ gắn với snapshot bất biến. Tiếp tục sửa kịch bản không thay đổi
-  video đang render. Preview cũ sẽ chặn lần xuất mới đến khi được cập nhật.
+- Mỗi tác vụ đồ họa gắn với kịch bản và phong cách bất biến. Trong dự án đang
+  dựng, khóa nhập nội dung/chọn phong cách. Vẫn cho chuyển dự án; kết quả cập nhật
+  đúng dự án và tải lại trang sẽ tiếp tục theo dõi `graphicsJobId`.
 - Tải lại trang tiếp tục theo dõi `jobId`. Backend khởi động lại sẽ đánh dấu
   các tác vụ dở dang là lỗi để người dùng thử lại; video đã hoàn tất vẫn còn.
 - Khi chuyển máy hoặc xóa storage, tạo lại preview từ bản nháp trước khi xuất.
@@ -166,7 +204,9 @@ Biến môi trường tùy chọn, đặt khi khởi động backend:
 | --- | --- |
 | `POST /api/scripts` | `{projectId, content}` → tác vụ nền, HTTP 202; gửi lặp khi tác vụ còn chạy trả cùng ID |
 | `GET /api/scripts/{id}` | Trạng thái/giai đoạn, lỗi hoặc `{title, scenes}` trích xuất; không trả JSON AI đầy đủ |
-| `POST /api/previews` | `{projectId, title, categoryId, styleId, scenes}` → snapshot và URL phase |
+| `POST /api/graphics` | `{projectId, scriptId, categoryId, styleId}` → tác vụ PNG/HTML nền, HTTP 202 |
+| `GET /api/graphics/{id}` | Trạng thái, `stage`, `completed/total`, lỗi hoặc snapshot hoàn chỉnh trong `result` |
+| `POST /api/previews` | API tạo template cũ, giữ tương thích; giao diện mới không gọi API này |
 | `GET /api/previews/{id}` | Kiểm tra snapshot còn tồn tại |
 | `GET /api/previews/{id}/phase_N.html` | HTML phase kiểm soát sẵn, có `renderAt(time)` |
 | `GET /api/styles/{styleId}/preview` | URL demo HTML, hoặc `null` nếu chưa có file |
@@ -183,7 +223,7 @@ giao diện. Dùng file `storage/scripts/<id>/kich_ban.json` cho pipeline AI chi
 ## Kiểm thử
 
 ```bash
-python3 -m unittest backend.test_api backend.test_scripts -v
+python3 -m unittest backend.test_api backend.test_scripts backend.test_graphics -v
 python3 -m unittest discover -s tests -p test_render_hyperframes.py -v
 cd frontend
 npm test
@@ -218,13 +258,37 @@ Server kiểm thử chỉ bind localhost cổng 8123, dùng dữ liệu giả l�
 từ chối đầu vào, lỗi API, mất kết nối tạm thời, chuyển dự án, đối chiếu JSON
 đầy đủ và bố cục 375/768/1440 px. Báo cáo: `storage/qa/script-browser-report.json`.
 
-Kiểm thử preview/render có sẵn cũng dùng server giả lập này để tránh gọi AI thật:
+Để kiểm tra luồng đồ họa bằng worker thật và API văn bản/ảnh giả lập trên server trên:
 
 ```bash
 cd frontend
-STUDIO_URL=http://127.0.0.1:8123 npm run test:e2e
+npm run test:graphics
+# test:e2e chạy cùng bài kiểm tra giao diện đồ họa hiện tại
 ```
 
-Bài này render MP4 24 fps/Nháp thật, cần các công cụ render nêu trên. Báo cáo
-nằm ở `storage/qa/browser-report.json`. Có thể đặt `CHROME_PATH`, `STUDIO_URL`
-và `PYTHON_COMMAND` để thay đường dẫn/lệnh mặc định.
+Bài kiểm tra xác nhận PNG được nhúng trong HTML, tua tái hiện cùng trạng thái,
+đúng phong cách, không hiện phase dở dang, giữ preview cũ khi lỗi, dùng cache
+khi thử lại, khôi phục sau tải lại/chuyển dự án và bố cục 375/768/1440 px.
+Báo cáo: `storage/qa/graphics-browser-report.json`. Không gọi dịch vụ AI thật.
+Có thể đặt `CHROME_PATH` và `STUDIO_URL` để thay đường dẫn/cổng mặc định.
+
+Kiểm thử xuất MP4 qua trình duyệt trên cùng server QA:
+
+```bash
+cd frontend
+npm run test:exports
+```
+
+Bài kiểm tra dùng preview ngắn để render MP4 thật, kiểm tra cấu hình, chống
+gửi lặp, tải lại/chuyển dự án, mất kết nối, lỗi/thử lại và tải MP4 hỗ trợ Range.
+Báo cáo: `storage/qa/exports-browser-report.json`.
+
+CLI giữ cách dùng cũ; để chọn phong cách rõ ràng:
+
+```bash
+python3 generate_kurzge.py --script kich_ban.json --style halftone-line --output preview_halftone
+python3 generate_kurzge.py --resume --output preview_halftone
+```
+
+`--resume` giữ snapshot phong cách đã lưu; truyền `--style` để đọc phiên bản
+phong cách hiện tại. Cache sẽ được kiểm tra lại theo nội dung phong cách.

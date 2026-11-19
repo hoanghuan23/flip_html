@@ -58,6 +58,24 @@ class ScriptRequest(BaseModel):
         return value
 
 
+class GraphicsRequest(BaseModel):
+    projectId: str = Field(min_length=1, max_length=100)
+    scriptId: str = Field(pattern=r'^[a-f0-9]{32}$')
+    categoryId: str
+    styleId: ConfigStyleId
+
+    @model_validator(mode='after')
+    def valid_style(self):
+        try:
+            config = load_style_config()
+        except (OSError, ValueError) as error:
+            raise ValueError('Không đọc được cấu hình danh mục phong cách.') from error
+        category = config['categories'].get(self.categoryId)
+        if category is None or self.styleId not in category['allowed_styles']:
+            raise ValueError('Phong cách không được phép trong danh mục đã chọn.')
+        return self
+
+
 class PreviewRequest(BaseModel):
     projectId: str = Field(min_length=1, max_length=100)
     title: str = Field(min_length=1, max_length=160)

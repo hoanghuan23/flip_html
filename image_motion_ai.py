@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import flat_motion_ai as vector
 from image_asset_generator import ImageAssetGenerator
 
-VERSION = "image-motion-v1"
+VERSION = "image-motion-v2"
 NS = vector.NS
 
 
@@ -30,7 +30,7 @@ def image_specs(script):
     return specs
 
 
-def asset_prompt(script, asset, pose):
+def asset_prompt(script, asset, pose, style_context=None):
     return ("Generate exactly ONE reusable PNG illustration asset, not a complete scene.\n"
             "Keep palette, identity, lighting and anchor consistent across poses. "
             "No captions, watermark, invented labels or unrelated objects.\n"
@@ -54,7 +54,7 @@ def asset_prompt(script, asset, pose):
             "separate assets, transient action effects, safety/result checkmarks or UI annotations "
             "into the base artwork. A dedicated effect asset must depict its requested effect. "
             "Render only the requested pose, never a pose sheet or multiple views.\n"
-            + "ILLUSTRATION SKILL:\n" + vector.load_style()
+            + "ILLUSTRATION SKILL:\n" + vector.load_style(style_context)
             + "\nASSET: " + json.dumps({k: asset.get(k) for k in ("id", "name", "category", "description")}, ensure_ascii=False)
             + "\nBASE POSE (identity/scale reference, not an attached image): " + asset["base_pose"]
             + "\nCOMPLETE POSE SET (design consistently; render only the requested one): "
@@ -76,20 +76,20 @@ def asset_prompt(script, asset, pose):
                "Do not crop tightly or recenter between poses. No scenery or painted background."))
 
 
-def library_prompt(script):
-    return "\n\n".join(asset_prompt(script, a, a["base_pose"]) for a in image_specs(script))
+def library_prompt(script, style_context=None):
+    return "\n\n".join(asset_prompt(script, a, a["base_pose"], style_context) for a in image_specs(script))
 
 
-def write_asset_prompts(script, output):
+def write_asset_prompts(script, output, style_context=None):
     prompts = output / "prompts"
     prompts.mkdir(exist_ok=True)
-    (prompts / "assets.txt").write_text(library_prompt(script), encoding="utf-8")
+    (prompts / "assets.txt").write_text(library_prompt(script, style_context), encoding="utf-8")
     for asset in image_specs(script):
         for aid, pose in [(asset["id"], asset["base_pose"]),
                           *((p["id"], p["description"]) for p in asset["poses"])]:
             # Asset IDs come from validated Plans; never use them as filesystem paths.
             name = vector.digest(aid)[:16]
-            (prompts / f"image_{name}.txt").write_text(asset_prompt(script, asset, pose), encoding="utf-8")
+            (prompts / f"image_{name}.txt").write_text(asset_prompt(script, asset, pose, style_context), encoding="utf-8")
 
 
 def prompt_library(script):
@@ -97,14 +97,14 @@ def prompt_library(script):
     return json.dumps(image_specs(script), ensure_ascii=False)
 
 
-def phase_prompt(script, index, library, previous=None):
+def phase_prompt(script, index, library, previous=None, *, style_context=None):
     if previous:
         root = ET.fromstring(previous)
         for element in list(root):
             if element.get("id") == "program-assets":
                 root.remove(element)
         previous = ET.tostring(root, encoding="unicode")
-    return (vector.phase_prompt(script, index, library, previous).replace("texture, ảnh raster", "texture")
+    return (vector.phase_prompt(script, index, library, previous, style_context=style_context).replace("texture, ảnh raster", "texture")
             + "\nTHƯ VIỆN PNG: chương trình đã vẽ mọi asset/pose qua generate_image. "
             "Chỉ tham chiếu các ID được liệt kê bằng <use>; không trả image, base64 hoặc defs. "
             "Mỗi PNG đã nằm trong nhóm local: nền gốc trên trái, asset khác gốc giữa. "
@@ -119,22 +119,28 @@ def phase_prompt(script, index, library, previous=None):
 
 class Renderer(vector.Renderer):
     def prepare(self):
-        write_asset_prompts(self.script, self.output)
+        write_asset_prompts(self.script, self.output, self.style_context)
         generator = ImageAssetGenerator(self.output / "image_cache")
         root = ET.Element(f"{{{NS}}}svg", {"viewBox": "0 0 1920 1080"})
         defs = ET.SubElement(root, f"{{{NS}}}defs", {"id": "shared-assets"})
         assets_dir = self.output / "assets"
         assets_dir.mkdir(exist_ok=True)
         metadata = []
-        for asset in image_specs(self.script):
+        specs = image_specs(self.script)
+        total = sum(len({a['base_pose'], *(p['description'] for p in a['poses'])}) for a in specs)
+        completed = 0
+        self.progress('images', completed, total)
+        for asset in specs:
             generated = {}
             for aid, pose in [(asset["id"], asset["base_pose"]),
                               *((p["id"], p["description"]) for p in asset["poses"])]:
                 if pose not in generated:
                     print(f"  generate_image: {asset['id']} ({pose})…", flush=True)
-                    generated[pose] = generator.generate(asset_prompt(self.script, asset, pose),
+                    generated[pose] = generator.generate(asset_prompt(self.script, asset, pose, self.style_context),
                                                         transparent=asset["transparent"],
                                                         requested_size=[asset["width"], asset["height"]])
+                    completed += 1
+                    self.progress('images', completed, total)
                 path, info = generated[pose]
                 data = path.read_bytes()
                 filename = vector.digest(aid)[:16] + ".png"
@@ -149,7 +155,7 @@ class Renderer(vector.Renderer):
                 metadata.append({"id": aid, "pose": pose, "file": "assets/" + filename,
                                  "sha256": hashlib.sha256(data).hexdigest(), **info})
         self.library = ET.tostring(root, encoding="unicode")
-        self.fingerprint = vector.digest({"version": VERSION, "script": self.script, "library": self.library})
+        self.fingerprint = vector.digest({"version": VERSION, "script": self.script, "library": self.library, "style": self.style_context})
         (self.output / "assets.svg").write_text(self.library, encoding="utf-8")
         (self.output / "assets.meta.json").write_text(json.dumps({"renderer": VERSION,
             "fingerprint": self.fingerprint, "assets": metadata}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -171,6 +177,6 @@ class Renderer(vector.Renderer):
         return result.replace(f'data-renderer="{vector.VERSION}"', f'data-renderer="{VERSION}"', 1)
 
     def render(self, index, previous=None):
-        prompt = phase_prompt(self.script, index, prompt_library(self.script), previous)
+        prompt = phase_prompt(self.script, index, prompt_library(self.script), previous, style_context=self.style_context)
         (self.output / "prompts" / f"phase_{index}.txt").write_text(prompt, encoding="utf-8")
         return self.generate(prompt, lambda raw: self.clean_phase(raw, index))

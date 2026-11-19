@@ -20,7 +20,7 @@ import {
   type PreviewSnapshot,
   type ScriptJob,
 } from "./types";
-import { api, ApiError, createScriptJob, getScriptJob, generatePreview, scriptStages } from "./services";
+import { api, ApiError, createScriptJob, getScriptJob, scriptStages } from "./services";
 import { Modal, errorText } from "./components";
 import InputPanel from "./InputPanel";
 import { StylePicker } from "./components";
@@ -28,6 +28,8 @@ import { styleForCategory } from "./styleConfig";
 import ScenePanel from "./ScenePanel";
 import PreviewPanel from "./PreviewPanel";
 import s from "./Studio.module.css";
+import { useGraphicsJobs } from "./useGraphicsJobs";
+import { useExportJobs } from "./useExportJobs";
 
 export default function App() {
   const { state, dispatch, saveStatus } = useStudio();
@@ -56,7 +58,9 @@ export default function App() {
   const pendingScripts = JSON.stringify(state.projects
     .filter((p) => p.scriptJobId)
     .map((p) => ({ projectId: p.id, jobId: p.scriptJobId! })));
-  const [previewBusy, setPreviewBusy] = useState(false);
+  const graphics = useGraphicsJobs(notify);
+  const exporting = useExportJobs();
+  const previewBusy = graphics.busy;
   const [selectedId, setSelectedId] = useState("");
   const [deleteId, setDeleteId] = useState<string>();
   const [renameId, setRenameId] = useState<string>();
@@ -145,7 +149,7 @@ export default function App() {
   }, [pendingScripts, dispatch, notify]);
 
   async function createScript() {
-    if (!project.sourceContent.trim() || scriptBusy || startingRef.current.has(project.id)) return;
+    if (!project.sourceContent.trim() || scriptBusy || previewBusy || startingRef.current.has(project.id)) return;
     setRegenerateOpen(false);
     const id = project.id;
     startingRef.current.add(id);
@@ -162,23 +166,6 @@ export default function App() {
     } finally {
       startingRef.current.delete(id);
       setStartingScripts((ids) => ids.filter((item) => item !== id));
-    }
-  }
-  async function buildPreview() {
-    if (!project.scenes.length || previewBusy) return;
-    setPreviewBusy(true);
-    const current = project;
-    try {
-      const snapshot = await generatePreview(current);
-      dispatch({ type: "patch", id: current.id, patch: { snapshot } });
-      notify("Preview đã sẵn sàng. Hãy duyệt từng phase trước khi xuất video.");
-      document
-        .getElementById("xem-truoc")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (e) {
-      notify(errorText(e), true);
-    } finally {
-      setPreviewBusy(false);
     }
   }
   async function importDraft(file?: File) {
@@ -292,7 +279,7 @@ export default function App() {
           project={project}
           patch={patch}
           notify={notify}
-          busy={scriptBusy}
+          busy={scriptBusy || previewBusy}
           status={scriptStatus}
           statusError={!!scriptErrors[project.id]}
           onGenerate={() =>
@@ -320,15 +307,17 @@ export default function App() {
           value={project.styleId}
           onChange={(styleId) => patch({ styleId })}
           busy={previewBusy}
-          canGenerate={!!project.scenes.length && !scriptBusy}
-          onGenerate={() => void buildPreview()}
+          canGenerate={!!project.scriptId && !scriptBusy}
+          hasScript={!!project.scriptId}
+          status={graphics.status}
+          statusError={graphics.error}
+          onGenerate={() => void graphics.create()}
         />
         <PreviewPanel
           project={project}
-          patch={patch}
-          notify={notify}
-          onRegenerate={() => void buildPreview()}
+          exporting={exporting}
           previewBusy={previewBusy}
+          status={graphics.status}
         />
         <footer className={s.pageFooter}>
           <span>

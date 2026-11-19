@@ -43,6 +43,9 @@ function initial(): State {
           scriptJobId:
             typeof p.scriptJobId === "string" && /^[a-f0-9]{32}$/.test(p.scriptJobId)
               ? p.scriptJobId : undefined,
+          graphicsJobId:
+            typeof p.graphicsJobId === "string" && /^[a-f0-9]{32}$/.test(p.graphicsJobId)
+              ? p.graphicsJobId : undefined,
           snapshot,
           jobId:
             p.jobId && /^[a-f0-9]{32}$/.test(p.jobId) ? p.jobId : undefined,
@@ -104,7 +107,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       } catch {
         setSaveStatus("Không thể tự lưu bản nháp trên trình duyệt");
       }
-    }, state.projects.some((p) => p.scriptJobId) ? 0 : 500);
+    }, state.projects.some((p) => p.scriptJobId || p.graphicsJobId || p.jobId) ? 0 : 500);
     return () => clearTimeout(timer);
   }, [state]);
   return (

@@ -1,11 +1,11 @@
 import type {
   ProjectDraft,
   ScriptJob,
-  PreviewSnapshot,
+  GraphicsJob,
   ExportConfig,
   RenderJob,
 } from "./types";
-import { previewInput, signature } from "./types";
+import { previewInput } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -57,13 +57,9 @@ export const scriptStages: Record<string, string> = {
   generating: "AI đang tạo kịch bản…",
   saving: "Đang lưu kịch bản…",
 };
-export async function generatePreview(
-  p: ProjectDraft,
-): Promise<PreviewSnapshot> {
-  return {
-    ...(await api<PreviewSnapshot>("/api/previews", previewInput(p))),
-    sourceSignature: signature(p),
-  };
-}
+export const createGraphicsJob = (p: ProjectDraft) =>
+  api<GraphicsJob>("/api/graphics", previewInput(p));
+export const getGraphicsJob = (id: string) => api<GraphicsJob>(`/api/graphics/${id}`);
 export const exportVideo = (snapshotId: string, config: ExportConfig) =>
   api<RenderJob>("/api/exports", { snapshotId, config });
+export const getRenderJob = (id: string) => api<RenderJob>(`/api/exports/${id}`);

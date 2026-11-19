@@ -11,10 +11,11 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from .jobs import JobManager, ROOT
-from .models import ExportRequest, PreviewRequest, ScriptRequest, load_style_config
+from .jobs import JobManager, PreviewNotFoundError, ROOT
+from .models import ExportRequest, GraphicsRequest, PreviewRequest, ScriptRequest, load_style_config
 from .previews import create_preview
 from .scripts import ScriptJobManager
+from .graphics import GraphicsInputError, GraphicsJobManager
 
 
 def create_app(storage_root: Path | None = None):
@@ -25,9 +26,11 @@ def create_app(storage_root: Path | None = None):
     async def lifespan(app):
         app.state.jobs = JobManager(storage)
         app.state.scripts = ScriptJobManager(storage)
+        app.state.graphics = GraphicsJobManager(storage)
         try:
             yield
         finally:
+            app.state.graphics.close()
             app.state.scripts.close()
             app.state.jobs.close()
 
@@ -69,6 +72,24 @@ def create_app(storage_root: Path | None = None):
             return app.state.scripts.create(request)
         except (OSError, RuntimeError):
             raise HTTPException(503, 'Không thể tạo tác vụ kịch bản. Hãy kiểm tra máy chủ và thử lại.')
+
+    @app.post('/api/graphics', status_code=202)
+    def graphics(request: GraphicsRequest):
+        try:
+            return app.state.graphics.create(request)
+        except GraphicsInputError as error:
+            raise HTTPException(409, str(error))
+        except (OSError, ValueError, RuntimeError) as error:
+            message = str(error) if isinstance(error, ValueError) else 'Không thể tạo tác vụ đồ họa trên máy chủ.'
+            raise HTTPException(503, message)
+
+    @app.get('/api/graphics/{graphics_id}')
+    def get_graphics(graphics_id: str):
+        checked_id(graphics_id)
+        try:
+            return app.state.graphics.read(graphics_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa. Hãy bấm Tạo đồ họa để thử lại.')
 
     @app.get('/api/scripts/{script_id}')
     def get_script(script_id: str):
@@ -121,8 +142,10 @@ def create_app(storage_root: Path | None = None):
     def export(request: ExportRequest):
         try:
             return app.state.jobs.create(request)
-        except FileNotFoundError:
+        except PreviewNotFoundError:
             raise HTTPException(404, 'Preview không còn trên máy chủ. Hãy tạo lại animation.')
+        except (OSError, RuntimeError):
+            raise HTTPException(503, 'Không thể tạo hoặc lưu tác vụ xuất video. Hãy kiểm tra thư mục lưu trữ trên máy chủ và thử lại.')
 
     @app.get('/api/exports/{job_id}')
     def job(job_id: str):

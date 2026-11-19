@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { newProject, parseDraft, sceneValid, signature } from "./types";
-import { api, createScriptJob, getScriptJob } from "./services";
+import { api, createGraphicsJob, getGraphicsJob, createScriptJob, getScriptJob } from "./services";
 import { afterEach, vi } from "vitest";
 import { categories, styleForCategory } from "./styleConfig";
 
@@ -22,7 +22,8 @@ describe("draft and snapshot contracts", () => {
       signature(p),
     );
     expect(signature({ ...p, categoryId: "science" })).not.toBe(signature(p));
-    expect(signature({ ...p, title: "Mới" })).not.toBe(signature(p));
+    expect(signature({ ...p, title: "Mới" })).toBe(signature(p));
+    expect(signature({ ...p, scriptId: "a".repeat(32) })).not.toBe(signature(p));
     expect(
       sceneValid({
         id: "x",
@@ -111,5 +112,26 @@ describe("AI script API boundary", () => {
     expect(parseDraft({ ...p, scriptId: id, scriptJobId: id }).scriptId).toBe(id);
     expect(parseDraft({ ...p, scriptJobId: id }).scriptJobId).toBeUndefined();
     expect(parseDraft({ ...p, scriptId: "https://untrusted" }).scriptId).toBeUndefined();
+  });
+});
+
+describe("graphics generation contract", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("submits only canonical script and selected style references", async () => {
+    const project = { ...newProject(), scriptId: "c".repeat(32) };
+    const job = { id: "d".repeat(32), projectId: project.id, status: "queued", stage: "queued", completed: 0, total: 0, error: null, result: null };
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(job)));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await createGraphicsJob(project)).toEqual(job);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      projectId: project.id, scriptId: project.scriptId, categoryId: project.categoryId, styleId: project.styleId,
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/graphics");
+    expect(await getGraphicsJob(job.id)).toEqual(job);
+    expect(fetchMock.mock.calls[1][0]).toBe(`/api/graphics/${job.id}`);
+  });
+  it("does not resume graphics tasks supplied by imported draft JSON", () => {
+    const project = { ...newProject(), graphicsJobId: "a".repeat(32) };
+    expect(parseDraft(project).graphicsJobId).toBeUndefined();
   });
 });

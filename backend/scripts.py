@@ -48,18 +48,19 @@ def validate_for_ui(script):
 
 
 class ScriptJobManager:
-    def __init__(self, storage: Path):
-        self.root = storage / 'scripts'
+    def __init__(self, storage: Path, *, kind='scripts', label='kịch bản'):
+        self.root = storage / kind
+        self.label = label
         self.root.mkdir(parents=True, exist_ok=True)
         self.lock = threading.RLock()
-        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='screenplay')
+        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=kind)
         self.process = None
         self.stopping = False
         for path in self.root.glob('*/job.json'):
             data = json.loads(path.read_text(encoding='utf-8'))
             if data['status'] in ACTIVE:
                 self.update(data['id'], status='failed', stage='failed',
-                            error='Máy chủ đã khởi động lại. Hãy tạo lại kịch bản.')
+                            error=f'Máy chủ đã khởi động lại. Hãy tạo lại {self.label}.')
 
     def read(self, job_id):
         with self.lock:
@@ -154,4 +155,4 @@ class ScriptJobManager:
             job = json.loads(path.read_text(encoding='utf-8'))
             if job['status'] in ACTIVE:
                 self.update(job['id'], status='failed', stage='failed',
-                            error='Máy chủ đã dừng. Hãy tạo lại kịch bản.')
+                            error=f'Máy chủ đã dừng. Hãy tạo lại {self.label}.')
