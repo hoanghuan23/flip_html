@@ -57,6 +57,20 @@ Background vẽ tại (0,0), phủ 1920x1080. Asset khác có tâm (0,0), vẽ k
 Dùng cùng gốc local và điểm neo tương ứng để chuyển pose không làm đối tượng
 nhảy vị trí hoặc đổi cỡ ngoài ý muốn.
 
+NHẬN DIỆN VÀ HÌNH HỌC DÙNG CHUNG
+Chọn một thiết kế gốc cho từng đối tượng rồi giữ nguyên trong toàn bộ pose:
+khuôn mặt, cấu tạo, vật liệu, màu từng bộ phận/trang phục và họa tiết nhận diện.
+Phối màu theo skill và vai trò palette của Plan một lần, không chọn lại theo
+tên pose hoặc tâm trạng. Với nhóm, giữ đúng từng thành viên và số lượng.
+Nếu nội dung chủ đích làm đổi một thuộc tính, chỉ đổi đúng phần Plan nêu và giữ
+nhận diện còn lại; không cấm biến đổi hình dạng/vật liệu cần để giải thích quá trình.
+Cùng kích thước canvas không có nghĩa là cùng kích thước vật thể: vẽ theo kích
+thước silhouette, tỷ lệ cơ thể và điểm neo trong description. Tư thế rộng hơn
+không được co toàn thân nhỏ lại để lấp vừa khung; chừa khoảng cho mọi pose.
+Nền và thân chính không vẽ lặp bộ phận đã tách asset để đóng/mở, di chuyển hoặc
+ẩn/hiện. Không gắn dấu kiểm/nhãn kết quả vào hình gốc nếu chúng là trạng thái
+chỉ được công bố ở một thời điểm; phase sẽ đặt lớp chú giải riêng.
+
 CẤU TẠO PHỤC VỤ CHUYỂN ĐỘNG
 Đọc description, initial_state, final_state và actions (kể cả note, from/to.pose)
 trong toàn video trước khi vẽ.
@@ -138,6 +152,9 @@ chương trình chèn thư viện bên dưới. Tái sử dụng nhân vật/đ�
 Mỗi asset được nhắc đến trong actions phải có <use>, kể cả khi opacity=0.
 Được vẽ thêm mũi tên và nhãn trong artwork để làm rõ ý Plan,
 không thêm vật thể ngoài câu chuyện.
+Được vẽ lớp SVG phụ cho hiệu ứng của hành động đã nêu trong Plan: dòng truyền,
+vệt tác động hoặc dấu tại điểm tiếp xúc. Đây là biểu diễn quá trình, không phải
+vẽ lại chủ thể chính; không dùng biểu tượng/mũi tên thay phần tác động cần thấy.
 Bóng/gradient đã nằm trong thư viện, không phủ thêm hiệu ứng che cấu tạo.
 
 CHÚ GIẢI THÀNH PHẦN
@@ -158,9 +175,22 @@ Chọn lớp và vị trí chú giải để giữ điểm tiếp xúc, hướng
 đổi tọa độ, tỷ lệ hay diễn biến đã được Plan chỉ định.
 Kiểm tra khoảng trống theo toàn bộ silhouette, bóng, đường đi và các pose trong
 suốt phase; không chỉ tránh giao nhau tại vị trí tâm hoặc ở khung đầu/cuối.
+Kiểm tra tỷ lệ bằng phần hình nhìn thấy, không dựa vào kích thước khung PNG/SVG.
+Dùng một tỷ lệ không gian cho cùng góc máy; tách lớp đặt vị trí, tỷ lệ cố định và
+chuyển động để pose không nhảy cỡ. Giữ chân/đáy/điểm cầm đúng bề mặt hoặc điểm
+nối; quỹ đạo phải theo lối đi và không cắt chủ thể vào dải chữ ở bất kỳ thời điểm nào.
+Khi cần che khuất có chủ đích, vẫn giữ rõ hành động, điểm tiếp xúc và từng thành
+viên quan trọng. Không dùng đổi lớp hoặc dịch đồ họa để giấu một mâu thuẫn của Plan.
 Mũi tên có đầu/cuối rõ, gắn đúng nguồn và đích của tác động hoặc dòng di chuyển;
 không xuyên nhãn hay che vùng tương tác. Hiệu ứng xuất hiện đúng nơi, đúng lúc
 theo action.note, không thay hành động thật bằng biểu tượng hoặc nhấp nháy.
+Hiệu ứng của hành động phải có nguồn, đích và thời điểm bật/tắt rõ. Gắn gốc hiệu
+ứng vào đúng điểm phát trên pose đang hiện, cập nhật cùng wrapper khi chủ thể
+di chuyển; không nối vào tâm asset hay giữ một tọa độ màn hình cố định. Đầu còn
+lại phải tới đúng vùng tác động. Bắt đầu sau khi dụng cụ/bộ phận sẵn sàng, duy trì
+khi quá trình đang diễn ra, kết thúc theo Plan; nối liên tục giữa các phase nếu
+quá trình còn tiếp diễn. Nếu cần thấy dòng chảy, dùng các đoạn/hạt SVG nhỏ chuyển
+động bằng transform/opacity hữu hạn, không chỉ một nét tĩnh hoặc hiệu ứng toàn hình.
 Triển khai from -> diễn biến -> to theo từng action, nối đúng initial_state đến
 final_state. Tác động và kết quả phải đọc được theo thứ tự Plan đã nêu, kể cả khi
 có nhiều action đồng thời; giữ kết quả trong thời gian còn lại nếu action đã kết thúc.
@@ -199,6 +229,8 @@ hiệu ứng ngẫu nhiên theo thời gian thực. Mọi id phase phải khác 
 program-assets/program-captions; mọi href/url(#ID) phải có đích trong SVG ghép.
 Tự kiểm tra khung đầu, giữa, cuối và lúc đổi pose: đúng hiện tượng khi ẩn caption,
 đủ khoảng trống, không mất tham chiếu, trạng thái tái hiện đúng khi tua ngược/xuôi.
+Rà cả lúc hai đối tượng đi ngang nhau và lúc chạm bề mặt: nhận diện có giữ nguyên,
+silhouette có chồng mất ý, điểm tựa/điểm nối có khớp và tác động có thật sự nhìn thấy?
 """ + "\nPHASE:\n" + json.dumps(phase, ensure_ascii=False)
             + "\nSTYLE:\n" + json.dumps(script.get("style", {}), ensure_ascii=False)
             + "\nTHƯ VIỆN ASSET (chỉ tham chiếu, KHÔNG trả lại):\n" + library

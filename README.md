@@ -26,6 +26,20 @@ nhịp ngắn khi cần. AI tự rà khoảng chờ trước, giữa và sau act
 không mang thông tin mới không được dùng để kéo dài phase. Quy tắc này áp dụng
 khi sinh kịch bản mới; các JSON và preview đã lưu giữ thời lượng cũ.
 
+Prompt chung phân trách nhiệm theo ba bước. Kịch bản xác định nhận diện từng
+đối tượng, tỷ lệ không gian, điểm tựa/điểm nối và tác động cần nhìn thấy trong
+các trường hiện có. Prompt ảnh nhận cùng mô tả thiết kế, pose gốc, toàn bộ bộ
+pose và bối cảnh các asset để giữ màu từng bộ phận, cấu tạo, số lượng và tỷ lệ.
+Prompt dàn cảnh kiểm tra silhouette trên cả đường đi, điểm tiếp xúc và vùng
+chữ; dựng hiệu ứng hành động có nguồn/đích và thời điểm bật/tắt, kể cả khi cần
+lớp SVG phụ cạnh PNG. Các quy tắc áp dụng cho mọi chủ đề, không cố định trang
+phục, màu, nhân vật hay tỷ lệ của một video mẫu.
+
+Các pose PNG hiện được gọi sinh riêng; pose gốc trong prompt là mô tả văn bản,
+không phải ảnh tham chiếu được gửi kèm API. Prompt giúp hướng dẫn sự nhất quán,
+chưa bảo đảm các ảnh sẽ khớp hoàn toàn; vẫn cần xem ảnh ở đầu/giữa/cuối cảnh,
+lúc đổi pose và lúc tương tác. Kiểm tra kỹ thuật không thay thế việc xem hình.
+
 Xuất các preview đã có thành video bằng **`render_hyperframes.py`** (một file,
 chỉ dùng thư viện chuẩn Python). Đầu vào là thư mục preview, `index.html` của
 playlist hoặc từng phase HTML; hỗ trợ cả SVG `phase_N.html` và PNG/sprite

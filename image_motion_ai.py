@@ -37,8 +37,31 @@ def asset_prompt(script, asset, pose):
             "Apply the illustration skill's visual style. The asset, pose, canvas and PNG output "
             "requirements below take precedence over its example compositions and workflows. "
             "Do not add example subjects or decor unless required by the Plan.\n"
+            "IDENTITY AND POSE CONTRACT:\n"
+            "Treat the asset description and complete pose list as one character/object design. "
+            "Use the same face, anatomy, component structure, materials, markings and exact "
+            "part-by-part clothing colors in every pose. Apply the skill and palette roles "
+            "consistently; a new pose or outcome must not trigger a new outfit or color scheme. "
+            "An explicit Plan change may alter the specified property (for example shape, "
+            "material or clothing); preserve every other identity feature. Pose/expression "
+            "changes alone are not a redesign. "
+            "For a group, keep each member's identity, outfit, relative height and total count. "
+            "Keep body/object scale and support anchor fixed on the shared local canvas. "
+            "Allow a wider silhouette for a wider pose; do not independently fit each pose "
+            "to fill the image or shrink the whole subject. Preserve margin for the full pose set. "
+            "Respect declared visible bounds, contact points, handles and emission outlets. "
+            "For primary subjects and backgrounds, do not bake moving parts supplied as "
+            "separate assets, transient action effects, safety/result checkmarks or UI annotations "
+            "into the base artwork. A dedicated effect asset must depict its requested effect. "
+            "Render only the requested pose, never a pose sheet or multiple views.\n"
             + "ILLUSTRATION SKILL:\n" + vector.load_style()
             + "\nASSET: " + json.dumps({k: asset.get(k) for k in ("id", "name", "category", "description")}, ensure_ascii=False)
+            + "\nBASE POSE (identity/scale reference, not an attached image): " + asset["base_pose"]
+            + "\nCOMPLETE POSE SET (design consistently; render only the requested one): "
+            + json.dumps([asset["base_pose"], *(p["description"] for p in asset["poses"])], ensure_ascii=False)
+            + "\nSHARED CAST/OBJECT DESIGN CONTEXT: "
+            + json.dumps([{k: a.get(k) for k in ("id", "category", "description")}
+                          for a in script["assets"]], ensure_ascii=False)
             + "\nRender ONLY this pose: " + pose
             + "\nSTYLE: " + json.dumps(script.get("style", {}), ensure_ascii=False)
             + "\nCAMERA/STATE CONTEXT (choose the view specified for this pose): "
@@ -86,7 +109,12 @@ def phase_prompt(script, index, library, previous=None):
             "Chỉ tham chiếu các ID được liệt kê bằng <use>; không trả image, base64 hoặc defs. "
             "Mỗi PNG đã nằm trong nhóm local: nền gốc trên trái, asset khác gốc giữa. "
             "Morph dùng các pose PNG riêng và crossfade theo đúng mốc Plan, không nội suy path. "
-            "Không vẽ lại chủ thể bằng hình học SVG.")
+            "Không vẽ lại chủ thể bằng hình học SVG. "
+            "Canvas PNG có khoảng trong suốt; không coi cạnh canvas là silhouette hoặc điểm tiếp xúc. "
+            "Dùng kích thước phần hình và các điểm neo/điểm phát mà Plan mô tả để đặt tỷ lệ và hiệu ứng. "
+            "Không điều khiển riêng chi tiết đã nằm trong một PNG: gắn lớp SVG phụ cạnh <use> "
+            "trong cùng hệ tọa độ, thay điểm gắn theo pose khi cần. Hiệu ứng hành động đã nêu "
+            "được vẽ bằng SVG phụ theo quy tắc chung; không được bỏ chỉ vì không có PNG hiệu ứng riêng.")
 
 
 class Renderer(vector.Renderer):

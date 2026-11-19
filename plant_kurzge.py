@@ -124,7 +124,8 @@ dàn cảnh và diễn hoạt bằng SVG + CSS, rồi ghép thành video preview
 
 THÔNG SỐ
 - Video không có giọng đọc hoặc âm thanh. AI tự quyết định thời lượng từng phase
-  và tổng thời lượng theo độ phức tạp của ý, chuyển động và chữ trên màn hình.
+  và tổng thời lượng theo diễn biến có ý nghĩa và chữ thực sự trên màn hình,
+  theo quy tắc NHỊP ĐỘ VÀ THỜI LƯỢNG bên dưới.
   Không có thời lượng mặc định; không tính thời gian theo tốc độ đọc lời bình.
 - Canvas 1920x1080, gốc (0,0) ở góc trên trái
 - Ngôn ngữ chữ trên màn hình: tiếng Việt
@@ -137,6 +138,10 @@ PHONG CÁCH VÀ YÊU CẦU DỰNG HÌNH
   Skill quyết định sắc màu và cách phối; giữ nhận diện nhất quán cho toàn video.
 - Trang phục chỉ nêu vai trò nhận diện; để skill phối màu từng phần áo, quần,
   mũ và giày, không bắt buộc toàn bộ trang phục cùng một màu.
+  Trong description của asset, xác định từng phần dùng vai trò palette nào để
+  renderer phối một lần rồi giữ nguyên giữa các pose. Với nhóm nhiều đối tượng,
+  mô tả nhận diện riêng của từng thành viên; thay tư thế không đổi trang phục,
+  vật liệu, họa tiết, cấu tạo, số lượng hoặc tỷ lệ cơ thể nếu nội dung không yêu cầu.
 - Nền chỉ mô tả nội dung và vùng cần để trống; cách tô nền và trang trí theo skill.
   Không yêu cầu sẵn mảng màu, họa tiết hoặc mức đơn giản hóa kiểu infographic.
 - style.notes chỉ ghi yêu cầu nội dung, bố cục, vùng chữ, độ tương phản và khả năng đọc.
@@ -146,6 +151,24 @@ PHONG CÁCH VÀ YÊU CẦU DỰNG HÌNH
   Giữ góc nhìn và tỷ lệ giữa các phase nối tiếp; khi đổi góc, ghi rõ chuyển cảnh
   trong camera.detail và mô tả asset/pose phù hợp, không tự thêm trường JSON.
 - Vùng diễn hoạt chính y=0..792; chừa y=792..1080 cho chữ do chương trình đặt.
+
+BỐ CỤC, TỶ LỆ VÀ ĐIỂM TIẾP XÚC
+- Chọn một tỷ lệ không gian chung trong mỗi góc máy: quan hệ kích thước giữa
+  chủ thể, vật dụng và môi trường phải hợp lý với nội dung. Kích thước canvas
+  của ảnh asset không phải kích thước vật thể trên cảnh; tránh cho mọi asset
+  cùng cỡ chỉ vì đều được vẽ trên một canvas. Ghi tỷ lệ dự kiến trong camera.detail
+  và scale/vị trí trong trạng thái, dùng nhất quán ở các phase nối liên tục.
+- Description của asset nêu kích thước phần hình nhìn thấy trên canvas local,
+  điểm neo và điểm tương tác cần thiết. Khi vật tựa lên bề mặt, điểm neo là chân,
+  đáy hoặc vùng tiếp xúc phù hợp; vật cầm/lắp ghép nêu điểm cầm hoặc điểm nối.
+  Các pose giữ cùng tỷ lệ và điểm neo dù silhouette có rộng/hẹp khác nhau.
+- Nêu bề mặt đỡ, lối đi, vùng tương tác và thứ tự lớp trong camera.detail/trạng thái
+  khi cần. Tính cả silhouette của từng pose, vật cầm và đường di chuyển, không chỉ
+  tâm asset; không để chủ thể nổi trên bề mặt, xuyên vật cản, che nhau mất ý hoặc
+  bị vùng chữ cắt khi đang hoạt động. Với nhóm, kiểm tra đủ từng thành viên.
+- Chỉ bố trí lại theo góc nhìn mới khi ghi rõ cắt cảnh. Nếu chuyển chủ thể sang
+  ô tổng hợp/kết quả, ghi rõ đó là cách trình bày thông tin và có vùng tách biệt;
+  không biến đổi bố cục thành một chuyển động vật lý hoặc một tình tiết mới.
 
 PHÁT TRIỂN NỘI DUNG
 - Đầu vào xác định chủ đề, mục tiêu và dữ kiện cốt lõi, không phải kịch bản phải
@@ -175,13 +198,45 @@ Mỗi phase truyền đạt một ý: initial_state nêu điều kiện/nguyên 
 actions thể hiện diễn biến, final_state nêu thay đổi/kết quả khi phù hợp.
 Phase giới thiệu hoặc kết luận không cần ép thành một cơ chế nhân quả mới.
 Giới thiệu khái niệm mới bằng hình ảnh và chữ dễ hiểu trước khi dùng ở bước sau.
-Dành đủ thời gian nhìn chuyển động, đọc chữ và nhận ra kết quả trước khi chuyển phase.
 Không rút ngắn hoặc kéo dài phase để khớp một tổng thời lượng có sẵn.
 Trạng thái cuối phase này = trạng thái đầu phase tiếp theo nếu nối liên tục.
 Chỉ dùng branch_from khi nội dung thật sự có một nhánh lựa chọn; trỏ đến
 id phase gốc và mô tả điều kiện của nhánh, không buộc mọi câu chuyện phải rẽ nhánh.
 
+NHỊP ĐỘ VÀ THỜI LƯỢNG
+- Lập trình tự các thay đổi có ý nghĩa trước, đặt start/end của actions theo thời
+  gian cần để nhìn rõ từng bước, rồi mới quyết định duration. Không chọn sẵn một
+  duration dài rồi dồn mọi action vào đầu phase hoặc kéo chậm action cho đủ thời lượng.
+- Chữ caption/narration có thể được đọc ngay khi xuất hiện, đồng thời với chuyển
+  động. Ước lượng thời gian đọc thầm và quan sát theo lượng chữ thực sự hiển thị
+  và độ phức tạp của hình; không cộng nguyên thời gian đọc vào sau mọi action.
+  Không tính description, initial_state, final_state, action.note hay camera.detail
+  vào thời gian đọc vì các trường này không phải chữ trên video.
+- duration là mốc muộn hơn giữa lúc người xem đọc/hiểu xong chữ và lúc diễn biến
+  có ý nghĩa kết thúc kèm một nhịp ngắn nhận ra kết quả. Với hình đơn giản, nhịp
+  giữ kết quả thường khoảng 0,5–1,5 giây; đây là hướng dẫn biên tập, không phải
+  thời lượng cố định cho mọi phase. Không mặc định phase nào cũng cần 8–12 giây.
+- Rà soát cả khoảng chờ trước, giữa và sau actions: nếu hình và thông tin không
+  đổi, người xem đã đủ thời gian đọc/hiểu thì chuyển bước hoặc kết thúc phase.
+  Chỉ giữ lâu hơn khi thực sự cần quan sát quan hệ phức tạp hoặc đọc chữ chưa xong;
+  ưu tiên rút gọn chữ hay chia ý nếu chữ buộc một hình đơn giản phải đứng quá lâu.
+- Phân biệt diễn biến với chuyển động trang trí: nhấp nháy, rung,
+  pulse, pan/zoom hoặc loop không mang thêm thông tin không phải lý do kéo dài
+  phase. Không thêm hiệu ứng, lặp action hoặc kéo end tới duration để che thời gian
+  chờ; chỉ thêm bước diễn biến nếu nội dung thực sự cần và dữ kiện cho phép.
+- Ví dụ: phase chỉ giới thiệu một đối tượng, dấu hiệu nhận biết hiện từ giây 1
+  đến 2,5; chữ ngắn đã đọc được trong lúc đó thì có thể chuyển cảnh khoảng giây 3–4.
+  Không đặt duration=11 để giữ nguyên hình thêm 8,5 giây. Nếu chữ quá dài, viết gọn
+  hoặc phân bố thông tin sang phase phù hợp, không tự bỏ dữ kiện cốt lõi.
+- Trước khi trả JSON, tự rà từng phase: thay đổi có ý nghĩa cuối cùng ở giây nào,
+  chữ được đọc từ lúc nào, khoảng giữ còn lại có mục đích gì? Rút mọi khoảng chờ
+  thừa, cập nhật start/end và duration nhất quán, rồi tính total_duration bằng tổng
+  duration cuối cùng. Không cần thêm trường JSON để ghi phần tự rà soát này.
+
 CHỮ VÀ NỘI DUNG
+- Mỗi phase có "description": 1–2 câu tiếng Việt mô tả hình ảnh và diễn biến
+  để người dùng đọc trên giao diện. Không đưa tọa độ, ID asset, tham số hoặc
+  lệnh kỹ thuật vào description; chi tiết dựng hình vẫn nằm trong các trường riêng.
 - "narration" là chữ giải thích hiển thị trên màn hình, KHÔNG phải lời đọc.
   Chỉ một câu ngắn bổ sung ý cho caption; có thể rỗng nếu hình đã đủ rõ.
   Không lặp lại caption, không viết đoạn dài làm tràn vùng chữ phía dưới canvas.
@@ -194,6 +249,14 @@ HÀNH ĐỘNG GIẢI THÍCH
 - Chọn action theo quá trình thật được mô tả: vật nào chuyển động, bộ phận nào
   tương tác, tác động ở đâu, theo hướng nào và tạo ra thay đổi gì. Ghi ý nghĩa,
   thứ tự và điểm tương tác trong note; không chỉ ghi tên hiệu ứng.
+- Khi ý nghĩa hành động phụ thuộc vào một dòng truyền, luồng vật chất/năng lượng,
+  vệt tác động hoặc biến đổi tại điểm tiếp xúc, phải mô tả phần nhìn thấy đó trong
+  action.note: nguồn phát, điểm đích, hướng, thời điểm bắt đầu/ngừng và cách nó
+  đi theo đối tượng khi đổi vị trí/pose. Không chỉ cho thấy tư thế sử dụng dụng cụ
+  rồi bỏ mất quá trình khiến kết quả xảy ra. Chỉ minh họa cơ chế phù hợp với nội
+  dung; không tự thêm thông số, nguyên nhân hoặc tình tiết sự kiện chưa được cung cấp.
+  Dùng asset/pose và action hiện có; hiệu ứng phụ gắn với action được mô tả trong
+  note, không thêm loại action hoặc trường JSON mới.
 - Không dùng scale/rotate/fade toàn bộ đối tượng để thay thế quá trình có cấu tạo
   hoặc nhiều bước. Chỉ dùng khi đúng ý nghĩa: scale cho thay đổi kích thước,
   rotate cho sự quay, fade cho xuất hiện/ẩn hoặc chuyển giữa các pose.
@@ -209,6 +272,10 @@ HÀNH ĐỘNG GIẢI THÍCH
 ASSET
 - Mỗi asset và pose là hình tĩnh dùng chung giữa các phase.
   Renderer quyết định định dạng ảnh và cách vẽ theo skill; Plan không áp đặt SVG hay PNG.
+- Phân rõ chi tiết thuộc thân chính, bộ phận cần điều khiển riêng và chú giải trạng
+  thái. Nền/thân chính không vẽ sẵn bản sao của bộ phận đã tách asset. Dấu xác nhận,
+  nhãn kết quả hoặc biểu tượng trạng thái đặt thành lớp chú giải đúng thời điểm,
+  không gắn cố định vào mọi pose hoặc làm đổi nhận diện của chủ thể.
 - "description" nêu vai trò, hình dạng, cấu tạo/bộ phận liên quan đến action,
   điểm nối/tiếp xúc, kích thước theo viewBox, vai trò nhận diện trong palette và góc nhìn cần thiết.
   Với asset tách bộ phận, nêu chúng thuộc đối tượng nào và cách lắp khớp khi đặt tâm.
@@ -239,6 +306,8 @@ QUY TẮC KỸ THUẬT
 - Tổng duration các phase = total_duration.
 - Tự kiểm tra trước khi trả JSON: hình + chữ có giải thích đủ các bước, action
   có dựng được với asset/pose đã mô tả và có dẫn đúng từ initial_state đến final_state?
+  Rà thêm nhận diện xuyên pose, tỷ lệ chung, điểm tựa/tiếp xúc, hiệu ứng của hành
+  động và khoảng trống ở các mốc trung gian; xử lý mâu thuẫn ngay trong Plan.
 
 SCHEMA
 {
@@ -251,7 +320,7 @@ SCHEMA
   ],
   "phases": [
     {"id": 1, "name": "", "duration": 0, "branch_from": null,
-     "narration": "", "caption": "", "added": false,
+     "narration": "", "caption": "", "description": "", "added": false,
      "camera": {"view": "top-down|side|section", "motion": "static|pan|zoom", "detail": ""},
      "initial_state": "", "final_state": "",
      "actions": [
@@ -376,18 +445,51 @@ def validate(script):
     return errors
 
 
-def generate_script(text, retries=2):
+class InputRejectedError(ValueError):
+    """Nội dung chưa đủ dữ kiện; khác với lỗi API hoặc lỗi sinh JSON."""
+
+
+def validate_generated(script):
+    """Kiểm tra bản mới, giữ validate() tương thích với kịch bản cũ."""
+    errors = validate(script)
+    if not isinstance(script, dict):
+        return errors
+    if not isinstance(script.get('title'), str) or not script['title'].strip():
+        errors.append('Thiếu title của kịch bản.')
+    phases = script.get('phases')
+    if isinstance(phases, list):
+        for index, phase in enumerate(phases, 1):
+            if not isinstance(phase, dict):
+                continue
+            for field in ('name', 'description'):
+                if not isinstance(phase.get(field), str) or not phase[field].strip():
+                    errors.append(f'Phase {index}: thiếu {field}.')
+            if not isinstance(phase.get('narration'), str):
+                errors.append(f'Phase {index}: narration phải là chuỗi.')
+            for field in ('initial_state', 'final_state'):
+                if not isinstance(phase.get(field), str) or not phase[field].strip():
+                    errors.append(f'Phase {index}: thiếu {field}.')
+    return errors
+
+
+def generate_script(text, retries=2, *, on_stage=None, extra_validate=None):
+    if on_stage:
+        on_stage('validating')
     validation = validate_input(text)
     if not validation["valid"]:
         reason = validation["reason"].strip() or "Không xác định được chủ đề hay mục đích."
-        raise ValueError(f"Nội dung chưa đủ ý nghĩa để phát triển thành kịch bản: {reason}")
+        raise InputRejectedError(f"Nội dung chưa đủ ý nghĩa để phát triển thành kịch bản: {reason}")
+    if on_stage:
+        on_stage('generating')
     prompt = PROMPT.replace("<<TEXT>>", text)
     problems = []
     for _ in range(retries + 1):
         script, errors = None, []
         try:
             script = extract_json(request_text(prompt))
-            errors = validate(script)
+            errors = validate_generated(script)
+            if not errors and extra_validate:
+                errors = extra_validate(script)
         except ValueError as error:  # gồm cả JSONDecodeError
             errors = [str(error)]
         if script and not errors:
