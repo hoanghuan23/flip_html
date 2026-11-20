@@ -7,6 +7,7 @@ import {
   type CategoryId,
   type StyleId,
 } from "./styleConfig";
+import { validReferenceImages, type ReferenceImage } from "./referenceImages";
 export type { CategoryId, StyleId } from "./styleConfig";
 export interface Scene {
   id: string;
@@ -77,6 +78,7 @@ export interface ProjectDraft {
   title: string;
   sourceContent: string;
   sourceFilename?: string;
+  referenceImages?: ReferenceImage[];
   categoryId: CategoryId;
   styleId: StyleId;
   scenes: Scene[];
@@ -134,6 +136,7 @@ export function parseDraft(value: unknown): ProjectDraft {
     !p.title.trim() ||
     p.title.length > 160 ||
     typeof p.sourceContent !== "string" ||
+    (p.referenceImages !== undefined && !validReferenceImages(p.referenceImages)) ||
     !savedStyle ||
     (p.categoryId !== undefined && !isCategoryId(p.categoryId)) ||
     !Array.isArray(p.scenes) ||
@@ -167,6 +170,7 @@ export function parseDraft(value: unknown): ProjectDraft {
     id: p.id,
     title: p.title,
     sourceContent: p.sourceContent,
+    referenceImages: p.referenceImages?.map(({ id, name, dataUrl }) => ({ id, name, dataUrl })),
     scriptId:
       typeof p.scriptId === "string" && /^[a-f0-9]{32}$/.test(p.scriptId)
         ? p.scriptId : undefined,

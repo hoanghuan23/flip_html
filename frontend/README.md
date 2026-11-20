@@ -160,6 +160,11 @@ Flat là phong cách riêng, được phép trong các danh mục có Outlined c
   Không có nút tải JSON; bản đầy đủ được lưu trên máy chủ.
 - Tài liệu TXT/DOCX tối đa 5 MB được đọc trong trình duyệt. DOCX chỉ lấy văn
   bản. File gốc không được lưu lên backend hoặc localStorage.
+- Vùng **Thêm hình ảnh tham khảo** bên dưới ô nhập hỗ trợ chọn nhiều ảnh hoặc
+  kéo thả JPG/PNG/WEBP, không giới hạn số lượng, tối đa 5 MB/ảnh; có ảnh thu nhỏ và xóa riêng
+  từng ảnh. Ảnh được thu nhỏ tối đa 1280 px, nén WEBP tối đa 256 KB để lưu cùng
+  từng bản nháp trong trình duyệt và khôi phục khi tải lại/chuyển dự án.
+  API tạo kịch bản hiện chỉ nhận văn bản; ảnh tham khảo chưa gửi cho AI.
 - Nếu trình duyệt không cho lưu hoặc hết dung lượng, thông báo lưu nháp hiển
   thị lỗi. JSON AI đã tạo vẫn nằm trên máy chủ.
 - `storage/scripts/<id>/kich_ban.json` là bản AI đầy đủ, UTF-8 và có thụt dòng;

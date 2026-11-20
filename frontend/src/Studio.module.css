@@ -467,6 +467,146 @@
   flex-wrap: wrap;
   gap: 10px;
 }
+.referenceImages {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 14px 16px;
+  border: 1px solid #d8ceff;
+  border-radius: 12px;
+  background: #faf8ff;
+  min-width: 0;
+}
+.referenceDragging {
+  background: #f0eaff;
+  border-color: #8062e9;
+  box-shadow: 0 0 0 3px #8062e91a;
+}
+.referenceIntro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1 1 300px;
+  min-width: 0;
+}
+.referenceIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: #eee8ff;
+  color: #7653dc;
+}
+.referenceIntro h3 {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 650;
+  color: #303044;
+}
+.referenceIntro h3 span {
+  font-weight: 500;
+}
+.referenceIntro p {
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #68647c;
+}
+.referenceIntro small {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #817b95;
+}
+.referenceGallery {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  max-width: 50%;
+  min-width: 76px;
+}
+.referenceThumbnail {
+  position: relative;
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+}
+.referenceThumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid #e3dff0;
+  border-radius: 9px;
+  object-fit: cover;
+  background: #fff;
+}
+.referenceThumbnail button {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  right: -5px;
+  top: -5px;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #e8e3f1;
+  border-radius: 50%;
+  padding: 0;
+  background: #fff;
+  color: #625c73;
+  box-shadow: 0 2px 5px #36304d12;
+}
+.referenceThumbnail button:hover:not(:disabled) {
+  color: #b7425b;
+  background: #fff1f4;
+}
+.referenceAdd {
+  display: flex;
+  flex: 0 0 76px;
+  width: 76px;
+  min-height: 64px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px dashed #cdbdff;
+  border-radius: 9px;
+  padding: 7px 3px;
+  color: #7752df;
+  background: #ffffff80;
+  font-size: 12px;
+}
+.referenceAdd:hover:not(:disabled) {
+  background: #eee8ff;
+  border-color: #9875ed;
+}
+.referenceAnnouncement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .referenceImages {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .referenceIntro {
+    flex-basis: auto;
+  }
+  .referenceGallery {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+}
 .inputActions > .primary {
   margin-left: auto;
 }

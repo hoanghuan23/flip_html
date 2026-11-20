@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { SectionHeading, errorText } from "./components";
 import type { ProjectDraft } from "./types";
+import ReferenceImages from "./ReferenceImages";
 import s from "./Studio.module.css";
 
 export default function InputPanel({
@@ -198,6 +199,13 @@ export default function InputPanel({
             <span>AI đề xuất thời lượng theo nội dung kịch bản</span>
           </div>
         </div>
+        <ReferenceImages
+          key={project.id}
+          images={project.referenceImages || []}
+          onChange={(referenceImages) => patch({ referenceImages })}
+          notify={notify}
+          disabled={busy || reading}
+        />
           <div className={s.inputActions}>
             <button
               className={s.textButton}

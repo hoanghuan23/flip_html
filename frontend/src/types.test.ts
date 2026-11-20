@@ -44,6 +44,18 @@ describe("draft and snapshot contracts", () => {
     expect(imported.snapshot).toBeUndefined();
     expect(imported.jobId).toBeUndefined();
   });
+  it("restores reference images per project and rejects external or executable image URLs", () => {
+    const p = newProject();
+    const image = { id: "photo-1", name: "tham-khao.png", dataUrl: "data:image/png;base64,aGVsbG8=" };
+    expect(parseDraft({ ...p, referenceImages: [image] }).referenceImages).toEqual([image]);
+    expect(parseDraft(p).referenceImages).toBeUndefined();
+    for (const dataUrl of ["https://untrusted/image.png", "javascript:alert(1)", "data:image/svg+xml;base64,aGVsbG8="]) {
+      expect(() => parseDraft({ ...p, referenceImages: [{ ...image, dataUrl }] })).toThrow();
+    }
+    expect(() => parseDraft({ ...p, referenceImages: [image, image] })).toThrow();
+    const images = Array.from({ length: 12 }, (_, i) => ({ ...image, id: String(i) }));
+    expect(parseDraft({ ...p, referenceImages: images }).referenceImages).toEqual(images);
+  });
 });
 describe("category style configuration", () => {
   it("keeps a permitted style and resets an incompatible selection", () => {
