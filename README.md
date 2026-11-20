@@ -114,7 +114,10 @@ Không tự xóa nền, không chuyển sang vẽ SVG khi API ảnh lỗi.
 iframe sandbox. AI văn bản chỉ dàn cảnh bằng `<use>` và CSS animation; không nhận
 base64 ảnh và không vẽ lại chủ thể. Các pose dùng chung kích thước, gốc local và
 được crossfade tại mốc morph. Vị trí, camera, thời lượng và `branch_from` lấy từ JSON;
-chữ giải thích được chương trình ghép ở dải phía dưới.
+diễn hoạt dùng toàn bộ canvas, không chèn dải phụ đề hoặc tiêu đề/lời dẫn phía dưới.
+`caption` và `narration` được giữ trong dữ liệu kịch bản để tham khảo, không tự
+hiển thị trong cảnh hoặc dưới trình phát. Nhãn ngắn gắn với đối tượng vẫn có thể
+xuất hiện khi nội dung yêu cầu; giọng thuyết minh tiếp tục phát nếu có audio.
 
 `assets.meta.json` và fingerprint trên từng phase kiểm tra cache theo kịch bản,
 thư viện và phiên bản renderer. Lặp lại cùng lệnh với cùng JSON trong output sẽ

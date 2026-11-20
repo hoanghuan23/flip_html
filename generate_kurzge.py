@@ -1,7 +1,7 @@
 """Dựng video preview HTML từ kịch bản JSON của plant_kurzge.py.
 
 API generate_image vẽ thư viện PNG chung; AI dàn cảnh và diễn hoạt mọi phase.
-Trình phát ghép các phase theo timeline, có Play/Pause, tua và phụ đề.
+Trình phát ghép các phase theo timeline, có Play/Pause và tua, không có phụ đề.
 
 python generate_kurzge.py --script kich_ban.json --output preview
 python generate_kurzge.py --input noi_dung.txt --output preview_moi
@@ -57,8 +57,6 @@ INDEX_HTML = """<!doctype html>
 @media(prefers-color-scheme:dark){:root{--bg:#0b1630;--fg:#dce8ff;--bar:#22345e;--btn:#4fb3e8;--btnfg:#08183a}}
 body{box-sizing:border-box;min-height:100vh;margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:"Be Vietnam Pro",system-ui,sans-serif;display:flex;align-items:center;justify-content:center}
 main{width:100%;max-width:960px}
-h1{font-size:1.2rem;margin:0 0 10px}
-.embedded-captions h1,.embedded-captions #cap,.embedded-captions #nar{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%)}
 .stage{position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:<<BACKGROUND>>}
 .stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;visibility:hidden}
 .ctl{display:flex;align-items:center;gap:12px;margin-top:12px}
@@ -67,22 +65,18 @@ input[type=range]{flex:1}
 output{min-width:95px;text-align:right;font-variant-numeric:tabular-nums}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
 @media(max-width:480px){.ctl{gap:6px}button{padding:8px 12px}input[type=range]{min-width:0}output{font-size:.8rem;min-width:80px}}
-#cap{font-weight:800;font-size:1.15rem;margin:12px 0 4px;min-height:1.5em}
-#nar{opacity:.8;min-height:3em;margin:0}
 </style></head><body><main>
-<h1><<TITLE>></h1>
 <div class="stage" id="stage"></div>
 <div class="ctl"><button id="play">Tạm dừng</button>
 <input id="seek" type="range" min="0" max="<<TOTAL>>" step="0.01" value="0" aria-label="Thời gian">
 <output id="clock"></output></div>
-<p id="cap"></p><p id="nar"></p>
 </main>
 <script type="application/json" id="data"><<DATA>></script>
 <script>
 var phases=JSON.parse(document.getElementById("data").textContent);
 var total=phases.reduce(function(s,p){return s+p.duration},0);
 var stage=document.getElementById("stage"),btn=document.getElementById("play"),seek=document.getElementById("seek"),
-clock=document.getElementById("clock"),cap=document.getElementById("cap"),nar=document.getElementById("nar");
+clock=document.getElementById("clock");
 var frames=phases.map(function(p){var f=document.createElement("iframe");f.setAttribute("sandbox","allow-scripts");f.src=p.src;f.title=p.title;stage.appendChild(f);return f});
 var t=0,playing=!phases.some(function(p){return p.audio}),last=performance.now(),shown=-1,shownStart=0;
 var audios=phases.map(function(p){if(!p.audio)return null;var a=new Audio(p.audio.src);a.preload="auto";return a});
@@ -91,7 +85,7 @@ function playAudio(){var a=audios[shown];if(a&&playing)a.play().catch(function()
 function render(){
   var acc=0,i=0;
   while(i<phases.length-1&&t>=acc+phases[i].duration){acc+=phases[i].duration;i++}
-  if(i!==shown){audios.forEach(function(a){if(a)a.pause()});frames.forEach(function(f,k){f.style.visibility=k===i?"visible":"hidden"});cap.textContent=phases[i].caption;nar.textContent=phases[i].narration;document.querySelector("main").classList.toggle("embedded-captions",phases[i].embedded);shown=i;shownStart=acc;if(audios[i])audios[i].currentTime=Math.min(t-acc,phases[i].audio.duration);playAudio()}
+  if(i!==shown){audios.forEach(function(a){if(a)a.pause()});frames.forEach(function(f,k){f.style.visibility=k===i?"visible":"hidden"});shown=i;shownStart=acc;if(audios[i])audios[i].currentTime=Math.min(t-acc,phases[i].audio.duration);playAudio()}
   var w=frames[i].contentWindow;if(w)w.postMessage({t:Math.min(t-acc,phases[i].duration)},"*");
   seek.value=t;clock.textContent=t.toFixed(1)+" / "+total.toFixed(1)+" s";
 }
@@ -149,7 +143,7 @@ def write_phase(output, index, phase, svg, script, *, background=BACKGROUND):
             .replace("<<BACKGROUND>>", background)
             .replace("<<DURATION>>", f"{phase['duration']:g}"))
     if phase.get('audio'):
-        data = json.dumps({'phase': phase, 'renderer': 'image-motion-v2'}, ensure_ascii=False).replace('<', '\\u003c')
+        data = json.dumps({'phase': phase, 'renderer': general.VERSION}, ensure_ascii=False).replace('<', '\\u003c')
         page = page.replace('</head>', '<script type="application/json" id="scene-data">' + data + '</script></head>')
     (output / f"phase_{index}.html").write_text(page, encoding="utf-8")
 
@@ -162,13 +156,8 @@ def write_index(script, output, fingerprint=None):
             page_source = page_path.read_text(encoding="utf-8")
             if fingerprint and f'data-fingerprint="{fingerprint}"' not in page_source:
                 continue
-            caption = phase.get("caption", "")
-            if phase.get("branch_from"):
-                caption = "Tình huống khác: " + caption
             entries.append({"src": f"phase_{index}.html", "title": phase.get("name", f"Phase {index}"),
-                            "duration": phase["duration"], "caption": caption,
-                            "narration": phase.get("narration", ""),
-                            "embedded": f'data-renderer="{general.VERSION}"' in page_source or 'data-renderer="three-motion-' in page_source,
+                            "duration": phase["duration"],
                             **({'audio': phase['audio']} if phase.get('audio') else {})})
     if not entries:
         return None

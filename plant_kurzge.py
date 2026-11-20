@@ -150,7 +150,7 @@ PHONG CÁCH VÀ YÊU CẦU DỰNG HÌNH
 - Chọn camera.view trong top-down, side, section theo điều cần giải thích.
   Giữ góc nhìn và tỷ lệ giữa các phase nối tiếp; khi đổi góc, ghi rõ chuyển cảnh
   trong camera.detail và mô tả asset/pose phù hợp, không tự thêm trường JSON.
-- Vùng diễn hoạt chính y=0..792; chừa y=792..1080 cho chữ do chương trình đặt.
+- Diễn hoạt dùng toàn bộ canvas 1920x1080. Không chừa dải phụ đề phía dưới.
 
 BỐ CỤC, TỶ LỆ VÀ ĐIỂM TIẾP XÚC
 - Chọn một tỷ lệ không gian chung trong mỗi góc máy: quan hệ kích thước giữa
@@ -207,11 +207,12 @@ NHỊP ĐỘ VÀ THỜI LƯỢNG
 - Lập trình tự các thay đổi có ý nghĩa trước, đặt start/end của actions theo thời
   gian cần để nhìn rõ từng bước, rồi mới quyết định duration. Không chọn sẵn một
   duration dài rồi dồn mọi action vào đầu phase hoặc kéo chậm action cho đủ thời lượng.
-- Chữ caption/narration có thể được đọc ngay khi xuất hiện, đồng thời với chuyển
-  động. Ước lượng thời gian đọc thầm và quan sát theo lượng chữ thực sự hiển thị
+- Nhãn ngắn trong cảnh có thể được đọc ngay khi xuất hiện, đồng thời với chuyển
+  động. Ước lượng thời gian đọc thầm và quan sát theo lượng nhãn thực sự hiển thị
   và độ phức tạp của hình; không cộng nguyên thời gian đọc vào sau mọi action.
   Không tính description, initial_state, final_state, action.note hay camera.detail
-  vào thời gian đọc vì các trường này không phải chữ trên video.
+  vào thời gian đọc vì các trường này không phải chữ trên video. caption/narration
+  cũng không hiển thị trên video, không tính chúng vào thời gian đọc.
 - duration là mốc muộn hơn giữa lúc người xem đọc/hiểu xong chữ và lúc diễn biến
   có ý nghĩa kết thúc kèm một nhịp ngắn nhận ra kết quả. Với hình đơn giản, nhịp
   giữ kết quả thường khoảng 0,5–1,5 giây; đây là hướng dẫn biên tập, không phải
@@ -237,10 +238,10 @@ CHỮ VÀ NỘI DUNG
 - Mỗi phase có "description": 1–2 câu tiếng Việt mô tả hình ảnh và diễn biến
   để người dùng đọc trên giao diện. Không đưa tọa độ, ID asset, tham số hoặc
   lệnh kỹ thuật vào description; chi tiết dựng hình vẫn nằm trong các trường riêng.
-- "narration" là chữ giải thích hiển thị trên màn hình, KHÔNG phải lời đọc.
+- "narration" là ghi chú giải thích cho bảng kịch bản, KHÔNG phải lời đọc hay phụ đề.
   Chỉ một câu ngắn bổ sung ý cho caption; có thể rỗng nếu hình đã đủ rõ.
-  Không lặp lại caption, không viết đoạn dài làm tràn vùng chữ phía dưới canvas.
-- caption: tối đa 8 từ, hiển thị trên màn hình.
+  Không lặp lại caption; không đưa ghi chú này lên canvas.
+- caption: tối đa 8 từ, là nhãn tóm tắt trong dữ liệu kịch bản, không tự hiển thị.
 - "sound": luôn là chuỗi rỗng vì preview không dùng âm thanh.
 - Chữ bổ sung ý nghĩa cho hình: giải thích quan hệ hoặc lý do thay đổi thay vì
   chỉ kể tên vật thể hay nhắc lại chuyển động. Nếu ý quá dài, chia thêm phase.
@@ -282,7 +283,8 @@ ASSET
 - Mỗi asset có ID duy nhất (chữ ASCII, số, gạch dưới), tái sử dụng giữa các phase. Tối đa 10 asset.
 - Các pose giữ nhận diện và tỷ lệ của cùng đối tượng. Tái sử dụng mẫu cho vật cùng
   loại; nếu quá phức tạp, chia diễn biến qua phase thay vì yêu cầu tính năng mới.
-- Không khai báo caption/narration thành asset: chương trình tự dựng lớp chữ.
+- Không khai báo caption/narration thành asset hoặc dải chữ: không dựng phụ đề.
+  Chỉ dùng nhãn ngắn gắn với đối tượng khi nội dung yêu cầu.
 - Background dùng gốc trên trái (0,0), kích thước 1920x1080. Nhân vật/đồ vật
   dùng gốc ở tâm (0,0), mô tả kích thước bằng đơn vị viewBox; actions đặt tâm lên khung.
 - category: background | character | object | effect | ui

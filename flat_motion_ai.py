@@ -1,13 +1,11 @@
 """Dựng SVG vector chi tiết cho mọi chủ đề bằng thư viện asset chung của video."""
 
 import hashlib
-import html
 import json
 from pathlib import Path
-import textwrap
 import xml.etree.ElementTree as ET
 
-VERSION = "flat-detailed-v3"
+VERSION = "flat-detailed-v4"
 NS = "http://www.w3.org/2000/svg"
 
 
@@ -18,14 +16,6 @@ def load_style(style_context=None):
         return style_prompt(style_context)
     path = Path(__file__).resolve().parent / "skills" / "flat" / "SKILL.md"
     return path.read_text(encoding="utf-8")
-
-
-def text_lines(text, y, size, fill, width, weight=800):
-    """Ngắt dòng và escape chữ trước khi chèn vào SVG."""
-    lines = textwrap.wrap(text, width=width, break_long_words=False, break_on_hyphens=False) or [""]
-    return (f'<text x="960" y="{y}" text-anchor="middle" font-size="{size}" font-weight="{weight}" fill="{fill}">'
-            + "".join(f'<tspan x="960" dy="{0 if i == 0 else size * 1.25:g}">{html.escape(line)}</tspan>'
-                      for i, line in enumerate(lines)) + '</text>')
 
 
 def digest(value):
@@ -51,8 +41,8 @@ def library_prompt(script, style_context=None):
     return ("Vẽ thư viện SVG dùng chung cho TOÀN BỘ video. Chỉ trả một <svg xmlns=\""
             + NS + "\" viewBox=\"0 0 1920 1080\"><defs id=\"shared-assets\">...</defs></svg>.\n"
             + load_style(style_context) + """
-Canvas 1920x1080. Diễn hoạt chính y=0..792; vùng y=792..1080 chương trình tự
-đặt dải chữ, không đưa đối tượng quan trọng vào đó. Không tự vẽ caption/narration.
+Canvas 1920x1080. Dùng toàn bộ khung hình cho diễn hoạt, không chừa dải chữ
+phía dưới. Không vẽ phụ đề hoặc chép caption/narration lên hình.
 
 Mỗi asset và mỗi pose bên dưới phải có đúng một <g id="ID"> trong defs.
 Background vẽ tại (0,0), phủ 1920x1080. Asset khác có tâm (0,0), vẽ kích thước
@@ -146,8 +136,8 @@ def phase_prompt(script, index, library, previous=None, *, style_context=None):
     before = script["phases"][(phase.get("branch_from") or index - 1) - 1] if index > 1 else None
     return ("Dàn cảnh MỘT phase bằng SVG + CSS animation. Chỉ trả một <svg xmlns=\""
             + NS + "\" viewBox=\"0 0 1920 1080\">...</svg>.\n" + load_style(style_context) + """
-Canvas 1920x1080. Diễn hoạt chính y=0..792; vùng y=792..1080 chương trình tự
-đặt dải chữ, không đưa đối tượng quan trọng vào đó. Không tự vẽ caption/narration.
+Canvas 1920x1080. Dùng toàn bộ khung hình cho diễn hoạt, không chừa dải chữ
+phía dưới. Không vẽ phụ đề hoặc chép caption/narration lên hình.
 
 Chỉ đặt <style> và <g id="artwork"> trực tiếp dưới SVG. Không tự tạo defs:
 chương trình chèn thư viện bên dưới. Tái sử dụng nhân vật/đồ vật/nền bằng
@@ -163,8 +153,8 @@ Bóng/gradient đã nằm trong thư viện, không phủ thêm hiệu ứng che
 CHÚ GIẢI THÀNH PHẦN
 - Nhãn dài được ngắt dòng bằng tspan và nới hộp theo chữ,
   không cắt chữ hoặc thu chữ quá nhỏ.
-- Đặt hộp trong khoảng trống của vùng y=0..792, chừa đệm quanh chữ; tránh chồng
-  nhãn, giao cắt đường dẫn hoặc che chủ thể, vùng tương tác và dải caption.
+- Đặt hộp trong khoảng trống của canvas 1920x1080, chừa đệm quanh chữ; tránh chồng
+  nhãn, giao cắt đường dẫn hoặc che chủ thể và vùng tương tác.
 - Cho chú giải xuất hiện cùng nội dung liên quan và ẩn khi đối tượng biến mất.
   Khi đối tượng chuyển động hoặc đổi pose, giữ đầu chỉ dẫn gắn đúng vùng đích
   trong toàn khoảng hiển thị bằng wrapper/animation phù hợp, không chỉ ở khung đầu.
@@ -181,7 +171,7 @@ suốt phase; không chỉ tránh giao nhau tại vị trí tâm hoặc ở khun
 Kiểm tra tỷ lệ bằng phần hình nhìn thấy, không dựa vào kích thước khung PNG/SVG.
 Dùng một tỷ lệ không gian cho cùng góc máy; tách lớp đặt vị trí, tỷ lệ cố định và
 chuyển động để pose không nhảy cỡ. Giữ chân/đáy/điểm cầm đúng bề mặt hoặc điểm
-nối; quỹ đạo phải theo lối đi và không cắt chủ thể vào dải chữ ở bất kỳ thời điểm nào.
+nối; quỹ đạo phải theo lối đi và không cắt chủ thể ra ngoài khung hình.
 Khi cần che khuất có chủ đích, vẫn giữ rõ hành động, điểm tiếp xúc và từng thành
 viên quan trọng. Không dùng đổi lớp hoặc dịch đồ họa để giấu một mâu thuẫn của Plan.
 Mũi tên có đầu/cuối rõ, gắn đúng nguồn và đích của tác động hoặc dòng di chuyển;
@@ -223,14 +213,15 @@ bộ phận bên trong <use>. Bộ phận tách asset dùng wrapper riêng theo 
 Không script, SMIL, image, foreignObject, URL ngoài, animation-play-state.
 Thời gian tương đối theo phase. Mọi animation không lặp kết thúc trong duration.
 Giữ nguyên duration và mốc actions của kịch bản; không tự tính lại thời lượng.
-Video không có giọng đọc hoặc âm thanh; narration chỉ là chữ giải thích trên màn hình.
+caption/narration chỉ cung cấp ngữ cảnh, không được tự hiển thị thành phụ đề.
+Nếu có voiceover/audio, giữ diễn biến khớp lời đọc và thời lượng đã cung cấp.
 Trạng thái t=0 đúng initial_state và t=duration đúng final_state. Không dùng transition
 hoặc hiệu ứng phụ thuộc lịch sử phát; tua phải tái hiện được chính xác một trạng thái.
 Nếu có branch_from, quay về trạng thái cuối PHASE GỐC, không tiếp sau phase liền trước.
 Chỉ animate wrapper cần thiết; không tạo hàng trăm chuyển động chi tiết hoặc
 hiệu ứng ngẫu nhiên theo thời gian thực. Mọi id phase phải khác thư viện và id
 program-assets/program-captions; mọi href/url(#ID) phải có đích trong SVG ghép.
-Tự kiểm tra khung đầu, giữa, cuối và lúc đổi pose: đúng hiện tượng khi ẩn caption,
+Tự kiểm tra khung đầu, giữa, cuối và lúc đổi pose: hình thể hiện đúng hiện tượng,
 đủ khoảng trống, không mất tham chiếu, trạng thái tái hiện đúng khi tua ngược/xuôi.
 Rà cả lúc hai đối tượng đi ngang nhau và lúc chạm bề mặt: nhận diện có giữ nguyên,
 silhouette có chồng mất ý, điểm tựa/điểm nối có khớp và tác động có thật sự nhìn thấy?
@@ -320,19 +311,6 @@ class Renderer:
         for group in library:
             defs.extend(group)
         root.insert(0, defs)
-        phase = self.script["phases"][index - 1]
-        caption = phase.get("caption", "")
-        background, ink, secondary = '#f4c97a', '#3b2a12', '#6b4a1c'
-        if self.style_context is not None:
-            from render_style import caption_colors
-            background, ink = caption_colors(self.style_context)
-            secondary = ink
-        captions = ('<g xmlns="' + NS + '" id="program-captions">'
-                    f'<rect y="792" width="1920" height="288" fill="{background}"/>'
-                    + text_lines(caption, 890 if len(caption) > 48 else 918,
-                                 48 if len(caption) > 48 else 60, ink, 48)
-                    + text_lines(phase.get("narration", ""), 1015, 36, secondary, 86, 500) + '</g>')
-        root.append(ET.fromstring(captions))
         root.set("data-renderer", VERSION)
         root.set("data-fingerprint", self.fingerprint)
         return ET.tostring(root, encoding="unicode")

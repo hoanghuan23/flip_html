@@ -42,15 +42,18 @@ class ApiTests(unittest.TestCase):
 
     def test_preview_is_immutable_seekable_and_escapes_user_text(self):
         value = draft()
-        value['scenes'][0]['narration'] = '<script>alert(1)</script>'
+        value['scenes'][0]['name'] = '<script>alert(1)</script>'
         response = self.client.post('/api/previews', json=value)
         snapshot = response.json()
         self.assertEqual(snapshot['duration'], 3.5)
-        self.assertEqual([p['name'] for p in snapshot['phases']], ['Biển và mây', 'Gió'])
+        self.assertEqual([p['name'] for p in snapshot['phases']], ['<script>alert(1)</script>', 'Gió'])
         html = self.client.get(snapshot['phases'][0]['url']).text
         self.assertIn('window.renderAt', html)
         self.assertIn('&lt;script&gt;alert(1)&lt;/script&gt;', html)
         self.assertNotIn('<script>alert(1)</script>', html)
+        self.assertNotIn('caption-copy', html)
+        self.assertNotIn(value['scenes'][0]['narration'], html)
+        self.assertNotIn(value['scenes'][0]['description'], html)
         self.assertEqual(self.client.get('/api/previews/'+snapshot['id']).json(), snapshot)
         self.assertNotEqual(self.preview()['id'], snapshot['id'])
 
@@ -66,8 +69,6 @@ class ApiTests(unittest.TestCase):
     def test_category_style_pair_uses_shared_configuration(self):
         config = load_style_config()
         self.assertEqual(len(config['categories']), 9)
-        self.assertTrue(all(not category['allowed_styles']
-                            for key, category in config['categories'].items() if key != 'all_styles'))
         data = dict(draft(), categoryId='all_styles', styleId='outlined-cartoon')
         response = self.client.post('/api/previews', json=data)
         self.assertEqual(response.status_code, 201, response.text)
@@ -77,7 +78,7 @@ class ApiTests(unittest.TestCase):
         for category_id in config['categories']:
             request = dict(projectId='project-1', scriptId='a' * 32,
                            categoryId=category_id, styleId='flat')
-            if category_id == 'all_styles':
+            if 'flat' in config['categories'][category_id]['allowed_styles']:
                 self.assertEqual(GraphicsRequest(**request).styleId, 'flat')
                 continue
             data['categoryId'] = category_id

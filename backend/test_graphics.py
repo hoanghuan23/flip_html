@@ -68,6 +68,35 @@ def request(script_id='a' * 32, style='flat'):
 
 
 class StyleAndPipelineTests(unittest.TestCase):
+    def test_new_and_resumed_animation_has_no_caption_strip(self):
+        script = graphics_script()
+        with tempfile.TemporaryDirectory() as directory, patch(
+            'image_asset_generator.urlopen', side_effect=lambda *a, **k: io.BytesIO(png_response())
+        ) as images:
+            output = Path(directory)
+
+            def draw(prompt):
+                phase = json.loads(prompt.split('\nPHASE:\n')[1].split('\nSTYLE:\n')[0])
+                return phase_svg(phase).replace('</g></svg>', '<text x="400" y="900">Nhãn đối tượng</text></g></svg>')
+
+            with patch.object(cli, 'request_text', side_effect=draw) as text, contextlib.redirect_stdout(io.StringIO()):
+                for _ in range(2):
+                    build_preview(script, output, text, style_context=load_render_style('flat'))
+                    for index, phase in enumerate(script['phases'], 1):
+                        page = (output / f'phase_{index}.html').read_text()
+                        self.assertNotIn('program-captions', page)
+                        self.assertNotIn(phase['caption'], page)
+                        self.assertNotIn(phase['narration'], page)
+                        self.assertIn('Nhãn đối tượng', page)
+                        self.assertIn('window.renderAt', page)
+                    playlist = (output / 'index.html').read_text()
+                    self.assertNotIn('id="cap"', playlist)
+                    self.assertNotIn('id="nar"', playlist)
+                    self.assertNotIn('"caption":', playlist)
+                    self.assertNotIn('"narration":', playlist)
+                self.assertEqual(text.call_count, len(script['phases']))
+                self.assertEqual(images.call_count, 1)
+
     def test_cli_style_and_resume_use_same_snapshot_without_api(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(cli, 'request_text') as text, patch('image_asset_generator.urlopen') as images:
             source = Path(directory) / 'source.json'
@@ -177,7 +206,7 @@ class GraphicsStorageTests(unittest.TestCase):
             manager = GraphicsJobManager(storage)
             try:
                 config = GraphicsRequest(projectId='project-one', scriptId='a' * 32,
-                                         categoryId='3D', styleId='3d-motion-infographic')
+                                         categoryId='all_styles', styleId='3d-motion-infographic')
                 with patch.object(manager.executor, 'submit'):
                     job = manager.create(config)
                 output = storage / 'previews' / job['id']

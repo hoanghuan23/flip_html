@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import flat_motion_ai as vector
 from image_asset_generator import ImageAssetGenerator
 
-VERSION = "image-motion-v2"
+VERSION = "image-motion-v3"
 NS = vector.NS
 
 
@@ -69,7 +69,7 @@ def asset_prompt(script, asset, pose, style_context=None):
                           for p in script["phases"]], ensure_ascii=False)
             + f"\nLogical local canvas: {asset['width']}x{asset['height']}. "
             + ("Origin at top left (0,0), full scene canvas 1920x1080. "
-               "Keep the caption area y=792..1080 plain. Do not include foreground subjects."
+               "Use the full canvas for scenery, with no reserved caption strip. Do not include foreground subjects."
                if not asset["transparent"] else
                "Origin at the center (0,0). True transparent alpha, including empty margins. "
                "Respect the described local coordinates and silhouette bounds. "

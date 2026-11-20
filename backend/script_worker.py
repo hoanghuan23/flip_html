@@ -39,8 +39,9 @@ def run(directory):
                       'in the description of the relevant phase. '
                       'Add voiceover to each phase: partition ALL of this text into nonempty consecutive '
                       'segments, preserving every word and punctuation in order. Never rewrite, summarize '
-                      'or omit speech. Use fewer phases if necessary. narration is only a SHORT visual label, '
-                      'never the spoken paragraph. Keep each spoken segment below 1000 characters. '
+                      'or omit speech. Use fewer phases if necessary. narration is only a SHORT script note, '
+                      'never the spoken paragraph or an on-screen subtitle. Do not reserve a bottom caption strip. '
+                      'Keep each spoken segment below 1000 characters. '
                       'Actions may include cue: an exact short phrase from that phase voiceover, '
                       'to anchor action start to speech. Durations are provisional until TTS.\nVOICEOVER:\n' + voiceover)
         if references:

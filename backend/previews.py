@@ -60,7 +60,6 @@ svg{{display:block;width:100%;height:100%}}text{{font-family:Arial,sans-serif}}
 .copy{{font-family:Arial,sans-serif;color:{ink};overflow-wrap:anywhere}}
 .copy h1{{font-size:66px;line-height:1.15;margin:18px 0 22px;max-width:1100px}}
 .copy p{{font-size:33px;line-height:1.45;margin:0;max-width:1260px}}
-.description{{font-size:23px!important;opacity:.75;margin-top:18px!important;max-width:1400px!important}}
 </style></head><body>
 <svg viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="{escape(scene.name, quote=True)}">
 <defs><pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse"><path d="M80 0H0V80" fill="none" stroke="{ink}" stroke-opacity=".035" stroke-width="2"/></pattern></defs>
@@ -75,10 +74,6 @@ svg{{display:block;width:100%;height:100%}}text{{font-family:Arial,sans-serif}}
 <foreignObject x="132" y="100" width="1656" height="410"><div xmlns="http://www.w3.org/1999/xhtml" class="copy">
 <p style="font-size:22px;letter-spacing:5px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{escape(request.title)} · CẢNH {number:02d}</p>
 <h1 id="scene-title" style="max-width:850px">{escape(scene.name)}</h1></div></foreignObject>
-<rect x="100" y="812" width="1720" height="218" rx="28" fill="{bg}"/>
-<foreignObject x="140" y="842" width="1640" height="178"><div xmlns="http://www.w3.org/1999/xhtml" class="copy" id="caption-copy">
-<p>{escape(scene.narration)}</p><p class="description">{escape(scene.description)}</p>
-</div></foreignObject>
 <text x="142" y="770" fill="{cloud}" font-size="22" letter-spacing="3">ANIMATION MINH HỌA · {number:02d} / {len(request.scenes):02d}</text>
 </svg><script>
 var D={scene.duration};
@@ -96,11 +91,6 @@ window.renderAt(0);
 window.previewReady=document.fonts.ready.then(function(){{
  const heading=document.getElementById('scene-title');
  for(let size=66;heading.scrollHeight>280&&size>=28;size-=2)heading.style.fontSize=size+'px';
- const box=document.getElementById('caption-copy'),lines=box.querySelectorAll('p');
- for(let scale=1;box.scrollHeight>168&&scale>=.15;scale-=.025){{
-  lines[0].style.fontSize=(33*scale)+'px';lines[1].style.fontSize=(23*scale)+'px';
-  lines[1].style.marginTop=(18*scale)+'px';
- }}
  return true;
 }});
 </script></body></html>'''

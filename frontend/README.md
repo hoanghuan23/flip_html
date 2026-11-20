@@ -10,6 +10,8 @@ thích, mô tả hình ảnh và thời lượng từng phase. Hiện chỉ hỗ
 các nút sửa/thêm/xóa/chat được khóa.
 
 Mục 2 dùng JSON đầy đủ của bước 1 để sinh thư viện PNG và SVG/CSS animation.
+HTML animation không chèn dải phụ đề phía dưới; chữ giải thích vẫn nằm trong
+bảng kịch bản. Chỉ các nhãn ngắn theo nội dung được đặt trong cảnh.
 Phong cách được chọn đi vào cả prompt sinh ảnh và prompt diễn hoạt. Mục 3 cho
 chọn phase, phát/dừng và tua; sửa/xóa/chat/tạo lại phase chỉ hiển thị ở trạng
 thái khóa. Tạo hoặc thử lại đồ họa ở mục 2. Nội dung có phần “Thuyết minh:”
