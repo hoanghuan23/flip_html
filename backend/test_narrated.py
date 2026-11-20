@@ -1,0 +1,290 @@
+import base64
+import copy
+import io
+import json
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+from unittest.mock import patch
+from urllib.error import HTTPError, URLError
+
+from fastapi.testclient import TestClient
+from PIL import Image
+
+from backend.app import create_app
+from backend.inputs import ReferenceImage, attach_voiceover, check_image_mentions, save_references, split_input
+from backend.models import GraphicsRequest
+from backend.narration import prepare_narration, synthesize
+from backend.graphics import completed_snapshot
+from backend.test_scripts import ACCEPTED, screenplay
+from backend.script_worker import run as script_worker
+from render_style import load_render_style
+from render_hyperframes import PreviewError, collect_scenes, prepare_project, verify_video
+from three_motion import build_preview, validate_plan, verify_phases
+
+
+def reference(number=2):
+    data = io.BytesIO()
+    Image.new('RGB', (24, 16), '#3766ab').save(data, format='PNG')
+    return ReferenceImage(id='photo', name='Vệ tinh.png', number=number,
+                          dataUrl='data:image/png;base64,' + base64.b64encode(data.getvalue()).decode())
+
+
+def mesh_plan(duration=2):
+    return {'nodes': [{'id': 'satellite', 'geometry': 'box', 'scale': [.5, .8, .2]},
+                      {'id': 'earth', 'geometry': 'sphere', 'position': [-2, -4, -5], 'scale': [3]*3}],
+            'camera': [{'t': 0, 'position': [0, 1, 9]}, {'t': duration, 'position': [0, 1, 7]}],
+            'tracks': [{'target': 'satellite', 'property': 'position',
+                        'keys': [{'t': 0, 'value': [-1, 0, 0]}, {'t': duration, 'value': [1, 0, 0]}]}],
+            'overlays': [{'type': 'image', 'number': 2, 'start': .2, 'end': duration},
+                         {'type': 'connector', 'text': '550 km', 'target': 'satellite', 'endTarget': 'earth',
+                          'start': .5, 'end': duration, 'cue': '550'}]}
+
+
+def alignment(text, duration=1.7):
+    return {'characters': list(text), 'character_start_times_seconds': [i / len(text)*duration for i in range(len(text))],
+            'character_end_times_seconds': [(i+1)/len(text)*duration for i in range(len(text))]}
+
+
+class NarratedTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        result = subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1.7',
+                                 '-f', 'mp3', 'pipe:1'], check=True, capture_output=True)
+        cls.mp3 = result.stdout
+
+    def response(self, text='Độ cao 550 km.'):
+        return io.BytesIO(json.dumps({'audio_base64': base64.b64encode(self.mp3).decode(),
+                                     'alignment': alignment(text)}).encode())
+
+    def config(self):
+        return patch.dict('os.environ', {'ELEVENLABS_API_KEY': 'private-test-secret', 'ELEVENLABS_VOICE_ID': 'test-voice'})
+
+    def test_sections_and_consecutive_voice_segments_are_lossless(self):
+        source = 'Vệ tinh\nMô tả:\nCamera tiến gần.\nThuyết minh:\n“Câu một.\nCâu hai.”'
+        visual, voice = split_input(source)
+        self.assertEqual(visual, 'Vệ tinh\n\nCamera tiến gần.')
+        self.assertEqual(voice, 'Câu một.\nCâu hai.')
+        script = {'phases': [{'voiceover': 'Câu một.'}, {'voiceover': 'Câu hai.'}]}
+        attach_voiceover(script, voice)
+        self.assertEqual(''.join(p['voiceover'] for p in script['phases']), voice)
+        for pieces in (['Câu hai.', 'Câu một.'], ['Câu một.', 'Câu khác.'], ['Câu một.']):
+            with self.assertRaises(ValueError):
+                attach_voiceover({'phases': [{'voiceover': p} for p in pieces]}, voice)
+        self.assertEqual(split_input('Văn bản thường'), ('Văn bản thường', ''))
+        with self.assertRaisesRegex(ValueError, 'trống'):
+            split_input('Mô tả: Cảnh\nThuyết minh:\n')
+
+    def test_references_validate_bytes_and_keep_nonconsecutive_numbers(self):
+        image = reference(7)
+        check_image_mentions('Dùng Hình 7', [image])
+        with self.assertRaisesRegex(ValueError, 'Hình 2'):
+            check_image_mentions('Dùng Hình 2', [image])
+        with self.assertRaises(ValueError):
+            ReferenceImage(**{**image.model_dump(), 'dataUrl': 'data:image/png;base64,aGVsbG8='})
+        with tempfile.TemporaryDirectory() as temporary:
+            rows = save_references(Path(temporary), [image])
+            self.assertEqual(rows[0]['number'], 7)
+            self.assertTrue((Path(temporary) / rows[0]['src']).is_file())
+
+    def test_script_worker_preserves_speech_and_supplies_reference_metadata(self):
+        script = screenplay()
+        script['phases'][0]['voiceover'] = 'Độ cao 550 km.'
+        with tempfile.TemporaryDirectory() as temporary, patch.multiple('plant_kurzge', API_URL='test', API_KEY='test', MODEL='test'):
+            directory = Path(temporary)
+            (directory / 'input.txt').write_text('Vệ tinh\nMô tả:\nDùng Hình 2.\nThuyết minh:\nĐộ cao 550 km.')
+            save_references(directory, [reference()])
+            with patch('plant_kurzge.request_text', side_effect=[ACCEPTED, json.dumps(script)]) as api, patch('sys.stdout', new_callable=io.StringIO):
+                script_worker(directory)
+            saved = json.loads((directory / 'kich_ban.json').read_text())
+            self.assertEqual(saved['voiceoverText'], 'Độ cao 550 km.')
+            self.assertIn('voiceover', api.call_args.args[0])
+            self.assertIn('"number": 2', api.call_args.args[0])
+
+    def test_tts_cache_and_invalid_cache_regeneration(self):
+        with tempfile.TemporaryDirectory() as temporary, self.config(), patch('backend.narration.urlopen', side_effect=lambda *a, **k: self.response()) as api:
+            directory = Path(temporary)
+            path, metadata = synthesize('Độ cao 550 km.', directory)
+            synthesize('Độ cao 550 km.', directory)
+            self.assertEqual(api.call_count, 1)
+            self.assertGreater(metadata['duration'], 1.7)
+            request = api.call_args.args[0]
+            self.assertEqual(json.loads(request.data)['model_id'], 'eleven_flash_v2_5')
+            self.assertNotIn('private-test-secret', path.name + path.with_suffix('.json').read_text())
+            path.write_bytes(b'broken')
+            synthesize('Độ cao 550 km.', directory)
+            self.assertEqual(api.call_count, 2)
+
+    def test_tts_errors_are_specific_and_never_expose_key(self):
+        with tempfile.TemporaryDirectory() as temporary, self.config():
+            errors = [HTTPError('test', code, 'private-test-secret', {}, None) for code in (401, 403, 429, 500)]
+            errors += [URLError('private-test-secret'), TimeoutError()]
+            for error in errors:
+                with self.subTest(error=type(error).__name__), patch('backend.narration.urlopen', side_effect=error):
+                    with self.assertRaises(ValueError) as caught:
+                        synthesize('text', Path(temporary))
+                    self.assertNotIn('private-test-secret', str(caught.exception))
+            with patch('backend.narration.urlopen', return_value=io.BytesIO(b'{"audio_base64":"Yg=="}')):
+                with self.assertRaises(ValueError):
+                    synthesize('text', Path(temporary))
+            quota = HTTPError('test', 401, 'unauthorized', {}, io.BytesIO(b'{"detail":{"status":"quota_exceeded"}}'))
+            with patch('backend.narration.urlopen', side_effect=quota):
+                with self.assertRaisesRegex(ValueError, 'hạn mức'):
+                    synthesize('text', Path(temporary))
+            with patch('backend.narration.urlopen', return_value=io.BytesIO(b'not json')):
+                with self.assertRaisesRegex(ValueError, 'JSON'):
+                    synthesize('text', Path(temporary))
+
+    def test_measured_audio_flows_to_3d_snapshot_and_export(self):
+        text = 'Độ cao 550 km.'
+        with tempfile.TemporaryDirectory() as temporary, self.config(), patch('backend.narration.urlopen', side_effect=lambda *a, **k: self.response(text)):
+            storage = Path(temporary)
+            output = storage / 'previews' / ('b'*32)
+            output.mkdir(parents=True)
+            script = screenplay()
+            script['phases'][0]['voiceover'] = text
+            script['phases'][0]['actions'][0]['cue'] = '550'
+            refs = save_references(output, [reference()])
+            prepare_narration(script, output, storage / 'cache')
+            phase = script['phases'][0]
+            self.assertLess(phase['duration'], 2)
+            self.assertAlmostEqual(phase['duration'] * 30, round(phase['duration'] * 30))
+            self.assertGreater(phase['actions'][0]['start'], 0)
+            (output / 'kich_ban.json').write_text(json.dumps(script))
+            context = load_render_style('3d-motion-infographic')
+            (output / 'render_config.json').write_text(json.dumps(context))
+            def generate(_):
+                return json.dumps(mesh_plan(phase['duration']))
+            revision = build_preview(script, output, generate, style_context=context, references=refs)
+            config = {'projectId': 'test', 'scriptId': 'a'*32, 'categoryId': '3D', 'styleId': context['id']}
+            snapshot = completed_snapshot(storage, {'id': output.name, 'config': config}, revision)
+            self.assertEqual(snapshot['renderer'], 'three-motion-v1')
+            self.assertEqual(snapshot['phases'][0]['duration'], phase['duration'])
+            self.assertIn('/assets/audio/', snapshot['phases'][0]['audio']['url'])
+            scenes = collect_scenes([output])
+            self.assertEqual(scenes[0].kind, 'three')
+            manifest = prepare_project(scenes, storage / 'export', 30)
+            self.assertEqual(manifest['audio'], 'voiceover')
+            exported = (storage / 'export/index.html').read_text()
+            self.assertEqual(exported.count('<audio '), 1)
+            self.assertNotIn('https://', exported)
+            with TestClient(create_app(storage)) as client:
+                self.assertEqual(client.get(snapshot['phases'][0]['audio']['url']).status_code, 200)
+                self.assertEqual(client.get(f'/api/previews/{output.name}/assets/runtime/three-scene.js').status_code, 200)
+                self.assertEqual(client.get(f'/api/previews/{output.name}/assets/../../.env').status_code, 404)
+            # Audio failure must invalidate the snapshot instead of publishing silently.
+            (output / phase['audio']['src']).unlink()
+            with self.assertRaises(ValueError):
+                completed_snapshot(storage, {'id': output.name, 'config': config}, revision)
+
+    def test_scene_validation_catches_broken_graph_timing_and_reference(self):
+        phase = {'duration': 2}
+        raw = mesh_plan()
+        raw['overlays'][1].pop('cue')
+        validate_plan(raw, phase, [{'number': 2}])
+        broken = []
+        p = copy.deepcopy(raw); p['nodes'][0]['parent'] = 'missing'; broken.append(p)
+        p = copy.deepcopy(raw); p['nodes'][0]['parent'] = 'earth'; p['nodes'][1]['parent'] = 'satellite'; broken.append(p)
+        p = copy.deepcopy(raw); p['camera'][1]['t'] = 3; broken.append(p)
+        p = copy.deepcopy(raw); p['tracks'][0]['keys'][1]['t'] = 0; broken.append(p)
+        p = copy.deepcopy(raw); p['overlays'][0]['number'] = 7; broken.append(p)
+        p = copy.deepcopy(raw); p['nodes'][0]['position'] = [float('nan'), 0, 0]; broken.append(p)
+        for value in broken:
+            with self.assertRaises(ValueError):
+                validate_plan(value, phase, [{'number': 2}])
+        phase['description'] = 'Kèm dòng chữ "Quỹ đạo thấp – khoảng 550 km".'
+        with self.assertRaisesRegex(ValueError, 'nguyên văn'):
+            validate_plan(raw, phase, [{'number': 2}])
+
+    def test_three_timing_repairs_use_measured_duration_alignment_and_rejected_response(self):
+        duration = 115 / 30
+        script = screenplay()
+        phase = script['phases'][0]
+        phase.update(duration=duration, voiceover='một hai', audio={'alignment': 'alignment.json'})
+        script['total_duration'] = duration
+        valid = mesh_plan(duration)
+        valid['overlays'] = []
+        outside = copy.deepcopy(valid)
+        outside['camera'][1]['t'] = 4
+        duplicate = copy.deepcopy(valid)
+        duplicate['camera'][1]['cue'] = 'một'
+        responses = [json.dumps(plan, ensure_ascii=False) for plan in [outside, duplicate, valid]]
+        context = load_render_style('3d-motion-infographic')
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            (output / 'alignment.json').write_text(json.dumps({'alignment': alignment(phase['voiceover'], 3)}))
+            with patch('plant_kurzge.request_text', side_effect=responses) as request:
+                revision = build_preview(script, output, request, style_context=context)
+            self.assertEqual(request.call_count, 3)
+            first, second, third = [call.args[0] for call in request.call_args_list]
+            schema = json.loads(first.split('\nJSON SCHEMA:\n')[1].split('\nGeometry units:')[0])
+            for model, fields in [('CameraKey', ['t']), ('Keyframe', ['t']), ('Overlay', ['start', 'end'])]:
+                for field in fields:
+                    self.assertEqual(schema['$defs'][model]['properties'][field]['maximum'], duration)
+            speech = json.loads(first.split('\nSPEECH WORD TIMES (seconds within this phase):\n')[1].split('\nFULL SCRIPT CONTEXT:')[0])
+            self.assertEqual([word['text'] for word in speech], ['một', 'hai'])
+            self.assertEqual(speech[0]['t'], 0)
+            self.assertGreater(speech[1]['t'], 0)
+            self.assertIn(responses[0], second)
+            self.assertIn('camera[1].t=4.0', second)
+            self.assertIn(responses[1], third)
+            self.assertIn('camera[0].t=0.0 >= camera[1].t=0.0', third)
+            for attempt, response in enumerate(responses, 1):
+                self.assertEqual((output / 'prompts' / f'phase_1_3d_response_{attempt}.txt').read_text(), response)
+            self.assertEqual(verify_phases(output, script, revision)[0]['duration'], duration)
+            self.assertEqual(build_preview(script, output, lambda _: self.fail('Valid cache must be reused'),
+                                           style_context=context), revision)
+
+    def test_three_timing_failure_keeps_diagnostic_without_publishing_phase(self):
+        script = screenplay()
+        phase = script['phases'][0]
+        raw = mesh_plan(phase['duration'])
+        raw['overlays'] = []
+        raw['tracks'][0]['keys'][1]['t'] = 0
+        response = json.dumps(raw)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            with self.assertRaisesRegex(ValueError, r'Cảnh 3D 1.*tracks\[0\].*satellite.position'):
+                build_preview(script, output, lambda _: response, style_context=load_render_style('3d-motion-infographic'))
+            self.assertTrue((output / 'prompts/phase_1_3d_response_3.txt').is_file())
+            self.assertFalse((output / 'phase_1.html').exists())
+            self.assertFalse((output / 'phase_1.scene.json').exists())
+
+    def test_legacy_worker_preserves_script_bytes_and_does_not_call_tts(self):
+        from backend.graphics_worker import run
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            original = json.dumps(screenplay(), ensure_ascii=False, indent=4) + '\n'
+            (directory / 'kich_ban.json').write_text(original)
+            (directory / 'render_config.json').write_text(json.dumps(load_render_style('flat')))
+            with patch.multiple('plant_kurzge', API_URL='test', API_KEY='test', MODEL='test'), \
+                    patch('backend.graphics_worker.image_config', return_value={'key': 'test'}), \
+                    patch('backend.graphics_worker.build_preview', return_value='fingerprint'), \
+                    patch('backend.narration.synthesize') as tts, patch('sys.stdout', new_callable=io.StringIO) as events:
+                run(directory)
+            self.assertEqual((directory / 'kich_ban.json').read_text(), original)
+            self.assertEqual(json.loads(events.getvalue().splitlines()[-1])['status'], 'succeeded')
+            tts.assert_not_called()
+
+    def test_missing_image_returns_validation_error_before_creating_job(self):
+        with tempfile.TemporaryDirectory() as temporary, TestClient(create_app(Path(temporary))) as client:
+            response = client.post('/api/scripts', json={'projectId': 'missing', 'content': 'Sử dụng Hình 7',
+                                                        'referenceImages': [reference().model_dump()]})
+            self.assertEqual(response.status_code, 422)
+            self.assertIn('Hình 7', response.json()['detail'])
+            self.assertEqual(list((Path(temporary) / 'scripts').iterdir()), [])
+
+    def test_mp4_verification_requires_narration_stream(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / 'video.mp4'
+            output.write_bytes(b'fixture')
+            video = {'format': {'duration': '2'}, 'streams': [{'width': 1920, 'height': 1080, 'avg_frame_rate': '30/1'}]}
+            with patch('render_hyperframes.subprocess.run') as run:
+                run.side_effect = [unittest.mock.Mock(stdout=json.dumps(video)), unittest.mock.Mock(stdout='{"streams":[]}')]
+                with self.assertRaisesRegex(PreviewError, 'âm thanh'):
+                    verify_video(output, 2, 30, 1920, 1080, expected_audio=True)
+
+
+if __name__ == '__main__':
+    unittest.main()

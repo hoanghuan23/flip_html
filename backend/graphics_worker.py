@@ -20,16 +20,29 @@ def run(output):
         emit(stage='preparing')
         if not all((planner.API_URL, planner.API_KEY, planner.MODEL)):
             raise ValueError('Thiếu cấu hình CODEX_API_URL, CODEX_API_TOKEN hoặc CODEX_MODEL.')
-        config = image_config()
-        if not config.get('key'):
-            raise ValueError('Thiếu cấu hình khóa API ảnh trên máy chủ.')
         script = json.loads((output / 'kich_ban.json').read_text(encoding='utf-8'))
         context = json.loads((output / 'render_config.json').read_text(encoding='utf-8'))
+        is_three = context['id'] == '3d-motion-infographic'
+        if not is_three and not image_config().get('key'):
+            raise ValueError('Thiếu cấu hình khóa API ảnh trên máy chủ.')
+        progress = lambda stage, completed, total: emit(stage=stage, completed=completed, total=total)
         with (output / 'render.log').open('a', encoding='utf-8') as log, redirect_stdout(log):
-            fingerprint = build_preview(
-                script, output, planner.request_text, style_context=context,
-                on_progress=lambda stage, completed, total: emit(
-                    stage=stage, completed=completed, total=total), resume=True)
+            from .narration import prepare_narration
+            if any(phase.get('voiceover') for phase in script['phases']):
+                prepare_narration(script, output, output.parent.parent / 'audio_cache', progress)
+                emit(stage='synchronizing')
+                temporary = output / 'kich_ban.tmp'
+                temporary.write_text(json.dumps(script, ensure_ascii=False, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+                temporary.replace(output / 'kich_ban.json')
+            if is_three:
+                from three_motion import build_preview as build_three
+                reference_path = output / 'references.json'
+                references = json.loads(reference_path.read_text()) if reference_path.exists() else []
+                fingerprint = build_three(script, output, planner.request_text, style_context=context,
+                                          references=references, on_progress=progress)
+            else:
+                fingerprint = build_preview(script, output, planner.request_text, style_context=context,
+                                            on_progress=progress, resume=True)
         emit(stage='checking')
         emit(status='succeeded', fingerprint=fingerprint)
     except HTTPError as error:

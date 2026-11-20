@@ -122,6 +122,12 @@
         "ink-sketch"
       ]
     },
+    "3D": {
+      "label": "3D",
+      "allowed_styles": [
+        "3d-motion-infographic"
+      ]
+    },
     "all_styles": {
       "label": "Tất cả phong cách",
       "allowed_styles": [
@@ -139,7 +145,8 @@
         "outlined-cartoon",
         "teal-spot",
         "two-colour-brush",
-        "vintage-emblem"
+        "vintage-emblem",
+        "3d-motion-infographic"
       ]
     }
   },

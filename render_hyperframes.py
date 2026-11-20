@@ -80,6 +80,8 @@ class Scene:
     title: str
     size: tuple[int, int]
     kind: str
+    audio_path: Path | None = None
+    audio_duration: float = 0
 
 
 def positive(value, label: str) -> float:
@@ -120,9 +122,13 @@ def read_scene(path: Path, entry=None) -> Scene:
             raise PreviewError(f"{path} không có window.renderAt(time).")
     meta = MetadataParser(source)
     data = meta.data("scene-data")
-    is_png = isinstance(data, dict) and isinstance(data.get("phase"), dict)
+    has_metadata = isinstance(data, dict) and isinstance(data.get("phase"), dict)
+    kind = ('three' if has_metadata and data.get('renderer', '').startswith('three-motion-')
+            else 'svg' if has_metadata and data.get('renderer', '').startswith('image-motion-')
+            else 'png' if has_metadata else 'svg')
+    is_png = kind == 'png'
     root = path.parent.parent if is_png else path.parent
-    phase = data["phase"] if is_png else entry
+    phase = data["phase"] if has_metadata else entry
     if not phase:
         match = re.fullmatch(r"phase_(\d+)\.html", path.name)
         script_path = root / "kich_ban.json"
@@ -141,8 +147,13 @@ def read_scene(path: Path, entry=None) -> Scene:
     size = meta.size or (1920, 1080)
     if min(size) <= 0:
         raise PreviewError(f"Kích thước không hợp lệ trong {path}: {size}")
-    return Scene(path, root, duration, str(phase.get("title", path.stem)),
-                 size, "png" if is_png else "svg")
+    audio = phase.get('audio')
+    audio_path = local_path(root, audio['src']) if audio else None
+    audio_duration = positive(audio['duration'], 'Thời lượng audio') if audio else 0
+    if audio and (not audio_path.is_file() or audio_duration > duration + .01):
+        raise PreviewError('Thiếu audio hoặc audio dài hơn cảnh.')
+    return Scene(path, root, duration, str(phase.get("title", phase.get('name', path.stem))),
+                 size, kind, audio_path, audio_duration)
 
 
 def collect_scenes(inputs: list[Path]) -> list[Scene]:
@@ -260,6 +271,7 @@ def prepare_project(scenes: list[Scene], project: Path, fps: int) -> dict:
     (project / "compositions").mkdir(exist_ok=True)
     roots = {}
     rows, hosts = [], []
+    has_audio = False
     start = 0.0
     for i, scene in enumerate(scenes, 1):
         scene_id = f"scene-{i:03d}"
@@ -293,14 +305,30 @@ def prepare_project(scenes: list[Scene], project: Path, fps: int) -> dict:
       data-composition-src="compositions/{scene_id}.html" data-start="{number(start)}"
       data-duration="{number(scene.duration)}" data-track-index="1" data-track-kind="graphics"
       data-width="{scene.size[0]}" data-height="{scene.size[1]}"></div>''')
+        if scene.audio_path:
+            has_audio = True
+            relative_audio = scene.audio_path.relative_to(scene.preview_root)
+            audio_target = dest / relative_audio
+            audio_target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(scene.audio_path, audio_target)
+            audio_src = quote(audio_target.relative_to(project).as_posix(), safe='/')
+            hosts.append(f'    <audio id="{scene_id}-voiceover" class="clip" src="{audio_src}" '
+                         f'data-start="{number(start)}" data-duration="{number(scene.audio_duration)}" '
+                         'data-track-index="2" data-track-kind="audio" preload="auto"></audio>')
         rows.append({"id": scene_id, "source": str(scene.path), "title": scene.title,
                      "start": start, "duration": scene.duration, "kind": scene.kind})
         start = math.fsum([start, scene.duration])
     width, height = scenes[0].size
+    gsap = Path(__file__).resolve().parent / 'frontend/node_modules/gsap/dist/gsap.min.js'
+    if gsap.is_file():
+        (project / 'assets').mkdir(exist_ok=True)
+        shutil.copy2(gsap, project / 'assets/gsap.min.js')
+    else:
+        raise PreviewError('Thiếu GSAP cục bộ. Chạy npm install trong frontend/.')
     html = f'''<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><title>Preview video</title>
 <style>html,body{{margin:0;background:#000}}#root{{position:relative;width:{width}px;height:{height}px;overflow:hidden}}</style>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+<script src="assets/gsap.min.js"></script>
 </head><body>
   <div id="root" data-composition-id="main" data-start="0" data-duration="{number(start)}"
     data-width="{width}" data-height="{height}" data-fps="{fps}">
@@ -317,7 +345,7 @@ def prepare_project(scenes: list[Scene], project: Path, fps: int) -> dict:
     (project / "index.html").write_text(html, encoding="utf-8")
     manifest = {"generator": MARKER, "hyperframes_version": HYPERFRAMES_VERSION,
                 "duration": start, "fps": fps, "width": width, "height": height,
-                "audio": "silent", "scenes": rows}
+                "audio": "voiceover" if has_audio else "silent", "scenes": rows}
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return manifest
 
@@ -328,7 +356,7 @@ def run(command: list[str], cwd: Path):
 
 
 def verify_video(output: Path, duration: float, fps: int, width: int | None = None,
-                 height: int | None = None):
+                 height: int | None = None, expected_audio: bool = False):
     if not output.is_file() or output.stat().st_size == 0:
         raise PreviewError(f"HyperFrames chưa tạo video hợp lệ: {output}")
     result = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
@@ -351,6 +379,16 @@ def verify_video(output: Path, duration: float, fps: int, width: int | None = No
         raise PreviewError("Không xác định được FPS của MP4.")
     if not math.isfinite(actual_fps) or abs(actual_fps - fps) > 0.01:
         raise PreviewError(f"FPS của MP4 {actual_fps:g} khác cấu hình {fps}.")
+    if expected_audio:
+        result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0',
+                                 '-show_entries', 'stream=codec_name,duration', '-of', 'json', str(output)],
+                                check=True, capture_output=True, text=True)
+        audio_streams = json.loads(result.stdout).get('streams', [])
+        if not audio_streams or not audio_streams[0].get('codec_name'):
+            raise PreviewError('MP4 thiếu luồng âm thanh thuyết minh.')
+        audio_duration = positive(audio_streams[0].get('duration'), 'Thời lượng audio MP4')
+        if abs(audio_duration - duration) > max(.15, 2 / fps):
+            raise PreviewError('Thời lượng âm thanh MP4 không khớp timeline.')
 
 
 def main(argv=None) -> int:
@@ -397,7 +435,8 @@ def main(argv=None) -> int:
         run(command + ["render", "--fps", str(args.fps), "--quality", args.quality,
                        "--output", str(output)], project)
         print("Xác minh MP4…", flush=True)
-        verify_video(output, manifest["duration"], args.fps, manifest["width"], manifest["height"])
+        verify_video(output, manifest["duration"], args.fps, manifest["width"], manifest["height"],
+                     expected_audio=manifest['audio'] == 'voiceover')
         print(f"Video hoàn chỉnh: {output}")
         return 0
     except (PreviewError, OSError, subprocess.CalledProcessError, KeyError) as exc:

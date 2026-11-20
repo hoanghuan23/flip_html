@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { ImagePlus, Plus, X } from "lucide-react";
-import { readReferenceImage, type ReferenceImage } from "./referenceImages";
+import { numberReferenceImages, readReferenceImage, type ReferenceImage } from "./referenceImages";
 import s from "./Studio.module.css";
 
-export default function ReferenceImages({ images, onChange, notify, disabled }: {
+export default function ReferenceImages({ images, lastNumber, onChange, notify, disabled }: {
   images: ReferenceImage[];
-  onChange: (images: ReferenceImage[]) => void;
+  lastNumber: number;
+  onChange: (images: ReferenceImage[], lastNumber: number) => void;
   notify: (text: string, error?: boolean) => void;
   disabled: boolean;
 }) {
@@ -16,6 +17,8 @@ export default function ReferenceImages({ images, onChange, notify, disabled }: 
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const locked = disabled || reading;
+  const numberedImages = numberReferenceImages(images);
+  const latestNumber = Math.max(lastNumber, ...numberedImages.map((image) => image.number));
   useEffect(() => {
     active.current = true;
     return () => { active.current = false; };
@@ -36,7 +39,10 @@ export default function ReferenceImages({ images, onChange, notify, disabled }: 
         }
         if (!active.current) return;
       }
-      if (added.length) onChange([...images, ...added]);
+      if (added.length) onChange([
+        ...numberedImages,
+        ...added.map((image, index) => ({ ...image, number: latestNumber + index + 1 })),
+      ], latestNumber + added.length);
       if (errors.length) notify(errors.join(" "), true);
     } finally {
       processing.current = false;
@@ -77,20 +83,22 @@ export default function ReferenceImages({ images, onChange, notify, disabled }: 
         <div>
           <h3 id="reference-images-title">Thêm hình ảnh tham khảo <span>(tùy chọn)</span></h3>
           <p>Tải lên hình ảnh, sơ đồ, ảnh thực tế… để lưu cùng nội dung và phong cách bạn muốn.</p>
+          <p>Bạn có thể ghi trong nội dung: “Sử dụng Hình 1 cho cảnh mở đầu”.</p>
           <small id="reference-images-help">JPG, PNG, WEBP · tối đa 5 MB/ảnh · có thể kéo thả</small>
         </div>
       </div>
       <div className={s.referenceGallery}>
-        {images.map((image) => (
-          <div key={image.id} className={s.referenceThumbnail}>
-            <img src={image.dataUrl} alt={image.name} title={image.name} />
+        {numberedImages.map((image) => (
+          <figure key={image.id} className={s.referenceThumbnail}>
+            <img src={image.dataUrl} alt={`Hình ${image.number}: ${image.name}`} title={image.name} />
             <button
               type="button"
               disabled={locked}
-              aria-label={`Xóa ảnh ${image.name}`}
-              onClick={() => onChange(images.filter((item) => item.id !== image.id))}
+              aria-label={`Xóa Hình ${image.number}: ${image.name}`}
+              onClick={() => onChange(numberedImages.filter((item) => item.id !== image.id), latestNumber)}
             ><X size={13} /></button>
-          </div>
+            <figcaption>Hình {image.number}</figcaption>
+          </figure>
         ))}
         <input
           id="reference-images-input"

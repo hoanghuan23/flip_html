@@ -12,7 +12,60 @@ các nút sửa/thêm/xóa/chat được khóa.
 Mục 2 dùng JSON đầy đủ của bước 1 để sinh thư viện PNG và SVG/CSS animation.
 Phong cách được chọn đi vào cả prompt sinh ảnh và prompt diễn hoạt. Mục 3 cho
 chọn phase, phát/dừng và tua; sửa/xóa/chat/tạo lại phase chỉ hiển thị ở trạng
-thái khóa. Tạo hoặc thử lại đồ họa ở mục 2. Video không có âm thanh.
+thái khóa. Tạo hoặc thử lại đồ họa ở mục 2. Nội dung có phần “Thuyết minh:”
+được chuyển thành giọng đọc; nội dung cũ tiếp tục chạy không âm thanh.
+
+## Thuyết minh và 3D Motion Infographic
+
+Nhập chung một ô, ví dụ:
+
+```text
+Vệ tinh Starlink trong không gian
+Mô tả:
+Trái Đất ở dưới trái, vệ tinh chuyển động chậm. Camera tiến gần rồi lùi ra.
+Hiện Hình 2 ở góc phải, kèm dòng chữ "Quỹ đạo thấp – khoảng 550 km".
+
+Thuyết minh:
+Đây là một vệ tinh Starlink đang hoạt động ngoài không gian...
+```
+
+Tải đúng ảnh mang số **Hình 2** nếu nội dung gọi số đó; số hình không đổi khi
+xóa ảnh khác. API kiểm tra số hình, định dạng và dữ liệu ảnh thật. Bấm **Tạo
+kịch bản**, chọn danh mục **3D** → **3D Motion Infographic**, rồi **Tạo đồ họa**.
+
+Backend giữ nguyên lời thuyết minh khi chia cảnh. ElevenLabs tạo audio trước
+khi dựng đồ họa; `ffprobe` đo thời lượng, làm tròn lên ở 30 FPS. Thời lượng
+trong kịch bản là ước tính cho đến khi có snapshot; sau đó cả bảng cảnh, player
+và MP4 dùng thời lượng thực tế. Player chờ WebGL và audio sẵn sàng, đồng bộ
+phát/dừng/tua theo audio. Lỗi audio không tạo ra snapshot thiếu giọng đọc.
+
+Cấu hình trong `.env` ở gốc, chỉ đọc ở backend:
+
+```dotenv
+ELEVENLABS_API_KEY=your-key
+ELEVENLABS_VOICE_ID=your-voice-id
+# Tùy chọn; mặc định này hỗ trợ tiếng Việt:
+ELEVENLABS_MODEL_ID=eleven_flash_v2_5
+```
+
+Audio và alignment được cache trong `storage/audio_cache/` theo nội dung,
+voice, model và ngữ cảnh lời đọc. Đổi style/ảnh hoặc thử lại tác vụ không gọi
+lại TTS cho audio đã hoàn tất. Tác vụ báo riêng lỗi khóa, quyền truy cập,
+hạn mức, timeout và dữ liệu audio hỏng; không trả khóa cho frontend.
+
+Style mới dùng Three.js với kế hoạch JSON được kiểm tra: mesh, vật liệu,
+camera, track chuyển động và lớp ảnh/chữ. Mỗi frame được dựng từ `renderAt(t)`;
+runtime, font và texture được đóng gói cục bộ, chạy trong iframe sandbox.
+Chỉ các nhãn ngắn xuất hiện trên hình; không tự tạo phụ đề từ lời đọc.
+
+`npm run build` cũng dựng bundle Three.js. Sau khi sửa nguồn runtime hoặc
+style, tạo lại mẫu bằng `python3 skills/3d-motion-infographic/scripts/build_demo.py`
+từ thư mục gốc. Texture Trái Đất có thông tin nguồn trong `assets/sources.json`
+của style. Scene hỗ trợ group/box/sphere/plane/cylinder/cone/torus/stars;
+chủ thể phức tạp được ghép từ nhiều mesh, không có bước sinh mô hình GLB tự động.
+
+MP4 dùng audio từng cảnh ở timeline gốc HyperFrames, không phát lặp audio
+trong iframe. Export kiểm tra cả H.264/video, luồng audio và thời lượng.
 
 Bấm **Xuất video** ở mục 3, chọn tên file, FPS (24/30/60) và chất lượng rồi
 bấm **Bắt đầu xuất**. Toàn bộ phase của preview được ghép theo thứ tự thành
@@ -164,6 +217,9 @@ Flat là phong cách riêng, được phép trong các danh mục có Outlined c
   kéo thả JPG/PNG/WEBP, không giới hạn số lượng, tối đa 5 MB/ảnh; có ảnh thu nhỏ và xóa riêng
   từng ảnh. Ảnh được thu nhỏ tối đa 1280 px, nén WEBP tối đa 256 KB để lưu cùng
   từng bản nháp trong trình duyệt và khôi phục khi tải lại/chuyển dự án.
+  Mỗi ảnh có nhãn **Hình 1**, **Hình 2**… để nhắc đến trong văn bản đầu vào.
+  Số được lưu cùng ảnh; xóa ảnh không đổi số các ảnh còn lại và không dùng lại
+  số đã xóa, tránh nhầm ảnh được nhắc đến trong nội dung.
   API tạo kịch bản hiện chỉ nhận văn bản; ảnh tham khảo chưa gửi cho AI.
 - Nếu trình duyệt không cho lưu hoặc hết dung lượng, thông báo lưu nháp hiển
   thị lỗi. JSON AI đã tạo vẫn nằm trên máy chủ.
@@ -207,13 +263,14 @@ Biến môi trường tùy chọn, đặt khi khởi động backend:
 
 | Endpoint | Nội dung |
 | --- | --- |
-| `POST /api/scripts` | `{projectId, content}` → tác vụ nền, HTTP 202; gửi lặp khi tác vụ còn chạy trả cùng ID |
+| `POST /api/scripts` | `{projectId, content, referenceImages?}` → tác vụ nền, HTTP 202; gửi lặp khi tác vụ còn chạy trả cùng ID |
 | `GET /api/scripts/{id}` | Trạng thái/giai đoạn, lỗi hoặc `{title, scenes}` trích xuất; không trả JSON AI đầy đủ |
-| `POST /api/graphics` | `{projectId, scriptId, categoryId, styleId}` → tác vụ PNG/HTML nền, HTTP 202 |
+| `POST /api/graphics` | `{projectId, scriptId, categoryId, styleId, referenceImages?}` → tác vụ audio/PNG/3D/HTML nền, HTTP 202 |
 | `GET /api/graphics/{id}` | Trạng thái, `stage`, `completed/total`, lỗi hoặc snapshot hoàn chỉnh trong `result` |
 | `POST /api/previews` | API tạo template cũ, giữ tương thích; giao diện mới không gọi API này |
 | `GET /api/previews/{id}` | Kiểm tra snapshot còn tồn tại |
 | `GET /api/previews/{id}/phase_N.html` | HTML phase kiểm soát sẵn, có `renderAt(time)` |
+| `GET /api/previews/{id}/assets/{path}` | Audio, runtime, font hoặc ảnh trong snapshot đã công bố |
 | `GET /api/styles/{styleId}/preview` | URL demo HTML, hoặc `null` nếu chưa có file |
 | `GET /api/styles/{styleId}/demo/index.html` | Trang demo HTML của phong cách |
 | `POST /api/exports` | `{snapshotId, config: {filename, fps, quality}}` → tác vụ, HTTP 202 |
@@ -225,10 +282,14 @@ Schema tương tác ở **http://127.0.0.1:8000/docs**. Không dùng JSON bản 
 frontend trực tiếp làm `kich_ban.json` của pipeline AI: bản nháp chỉ chứa dữ liệu
 giao diện. Dùng file `storage/scripts/<id>/kich_ban.json` cho pipeline AI chi tiết.
 
+Mỗi `referenceImages` gồm `{id, name, number, dataUrl}`. Snapshot có renderer
+`three-motion-v1` hoặc renderer ảnh hiện có; phase có thể có
+`audio: {url, duration}`. `voiceover` là lời đọc, tách khỏi `narration` cũ.
+
 ## Kiểm thử
 
 ```bash
-python3 -m unittest backend.test_api backend.test_scripts backend.test_graphics -v
+python3 -m unittest discover -s backend -p 'test_*.py' -v
 python3 -m unittest discover -s tests -p test_render_hyperframes.py -v
 cd frontend
 npm test
@@ -287,6 +348,21 @@ npm run test:exports
 Bài kiểm tra dùng preview ngắn để render MP4 thật, kiểm tra cấu hình, chống
 gửi lặp, tải lại/chuyển dự án, mất kết nối, lỗi/thử lại và tải MP4 hỗ trợ Range.
 Báo cáo: `storage/qa/exports-browser-report.json`.
+
+Kiểm tra player 3D/audio độc lập, không gọi API trả phí (audio là tín hiệu thử):
+
+```bash
+# Từ gốc dự án; build frontend trước:
+python3 frontend/scripts/narrated-qa.py
+python3 -m uvicorn backend.app:app --host 127.0.0.1 --port 8134
+# Terminal khác:
+cd frontend
+npm run test:narrated
+```
+
+Bài kiểm tra bao gồm phát/dừng/tua, đổi phase, tua ngược tái hiện cùng frame,
+ảnh tham chiếu số 7 trong sandbox và tải lại không tự phát tiếng. Có thể dùng
+`NARRATED_PROJECT=/đường/dẫn/project.json` để kiểm tra snapshot có audio thật.
 
 CLI giữ cách dùng cũ; để chọn phong cách rõ ràng:
 

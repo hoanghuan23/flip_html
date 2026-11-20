@@ -70,6 +70,8 @@ def create_app(storage_root: Path | None = None):
     def script(request: ScriptRequest):
         try:
             return app.state.scripts.create(request)
+        except ValueError as error:
+            raise HTTPException(422, str(error))
         except (OSError, RuntimeError):
             raise HTTPException(503, 'Không thể tạo tác vụ kịch bản. Hãy kiểm tra máy chủ và thử lại.')
 
@@ -127,6 +129,15 @@ def create_app(storage_root: Path | None = None):
             raise HTTPException(404, 'Chưa có bản demo.')
         return FileResponse(path, media_type='text/html', headers={'Cache-Control': 'no-store'})
 
+    @app.get('/api/styles/{style_id}/demo/assets/{asset_path:path}')
+    def style_demo_asset(style_id: str, asset_path: str):
+        root = sample_directory(style_id) / 'assets'
+        path = (root / asset_path).resolve()
+        if (not path.is_relative_to(root.resolve()) or not path.is_file()
+                or path.suffix.lower() not in {'.js', '.woff2', '.png', '.jpg', '.jpeg', '.webp'}):
+            raise HTTPException(404, 'Không tìm thấy tài nguyên mẫu.')
+        return FileResponse(path)
+
     @app.get('/api/previews/{snapshot_id}')
     def get_preview(snapshot_id: str):
         return json.loads((snapshot_path(snapshot_id) / 'snapshot.json').read_text())
@@ -137,6 +148,15 @@ def create_app(storage_root: Path | None = None):
         if not re.fullmatch(r'phase_[1-9][0-9]*\.html', filename) or not (path / filename).is_file():
             raise HTTPException(404, 'Không tìm thấy phase.')
         return FileResponse(path / filename, media_type='text/html', headers={'Cache-Control': 'no-store'})
+
+    @app.get('/api/previews/{snapshot_id}/assets/{asset_path:path}')
+    def preview_asset(snapshot_id: str, asset_path: str):
+        root = snapshot_path(snapshot_id) / 'assets'
+        path = (root / asset_path).resolve()
+        if (not path.is_relative_to(root.resolve()) or not path.is_file()
+                or path.suffix.lower() not in {'.js', '.woff2', '.mp3', '.png', '.jpeg', '.jpg', '.webp'}):
+            raise HTTPException(404, 'Không tìm thấy tài nguyên preview.')
+        return FileResponse(path, headers={'Cache-Control': 'public, max-age=31536000, immutable'})
 
     @app.post('/api/exports', status_code=202)
     def export(request: ExportRequest):

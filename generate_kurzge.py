@@ -84,17 +84,20 @@ var total=phases.reduce(function(s,p){return s+p.duration},0);
 var stage=document.getElementById("stage"),btn=document.getElementById("play"),seek=document.getElementById("seek"),
 clock=document.getElementById("clock"),cap=document.getElementById("cap"),nar=document.getElementById("nar");
 var frames=phases.map(function(p){var f=document.createElement("iframe");f.setAttribute("sandbox","allow-scripts");f.src=p.src;f.title=p.title;stage.appendChild(f);return f});
-var t=0,playing=true,last=performance.now(),shown=-1;
+var t=0,playing=!phases.some(function(p){return p.audio}),last=performance.now(),shown=-1,shownStart=0;
+var audios=phases.map(function(p){if(!p.audio)return null;var a=new Audio(p.audio.src);a.preload="auto";return a});
+btn.textContent=playing?"Tạm dừng":"Phát";
+function playAudio(){var a=audios[shown];if(a&&playing)a.play().catch(function(){playing=false;btn.textContent="Phát"})}
 function render(){
   var acc=0,i=0;
   while(i<phases.length-1&&t>=acc+phases[i].duration){acc+=phases[i].duration;i++}
-  if(i!==shown){frames.forEach(function(f,k){f.style.visibility=k===i?"visible":"hidden"});cap.textContent=phases[i].caption;nar.textContent=phases[i].narration;document.querySelector("main").classList.toggle("embedded-captions",phases[i].embedded);shown=i}
+  if(i!==shown){audios.forEach(function(a){if(a)a.pause()});frames.forEach(function(f,k){f.style.visibility=k===i?"visible":"hidden"});cap.textContent=phases[i].caption;nar.textContent=phases[i].narration;document.querySelector("main").classList.toggle("embedded-captions",phases[i].embedded);shown=i;shownStart=acc;if(audios[i])audios[i].currentTime=Math.min(t-acc,phases[i].audio.duration);playAudio()}
   var w=frames[i].contentWindow;if(w)w.postMessage({t:Math.min(t-acc,phases[i].duration)},"*");
   seek.value=t;clock.textContent=t.toFixed(1)+" / "+total.toFixed(1)+" s";
 }
-function tick(now){var dt=(now-last)/1000;last=now;if(playing){t+=dt;if(t>=total)t=0}render();requestAnimationFrame(tick)}
-btn.onclick=function(){playing=!playing;btn.textContent=playing?"Tạm dừng":"Phát"};
-window.renderAt=function(value){t=Math.max(0,Math.min(total,value));render()};
+function tick(now){var dt=(now-last)/1000;last=now;if(playing){var a=audios[shown];t=a&&!a.ended?shownStart+a.currentTime:t+dt;if(t>=total){t=total;playing=false;audios.forEach(function(a){if(a)a.pause()});btn.textContent="Phát"}}render();requestAnimationFrame(tick)}
+btn.onclick=function(){if(t>=total)window.renderAt(0);playing=!playing;btn.textContent=playing?"Tạm dừng":"Phát";if(playing)playAudio();else audios.forEach(function(a){if(a)a.pause()})};
+window.renderAt=function(value){t=Math.max(0,Math.min(total,value));render();var a=audios[shown];if(a)a.currentTime=Math.min(t-shownStart,phases[shown].audio.duration)};
 seek.oninput=function(){window.renderAt(parseFloat(seek.value));last=performance.now()};
 frames.forEach(function(f){f.addEventListener("load",render)});
 render();
@@ -145,6 +148,9 @@ def write_phase(output, index, phase, svg, script, *, background=BACKGROUND):
     page = (PHASE_HTML.replace("<<TITLE>>", title).replace("<<SVG>>", svg)
             .replace("<<BACKGROUND>>", background)
             .replace("<<DURATION>>", f"{phase['duration']:g}"))
+    if phase.get('audio'):
+        data = json.dumps({'phase': phase, 'renderer': 'image-motion-v2'}, ensure_ascii=False).replace('<', '\\u003c')
+        page = page.replace('</head>', '<script type="application/json" id="scene-data">' + data + '</script></head>')
     (output / f"phase_{index}.html").write_text(page, encoding="utf-8")
 
 
@@ -162,7 +168,8 @@ def write_index(script, output, fingerprint=None):
             entries.append({"src": f"phase_{index}.html", "title": phase.get("name", f"Phase {index}"),
                             "duration": phase["duration"], "caption": caption,
                             "narration": phase.get("narration", ""),
-                            "embedded": f'data-renderer="{general.VERSION}"' in page_source})
+                            "embedded": f'data-renderer="{general.VERSION}"' in page_source or 'data-renderer="three-motion-' in page_source,
+                            **({'audio': phase['audio']} if phase.get('audio') else {})})
     if not entries:
         return None
     data = json.dumps(entries, ensure_ascii=False).replace("<", "\\u003c")
@@ -182,6 +189,23 @@ def build_preview(script, output, request, *, style_context=None, on_progress=No
     if errors:
         raise ValueError("Kịch bản không hợp lệ: " + "; ".join(errors))
     output.mkdir(parents=True, exist_ok=True)
+    if style_context and style_context['id'] == '3d-motion-infographic':
+        from three_motion import ScenePlan, build_preview as build_three
+        if phase_number is not None:
+            raise ValueError('Style 3D hiện dựng toàn bộ cảnh; hãy bỏ --phase.')
+        if plan_only:
+            (output / 'prompts').mkdir(exist_ok=True)
+            (output / 'prompts' / 'scene_schema.json').write_text(
+                json.dumps(ScenePlan.model_json_schema(), ensure_ascii=False, indent=2), encoding='utf-8')
+            (output / 'render_config.json').write_text(json.dumps(style_context, ensure_ascii=False), encoding='utf-8')
+            return
+        if any(p.get('voiceover') and not p.get('audio') for p in script['phases']):
+            from backend.narration import prepare_narration
+            prepare_narration(script, output, output.parent / 'audio_cache', on_progress)
+            (output / 'kich_ban.json').write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding='utf-8')
+        references = json.loads((output / 'references.json').read_text()) if (output / 'references.json').exists() else []
+        return build_three(script, output, request, style_context=style_context, references=references,
+                           on_progress=on_progress, redo=redo or not resume)
     phases = script['phases']
     background = BACKGROUND
     if style_context is not None:

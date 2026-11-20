@@ -472,16 +472,16 @@ def validate_generated(script):
     return errors
 
 
-def generate_script(text, retries=2, *, on_stage=None, extra_validate=None):
+def generate_script(text, retries=2, *, on_stage=None, extra_validate=None, prompt_suffix='', validation_text=None):
     if on_stage:
         on_stage('validating')
-    validation = validate_input(text)
+    validation = validate_input(text if validation_text is None else validation_text)
     if not validation["valid"]:
         reason = validation["reason"].strip() or "Không xác định được chủ đề hay mục đích."
         raise InputRejectedError(f"Nội dung chưa đủ ý nghĩa để phát triển thành kịch bản: {reason}")
     if on_stage:
         on_stage('generating')
-    prompt = PROMPT.replace("<<TEXT>>", text)
+    prompt = PROMPT.replace("<<TEXT>>", text) + prompt_suffix
     problems = []
     for _ in range(retries + 1):
         script, errors = None, []

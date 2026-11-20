@@ -6,6 +6,8 @@ import type { GraphicsJob } from "./types";
 const stages: Record<string, string> = {
   queued: "Đang chờ tạo đồ họa…",
   preparing: "Đang chuẩn bị kịch bản và phong cách…",
+  narration: "Đang tạo thuyết minh",
+  synchronizing: "Đang đồng bộ cảnh theo lời đọc…",
   images: "AI đang sinh hình ảnh",
   phases: "AI đang dựng animation",
   checking: "Đang kiểm tra toàn bộ phase…",

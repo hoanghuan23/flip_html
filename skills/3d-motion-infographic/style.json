@@ -1,0 +1,15 @@
+{
+  "name": "3D Motion Infographic",
+  "renderer": "three-motion-v1",
+  "background": "#080f19",
+  "palette": [
+    {"name": "text", "hex": "#f5f7fa"},
+    {"name": "accent", "hex": "#d94e73"},
+    {"name": "secondary", "hex": "#9fb3c8"},
+    {"name": "technical", "hex": "#4eaae0"}
+  ],
+  "layout": "full-frame",
+  "font": "Inter",
+  "camera": {"fov": 40, "near": 0.1, "far": 1000},
+  "lighting": {"ambient": 1.1, "key": 3.0}
+}

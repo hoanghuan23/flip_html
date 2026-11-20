@@ -34,9 +34,11 @@ def completed_snapshot(storage, job, fingerprint):
         raise ValueError('; '.join(errors))
     project_script(script)
     context = json.loads((output / 'render_config.json').read_text(encoding='utf-8'))
-    verifier = Renderer(script, output, None, clean_svg, style_context=context)
-    verifier.library = (output / 'assets.svg').read_text(encoding='utf-8')
-    verifier.fingerprint = fingerprint
+    is_three = context['id'] == '3d-motion-infographic'
+    if not is_three:
+        verifier = Renderer(script, output, None, clean_svg, style_context=context)
+        verifier.library = (output / 'assets.svg').read_text(encoding='utf-8')
+        verifier.fingerprint = fingerprint
     playlist_page = (output / 'index.html').read_text(encoding='utf-8')
     match = re.search(r'<script type="application/json" id="data">(.*?)</script>', playlist_page, re.S)
     entries = json.loads(match[1]) if match else []
@@ -44,7 +46,7 @@ def completed_snapshot(storage, job, fingerprint):
     if [(p.get('src'), p.get('title'), p.get('duration')) for p in entries] != expected:
         raise ValueError('Playlist không khớp đầy đủ các phase của kịch bản.')
     rows = []
-    for index, phase in enumerate(script['phases'], 1):
+    for index, phase in enumerate(script['phases'] if not is_three else [], 1):
         filename = f'phase_{index}.html'
         svg = (output / f'phase_{index}.svg').read_text(encoding='utf-8')
         root = ET.fromstring(svg)
@@ -56,6 +58,22 @@ def completed_snapshot(storage, job, fingerprint):
             raise ValueError(f'Phase {index} thiếu HTML animation hợp lệ.')
         rows.append({'id': str(phase['id']), 'name': phase['name'], 'duration': phase['duration'],
                      'url': f"/api/previews/{job['id']}/{filename}"})
+    if is_three:
+        from three_motion import verify_phases, VERSION
+        rows = verify_phases(output, script, fingerprint)
+    from .narration import probe_audio
+    for phase, row in zip(script['phases'], rows):
+        if phase.get('voiceover') and not phase.get('audio'):
+            raise ValueError('Thiếu audio cho cảnh có lời thuyết minh.')
+        if phase.get('audio'):
+            audio = phase['audio']
+            path = (output / audio['src']).resolve()
+            if not path.is_relative_to((output / 'assets/audio').resolve()):
+                raise ValueError('Đường dẫn audio không hợp lệ.')
+            actual = probe_audio(path)
+            if abs(actual - audio['duration']) > .01 or hashlib.sha256(path.read_bytes()).hexdigest() != audio['sha256']:
+                raise ValueError('Audio không khớp snapshot.')
+            row['audio'] = {'url': f"/api/previews/{job['id']}/{audio['src']}", 'duration': actual}
     snapshot = {'id': job['id'], 'revision': fingerprint, 'renderer': VERSION,
                 **job['config'], 'sourceSignature': signature(job['config']),
                 'duration': sum(p['duration'] for p in script['phases']),
@@ -72,7 +90,10 @@ class GraphicsJobManager(ScriptJobManager):
         self.storage = storage
 
     def create(self, request: GraphicsRequest):
-        config = request.model_dump()
+        from .inputs import check_image_mentions, reference_signature, save_references
+        config = request.model_dump(exclude={'referenceImages'})
+        if request.referenceImages:
+            config['referenceImages'] = reference_signature(request.referenceImages)
         source = self.storage / 'scripts' / request.scriptId
         try:
             script_job = json.loads((source / 'job.json').read_text(encoding='utf-8'))
@@ -88,7 +109,10 @@ class GraphicsJobManager(ScriptJobManager):
         except (OSError, json.JSONDecodeError, KeyError) as error:
             raise GraphicsInputError('Không tìm thấy JSON đầy đủ. Hãy tạo lại kịch bản ở bước 1.') from error
         context = load_render_style(request.styleId)
+        check_image_mentions(json.dumps(script, ensure_ascii=False), request.referenceImages)
         from image_motion_ai import VERSION
+        if request.styleId == '3d-motion-infographic':
+            from three_motion import VERSION
         key = hashlib.sha256(json.dumps({'config': config, 'script': hashlib.sha256(raw).hexdigest(),
                                         'style': context, 'renderer': VERSION},
                                        ensure_ascii=False, sort_keys=True).encode()).hexdigest()
@@ -110,6 +134,7 @@ class GraphicsJobManager(ScriptJobManager):
             output = self.storage / 'previews' / job_id
             output.mkdir(parents=True, exist_ok=True)
             (output / 'kich_ban.json').write_bytes(raw)
+            save_references(output, request.referenceImages)
             (output / 'render_config.json').write_text(
                 json.dumps(context, ensure_ascii=False, indent=2), encoding='utf-8')
             # An incomplete attempt is never served, including after a failed publication.
@@ -141,7 +166,7 @@ class GraphicsJobManager(ScriptJobManager):
                 outcome = None
                 for line in process.stdout:
                     event = json.loads(line)
-                    if event.get('stage') in ('preparing', 'images', 'phases', 'checking'):
+                    if event.get('stage') in ('preparing', 'narration', 'synchronizing', 'images', 'phases', 'checking'):
                         self.update(job_id, stage=event['stage'], completed=event.get('completed', 0),
                                     total=event.get('total', 0))
                     if event.get('status') in ('succeeded', 'failed'):

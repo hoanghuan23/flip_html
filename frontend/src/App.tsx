@@ -156,7 +156,7 @@ export default function App() {
     setStartingScripts((ids) => [...ids, id]);
     setScriptErrors((errors) => ({ ...errors, [id]: "" }));
     try {
-      const job = await createScriptJob(id, project.sourceContent);
+      const job = await createScriptJob(id, project.sourceContent, project.referenceImages);
       setScriptJobs((jobs) => ({ ...jobs, [job.id]: job }));
       dispatch({ type: "patch", id, patch: { scriptJobId: job.id } });
     } catch (error) {

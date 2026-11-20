@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { ChevronDown, ChevronUp, Clock3, MessageSquare, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { SectionHeading } from "./components";
-import type { ProjectDraft } from "./types";
+import { signature, type ProjectDraft } from "./types";
 import s from "./Studio.module.css";
 
 export default function ScenePanel({ project, selectedId, onSelect }: {
@@ -11,7 +11,10 @@ export default function ScenePanel({ project, selectedId, onSelect }: {
 }) {
   const [expanded, setExpanded] = useState(true);
   const contentId = useId();
-  const total = project.scenes.reduce((sum, scene) => sum + scene.duration, 0);
+  const resolved = project.snapshot?.sourceSignature === signature(project) ? project.snapshot : undefined;
+  const durationOf = (id: string, fallback: number) => resolved?.phases.find(p => p.id === id)?.duration ?? fallback;
+  const total = project.scenes.reduce((sum, scene) => sum + durationOf(scene.id, scene.duration), 0);
+  const estimated = !resolved && project.scenes.some(scene => scene.voiceover);
   const readonlyNote = "Phiên bản hiện tại chỉ hỗ trợ xem kịch bản.";
   return (
     <section className={s.embeddedScript} id="kich-ban">
@@ -47,7 +50,7 @@ export default function ScenePanel({ project, selectedId, onSelect }: {
         <div className={s.scriptLayout}>
           <div className={s.sceneList}>
             <div className={s.tableHeading}>
-              <span>CẢNH</span><span>CHỮ GIẢI THÍCH &amp; HÌNH ẢNH</span><span>GIÂY</span><span />
+              <span>CẢNH</span><span>THUYẾT MINH &amp; HÌNH ẢNH</span><span>{estimated ? "ƯỚC TÍNH" : "GIÂY"}</span><span />
             </div>
             {project.scenes.map((scene, index) => (
               <div key={scene.id} className={`${s.sceneRow} ${selectedId === scene.id ? s.activeRow : ""}`}>
@@ -59,10 +62,10 @@ export default function ScenePanel({ project, selectedId, onSelect }: {
                 </button>
                 <div className={s.sceneCopy}>
                   <strong>{scene.name}</strong>
-                  <p>{scene.narration}</p>
+                  <p>{scene.voiceover || scene.narration}</p>
                   <small>{scene.description}</small>
                 </div>
-                <span className={s.duration}>{scene.duration}s</span>
+                <span className={s.duration}>{Number(durationOf(scene.id, scene.duration).toFixed(2))}s</span>
                 <div className={s.rowActions}>
                   <button className={s.iconButton} disabled title={readonlyNote} aria-label={`Sửa cảnh ${index + 1}`}><Pencil size={16} /></button>
                   <button className={s.iconButton} disabled title={readonlyNote} aria-label={`Xóa cảnh ${index + 1}`}><Trash2 size={16} /></button>
@@ -71,7 +74,7 @@ export default function ScenePanel({ project, selectedId, onSelect }: {
             ))}
             <div className={s.tableFooter}>
               <button className={s.textButton} disabled title={readonlyNote}><Plus size={16} /> Thêm cảnh</button>
-              <span><Clock3 size={14} /> {Number(total.toFixed(6))} giây · {project.scenes.length} cảnh</span>
+              <span><Clock3 size={14} /> {estimated ? "Ước tính " : ""}{Number(total.toFixed(2))} giây · {project.scenes.length} cảnh</span>
             </div>
           </div>
         </div>

@@ -1,0 +1,10 @@
+[
+  {
+    "asset": "earth.jpg",
+    "title": "Earth texture (three.js r160 examples)",
+    "source": "https://raw.githubusercontent.com/mrdoob/three.js/r160/examples/textures/planets/earth_atmos_2048.jpg",
+    "repository": "https://github.com/mrdoob/three.js",
+    "license": "MIT (three.js repository)",
+    "credit": "three.js contributors; original texture credit retained where provided by upstream"
+  }
+]

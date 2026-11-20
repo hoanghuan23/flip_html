@@ -6,6 +6,12 @@ PNG/HTML animation thật để xem, phát/dừng và tua. Mục 3 xuất toàn 
 thành MP4, theo dõi tiến trình, xem video và tải file. Các nút sửa/xóa/chat/tạo lại
 phase hiện chưa cho thao tác. Xem [hướng dẫn cài đặt, chạy và kiểm thử](frontend/README.md).
 
+Đầu vào có phần **“Mô tả:” / “Thuyết minh:”** hỗ trợ giọng đọc ElevenLabs,
+giữ nguyên lời người dùng và đồng bộ thời lượng cảnh theo audio thực tế.
+Phong cách **3D Motion Infographic** dùng mesh Three.js, camera và ảnh tham
+chiếu đánh số trong khung thông tin; preview và MP4 có cùng giọng đọc.
+Xem cấu hình và cách sử dụng trong [hướng dẫn frontend](frontend/README.md).
+
 Kịch bản và đồ họa chạy qua tác vụ nền riêng; chỉ công bố preview khi đủ mọi
 phase. Phong cách đã chọn được đưa vào cả sinh ảnh và diễn hoạt. CLI Python bên
 dưới giữ cách sử dụng hiện có; thêm `--style <id>` để chỉ định phong cách.
@@ -18,8 +24,9 @@ Luồng kịch bản → AI phân tích → Scene Plan → PNG nền/sprite shee
 Luồng chính dùng `plant_kurzge.py`, `generate_kurzge.py` và `image_motion_ai.py`:
 API `generate_image` (`/generate-image`) vẽ thư viện PNG, SVG/CSS dàn cảnh và diễn hoạt. AI tự chọn số phase, thời lượng từng phase và
 `total_duration` theo nội dung và chuyển động. Không còn `--duration`, thời lượng
-mặc định hoặc giới hạn chữ theo tốc độ đọc. Video không có giọng đọc; `narration`
-là chữ giải thích ngắn trên màn hình. Tổng duration phải khớp `total_duration`,
+mặc định hoặc giới hạn chữ theo tốc độ đọc. Trong kịch bản cũ không có `voiceover`,
+`narration` là chữ giải thích ngắn trên màn hình. Kịch bản có `voiceover` được
+chốt lại thời lượng sau TTS ở luồng web. Tổng duration phải khớp `total_duration`,
 và mọi action phải nằm trong phase tương ứng.
 
 Prompt sinh kịch bản yêu cầu AI lập mốc diễn biến trước rồi mới chọn duration,
@@ -74,7 +81,7 @@ lượng MP4 bằng ffprobe. Mặc định 30 fps, chất lượng `delivery`; c
 `--quality draft --fps 15` để thử nhanh. Dùng `--overwrite` nếu MP4 đã tồn tại.
 Phase thiếu hoặc không có `renderAt(time)` sẽ báo lỗi, không âm thầm bỏ cảnh.
 Video giữ animation và chữ đã có trong SVG, chỉ lấy vùng stage của PNG/sprite,
-không đưa nút điều khiển vào video, không thêm nhạc hoặc giọng đọc và không sửa
+không đưa nút điều khiển vào video, giữ audio đã có trong metadata và không sửa
 preview gốc. Kích thước canvas lấy từ cảnh đầu tiên (PNG mặc định 1920×1080).
 Các cảnh được nối bằng cut; không sinh lại hình hoặc thay đổi kịch bản.
 

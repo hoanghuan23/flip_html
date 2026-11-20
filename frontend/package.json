@@ -5,19 +5,23 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc -b && vite build",
+    "build": "npm run build:three && tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:e2e": "node scripts/e2e.cjs",
     "test:scripts": "node scripts/script-e2e.cjs",
     "test:graphics": "node scripts/graphics-e2e.cjs",
-    "test:exports": "node scripts/exports-e2e.cjs"
+    "test:exports": "node scripts/exports-e2e.cjs",
+    "build:three": "node scripts/build-three.mjs",
+    "test:narrated": "node scripts/narrated-e2e.cjs"
   },
   "dependencies": {
+    "gsap": "3.15.0",
     "lucide-react": "^0.468.0",
     "mammoth": "^1.9.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "0.185.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
@@ -26,6 +30,7 @@
     "puppeteer-core": "^24.43.1",
     "typescript": "~5.7.3",
     "vite": "^6.1.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "esbuild": "0.25.12"
   }
 }

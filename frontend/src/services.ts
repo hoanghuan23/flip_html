@@ -5,6 +5,8 @@ import type {
   ExportConfig,
   RenderJob,
 } from "./types";
+import type { ReferenceImage } from "./referenceImages";
+import { numberReferenceImages } from "./referenceImages";
 import { previewInput } from "./types";
 
 export class ApiError extends Error {
@@ -48,8 +50,9 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   return data as T;
 }
 
-export const createScriptJob = (projectId: string, content: string) =>
-  api<ScriptJob>("/api/scripts", { projectId, content });
+export const createScriptJob = (projectId: string, content: string, images: ReferenceImage[] = []) =>
+  api<ScriptJob>("/api/scripts", { projectId, content,
+    ...(images.length ? {referenceImages: numberReferenceImages(images)} : {}) });
 export const getScriptJob = (id: string) => api<ScriptJob>(`/api/scripts/${id}`);
 export const scriptStages: Record<string, string> = {
   queued: "Đang chờ tạo kịch bản…",

@@ -524,7 +524,7 @@
 .referenceGallery {
   display: flex;
   flex: 0 1 auto;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
@@ -535,16 +535,25 @@
   position: relative;
   flex: 0 0 64px;
   width: 64px;
-  height: 64px;
+  margin: 0;
 }
 .referenceThumbnail img {
   display: block;
   width: 100%;
-  height: 100%;
+  height: 64px;
   border: 1px solid #e3dff0;
   border-radius: 9px;
   object-fit: cover;
   background: #fff;
+}
+.referenceThumbnail figcaption {
+  margin-top: 6px;
+  color: #625477;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 .referenceThumbnail button {
   position: absolute;

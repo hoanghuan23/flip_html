@@ -2,6 +2,7 @@ from typing import Annotated, Literal
 import math
 from pathlib import Path
 from pydantic import BaseModel, Field, field_validator, model_validator
+from .inputs import ReferenceImage, validate_references
 
 STYLE_CONFIG_PATH = Path(__file__).resolve().parent.parent / 'skills' / 'style_config.json'
 ConfigStyleId = Annotated[str, Field(pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')]
@@ -30,6 +31,7 @@ class Scene(BaseModel):
     narration: str = Field(max_length=2000)
     description: str = Field(max_length=3000)
     duration: float = Field(gt=0, le=120)
+    voiceover: str | None = Field(default=None, max_length=10000)
 
     @field_validator('duration')
     @classmethod
@@ -49,6 +51,9 @@ class Scene(BaseModel):
 class ScriptRequest(BaseModel):
     projectId: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1, max_length=5 * 1024 * 1024)
+    referenceImages: list[ReferenceImage] = Field(default_factory=list, max_length=100)
+
+    _references = field_validator('referenceImages')(validate_references)
 
     @field_validator('content')
     @classmethod
@@ -63,6 +68,9 @@ class GraphicsRequest(BaseModel):
     scriptId: str = Field(pattern=r'^[a-f0-9]{32}$')
     categoryId: str
     styleId: ConfigStyleId
+    referenceImages: list[ReferenceImage] = Field(default_factory=list, max_length=100)
+
+    _references = field_validator('referenceImages')(validate_references)
 
     @model_validator(mode='after')
     def valid_style(self):

@@ -34,6 +34,9 @@ function initial(): State {
                 phases: p.snapshot.phases.map((phase, i) => ({
                   ...phase,
                   url: `/api/previews/${p.snapshot!.id}/phase_${i + 1}.html`,
+                  audio: phase.audio && /\/assets\/audio\/[a-f0-9]{64}\.mp3$/.test(phase.audio.url)
+                    ? {...phase.audio, url: `/api/previews/${p.snapshot!.id}/assets/audio/${phase.audio.url.split("/").pop()}`}
+                    : undefined,
                 })),
               }
             : undefined;

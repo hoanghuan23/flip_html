@@ -110,6 +110,26 @@ class StyleAndPipelineTests(unittest.TestCase):
             self.assertIn('Thiếu cấu hình', outcome['error'])
             text.assert_not_called()
 
+    def test_three_worker_supports_legacy_jobs_without_reference_manifest(self):
+        from backend.graphics_worker import run
+        import plant_kurzge as planner
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.multiple(planner, API_URL='test', API_KEY='test', MODEL='test'), \
+                patch('three_motion.build_preview', return_value='revision') as build:
+            output = Path(directory)
+            (output / 'kich_ban.json').write_text(json.dumps(graphics_script()))
+            (output / 'render_config.json').write_text(json.dumps(load_render_style('3d-motion-infographic')))
+            for references in (None, [{'number': 7, 'src': 'assets/references/photo.png'}]):
+                with self.subTest(references=references):
+                    if references is not None:
+                        (output / 'references.json').write_text(json.dumps(references))
+                    events = io.StringIO()
+                    with contextlib.redirect_stdout(events):
+                        run(output)
+                    outcome = json.loads(events.getvalue().splitlines()[-1])
+                    self.assertEqual(outcome, {'status': 'succeeded', 'fingerprint': 'revision'})
+                    self.assertEqual(build.call_args.kwargs['references'], references or [])
+
     def test_selected_style_reaches_image_and_phase_prompts(self):
         script = graphics_script()
         context = load_render_style('halftone-line')

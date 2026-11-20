@@ -34,6 +34,9 @@ export function styleForCategory(
 // Version 1 drafts originally offered six visual presets. Keep their content
 // when opening them with the category-based configuration.
 const legacyStyles: Record<string, StyleId> = {
+  "3D-Motion-InFographic": "3d-motion-infographic",
+  "3D-Motion-Infographic": "3d-motion-infographic",
+  "3D-Motion_Infographic": "3d-motion-infographic",
   cartoon: "outlined-cartoon",
   dark: "detailed-vector",
   watercolor: "detailed-vector",

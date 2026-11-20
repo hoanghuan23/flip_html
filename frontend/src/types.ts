@@ -7,7 +7,7 @@ import {
   type CategoryId,
   type StyleId,
 } from "./styleConfig";
-import { validReferenceImages, type ReferenceImage } from "./referenceImages";
+import { numberReferenceImages, validReferenceImages, type ReferenceImage } from "./referenceImages";
 export type { CategoryId, StyleId } from "./styleConfig";
 export interface Scene {
   id: string;
@@ -15,6 +15,7 @@ export interface Scene {
   narration: string;
   description: string;
   duration: number;
+  voiceover?: string;
 }
 export interface ScriptJob {
   id: string;
@@ -36,7 +37,7 @@ export interface PreviewSnapshot {
   duration: number;
   width: number;
   height: number;
-  phases: { id: string; name: string; duration: number; url: string }[];
+  phases: { id: string; name: string; duration: number; url: string; audio?: {url: string; duration: number} }[];
   sourceSignature: string;
   scriptId?: string;
   categoryId?: CategoryId;
@@ -79,6 +80,7 @@ export interface ProjectDraft {
   sourceContent: string;
   sourceFilename?: string;
   referenceImages?: ReferenceImage[];
+  lastReferenceImageNumber?: number;
   categoryId: CategoryId;
   styleId: StyleId;
   scenes: Scene[];
@@ -111,13 +113,24 @@ export const previewInput = (p: ProjectDraft) => ({
   scriptId: p.scriptId,
   categoryId: p.categoryId,
   styleId: p.styleId,
+  ...(p.referenceImages?.length ? {referenceImages: numberReferenceImages(p.referenceImages)} : {}),
 });
-export const signature = (p: ProjectDraft) => JSON.stringify(previewInput(p));
+export const signature = (p: ProjectDraft) => {
+  const input = previewInput(p);
+  return JSON.stringify({...input, ...(input.referenceImages ? {
+    referenceImages: input.referenceImages.map(({id, name, number, dataUrl}) => {
+      let hash = 2166136261;
+      for (let i=0; i<dataUrl.length; i++) hash = Math.imul(hash ^ dataUrl.charCodeAt(i), 16777619) >>> 0;
+      return {id, name, number, checksum: hash.toString(16).padStart(8,"0")};
+    }),
+  } : {})});
+};
 export function sceneValid(s: Scene) {
   return (
     !!s.name.trim() &&
     s.name.length <= 160 &&
     s.narration.length <= 2000 &&
+    (s.voiceover === undefined || (typeof s.voiceover === "string" && s.voiceover.length <= 10000)) &&
     s.description.length <= 3000 &&
     Number.isFinite(s.duration) &&
     s.duration > 0 &&
@@ -137,6 +150,8 @@ export function parseDraft(value: unknown): ProjectDraft {
     p.title.length > 160 ||
     typeof p.sourceContent !== "string" ||
     (p.referenceImages !== undefined && !validReferenceImages(p.referenceImages)) ||
+    (p.lastReferenceImageNumber !== undefined &&
+      (!Number.isSafeInteger(p.lastReferenceImageNumber) || p.lastReferenceImageNumber < 0)) ||
     !savedStyle ||
     (p.categoryId !== undefined && !isCategoryId(p.categoryId)) ||
     !Array.isArray(p.scenes) ||
@@ -165,12 +180,15 @@ export function parseDraft(value: unknown): ProjectDraft {
   )
     throw new Error("File JSON không đúng định dạng bản nháp AI Video Studio.");
   const categoryId = p.categoryId ?? defaultCategoryId;
+  const referenceImages = p.referenceImages && numberReferenceImages(p.referenceImages);
   // Rebuild optional data explicitly; imported files never supply playable URLs.
   return {
     id: p.id,
     title: p.title,
     sourceContent: p.sourceContent,
-    referenceImages: p.referenceImages?.map(({ id, name, dataUrl }) => ({ id, name, dataUrl })),
+    referenceImages: referenceImages?.map(({ id, name, dataUrl, number }) => ({ id, name, dataUrl, number })),
+    lastReferenceImageNumber: Math.max(p.lastReferenceImageNumber ?? 0,
+      ...(referenceImages ?? []).map((image) => image.number)),
     scriptId:
       typeof p.scriptId === "string" && /^[a-f0-9]{32}$/.test(p.scriptId)
         ? p.scriptId : undefined,

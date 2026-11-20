@@ -8,6 +8,11 @@ interface StyleDetails {
 }
 
 const details: Record<string, Omit<StyleDetails, "id">> = {
+  "3d-motion-infographic": {
+    name: "3D Motion Infographic",
+    description: "Không gian 3D, camera chuyển động, ảnh tham chiếu và chú thích theo lời thuyết minh.",
+    colors: ["#080f19", "#4eaae0", "#d94e73"],
+  },
   "detailed-vector": {
     name: "Detailed vector",
     description: "Nhiều chi tiết, đổ bóng và texture. Phù hợp nội dung cần độ chính xác.",

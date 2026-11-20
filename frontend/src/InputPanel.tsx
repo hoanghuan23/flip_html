@@ -190,19 +190,20 @@ export default function InputPanel({
             disabled={busy || reading}
             value={project.sourceContent}
             onChange={(e) => patch({ sourceContent: e.target.value })}
-            placeholder="Dán bài viết, kể một câu chuyện hoặc viết ý tưởng của bạn ở đây…"
+            placeholder={'Tên chủ đề\nMô tả:\nBối cảnh, chuyển động camera, ảnh Hình N…\n\nThuyết minh:\nLời đọc được giữ nguyên và chuyển thành giọng nói.'}
           />
           <div className={s.inputMeta}>
             <span>
               {project.sourceContent.length.toLocaleString("vi")} ký tự
             </span>
-            <span>AI đề xuất thời lượng theo nội dung kịch bản</span>
+            <span>Có “Thuyết minh:” → thời lượng cảnh theo audio thực tế</span>
           </div>
         </div>
         <ReferenceImages
           key={project.id}
           images={project.referenceImages || []}
-          onChange={(referenceImages) => patch({ referenceImages })}
+          lastNumber={project.lastReferenceImageNumber ?? 0}
+          onChange={(referenceImages, lastReferenceImageNumber) => patch({ referenceImages, lastReferenceImageNumber })}
           notify={notify}
           disabled={busy || reading}
         />

@@ -23,6 +23,7 @@ export default function ExportControls({ project, disabled, exporting }: {
   const [config, setConfig] = useState<ExportConfig>(defaultConfig);
   const [videoError, setVideoError] = useState(false);
   const snapshot = project.snapshot;
+  const audioLabel = snapshot?.phases.some(phase => phase.audio) ? "Có thuyết minh" : "Không âm thanh";
   const { job, busy, error, starting } = exporting;
   const stale = !!snapshot && snapshot.sourceSignature !== signature(project);
   const blocked = disabled || !snapshot || stale || busy;
@@ -39,7 +40,7 @@ export default function ExportControls({ project, disabled, exporting }: {
     <div className={s.exportFooter}>
       <div><strong>Sẵn sàng mang câu chuyện đi xa?</strong><p>
         {stale ? "Cập nhật đồ họa theo kịch bản và phong cách mới trước khi xuất."
-          : snapshot ? `Ghép toàn bộ ${snapshot.phases.length} phase thành một MP4 · ${snapshot.duration}s · Không âm thanh.`
+          : snapshot ? `Ghép toàn bộ ${snapshot.phases.length} phase thành một MP4 · ${Number(snapshot.duration.toFixed(2))}s · ${audioLabel}.`
           : "Tạo đồ họa để xuất toàn bộ phase thành video MP4."}
       </p></div>
       <button className={s.primary} disabled={blocked} onClick={openExport}>
@@ -80,7 +81,7 @@ export default function ExportControls({ project, disabled, exporting }: {
         if (await exporting.create(config)) setOpen(false);
       }}>
         <div className={s.exportIntro}><Film size={23} /><p>Xuất toàn bộ {snapshot.phases.length} phase theo đúng thứ tự.<br />
-          {snapshot.width} × {snapshot.height} · {snapshot.duration}s · Không âm thanh</p></div>
+          {snapshot.width} × {snapshot.height} · {Number(snapshot.duration.toFixed(2))}s · {audioLabel}</p></div>
         <label>Tên file<input required maxLength={120} value={config.filename}
           pattern={String.raw`[^\/\\\r\n]+`} title="Tên file không chứa dấu / hoặc \\."
           onChange={(event) => setConfig({ ...config, filename: event.target.value })} /></label>
