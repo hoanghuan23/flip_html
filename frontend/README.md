@@ -179,10 +179,14 @@ dùng thư mục/cache đã kiểm tra; bấm tạo sau khi thành công tạo m
 
 Các API xuất MP4 hiện có vẫn được giữ cho giai đoạn sau, chưa được gọi từ giao diện.
 
-Mục 2 lấy tên danh mục trực tiếp từ `categories.*.label` trong
-`skills/style_config.json`. Mỗi danh mục chỉ hiển thị các phong cách thuộc
+Mục 2 hiển thị “Nhóm chủ đề”, lấy tên trực tiếp từ `categories.*.label` trong
+`skills/style_config.json`. Tám nhóm chủ đề hiện để trống `allowed_styles`;
+“Tất cả phong cách” giữ đầy đủ danh sách phong cách hiện có. Nhóm trống không
+hiển thị mẫu và không cho tạo đồ họa; chọn “Tất cả phong cách” để tiếp tục.
+Mỗi nhóm chỉ hiển thị các phong cách thuộc
 `allowed_styles`; nếu phong cách đang chọn không còn được phép, ứng dụng tự
-chuyển sang phong cách hợp lệ (ưu tiên `default_style`). Lựa chọn danh mục
+chuyển sang phong cách hợp lệ (ưu tiên `default_style`). Nhóm trống giữ lại
+phong cách đã chọn để dùng khi chuyển nhóm. Lựa chọn nhóm chủ đề
 được lưu cùng bản nháp. Các preset cũ vẫn được đọc và chuyển đổi khi mở lại.
 Cấu hình được frontend import trực tiếp từ file JSON. Khi chạy `npm run dev`,
 Vite tự cập nhật sau khi lưu file; bản production cần build lại. Giữ nguyên

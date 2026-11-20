@@ -22,11 +22,31 @@ export function isCategoryId(value: unknown): value is CategoryId {
   return typeof value === "string" && Object.hasOwn(config.categories, value);
 }
 
+const legacyCategories: Record<string, CategoryId> = {
+  technology: "science",
+  politics_society: "news_current_affairs",
+  lifestyle: "news_current_affairs",
+  environment: "all_styles",
+  disasters_accidents: "all_styles",
+  law_security: "all_styles",
+  culture_entertainment: "all_styles",
+  sports: "all_styles",
+  travel: "all_styles",
+  "3D": "all_styles",
+};
+
+export function restoreCategory(value: unknown): CategoryId | undefined {
+  if (isCategoryId(value)) return value;
+  return typeof value === "string" && Object.hasOwn(legacyCategories, value)
+    ? legacyCategories[value] : undefined;
+}
+
 export function styleForCategory(
   categoryId: CategoryId,
   styleId: StyleId,
 ): StyleId {
   const allowed = config.categories[categoryId].allowed_styles as StyleId[];
+  if (!allowed.length) return styleId;
   if (allowed.includes(styleId)) return styleId;
   return allowed.includes(defaultStyleId) ? defaultStyleId : allowed[0];
 }

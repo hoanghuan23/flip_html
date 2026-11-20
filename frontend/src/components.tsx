@@ -194,12 +194,12 @@ export function StylePicker({
     <section className={s.card} id="phong-cach">
       <SectionHeading
         number={2}
-        title="Danh mục & phong cách đồ họa"
+        title="Nhóm chủ đề & phong cách đồ họa"
         subtitle="Chọn phong cách để AI tạo hình ảnh và animation cho kịch bản của bạn."
       />
       <div className={s.categorySection}>
         <p className={s.fieldLabel} id="category-heading">
-          DANH MỤC KỊCH BẢN
+          Nhóm chủ đề
         </p>
         <div
           className={s.categoryList}
@@ -226,6 +226,11 @@ export function StylePicker({
               ? category.label
               : `Phong cách cho “${category.label}”`} ({availableStyles.length} lựa chọn)
           </p>
+          {!availableStyles.length && (
+            <p className={s.scriptStatus}>
+              Nhóm chủ đề này chưa có phong cách. Chọn “Tất cả phong cách” để tiếp tục.
+            </p>
+          )}
           <div className={s.styleGrid}>
             {availableStyles.map((style) => (
               <button
@@ -245,7 +250,7 @@ export function StylePicker({
           </div>
         </div>
         <div className={s.stylePreview}>
-          <StyleSample styleId={value} name={selected.name} />
+          {!!availableStyles.length && <StyleSample styleId={value} name={selected.name} />}
         </div>
       </div>
       {!hasScript && <p className={s.scriptStatus}>Hoàn tất tạo kịch bản ở mục 1 để tạo đồ họa.</p>}
@@ -253,7 +258,7 @@ export function StylePicker({
       <div className={`${s.sectionFooter} ${s.styleFooter}`}>
         <button
           className={s.primary}
-          disabled={!canGenerate || busy}
+          disabled={!canGenerate || busy || !category.allowedStyles.includes(value)}
           onClick={onGenerate}
         >
           <Sparkles size={17} className={busy ? s.spin : ""} />

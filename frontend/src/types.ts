@@ -1,7 +1,7 @@
 import {
   defaultCategoryId,
   defaultStyleId,
-  isCategoryId,
+  restoreCategory,
   restoreStyle,
   styleForCategory,
   type CategoryId,
@@ -142,6 +142,7 @@ export function parseDraft(value: unknown): ProjectDraft {
     throw new Error("Bản nháp không hợp lệ.");
   const p = value as ProjectDraft;
   const savedStyle = restoreStyle(p.styleId);
+  const categoryId = p.categoryId === undefined ? defaultCategoryId : restoreCategory(p.categoryId);
   if (
     typeof p.id !== "string" ||
     !p.id ||
@@ -153,7 +154,7 @@ export function parseDraft(value: unknown): ProjectDraft {
     (p.lastReferenceImageNumber !== undefined &&
       (!Number.isSafeInteger(p.lastReferenceImageNumber) || p.lastReferenceImageNumber < 0)) ||
     !savedStyle ||
-    (p.categoryId !== undefined && !isCategoryId(p.categoryId)) ||
+    !categoryId ||
     !Array.isArray(p.scenes) ||
     p.scenes.length > 100 ||
     !Array.isArray(p.messages) ||
@@ -179,7 +180,6 @@ export function parseDraft(value: unknown): ProjectDraft {
     p.scenes.reduce((n, s) => n + s.duration, 0) > 1800
   )
     throw new Error("File JSON không đúng định dạng bản nháp AI Video Studio.");
-  const categoryId = p.categoryId ?? defaultCategoryId;
   const referenceImages = p.referenceImages && numberReferenceImages(p.referenceImages);
   // Rebuild optional data explicitly; imported files never supply playable URLs.
   return {

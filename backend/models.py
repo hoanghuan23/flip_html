@@ -11,7 +11,7 @@ LEGACY_STYLE_IDS = {'detailed-vector', 'outlined-cartoon', 'cartoon', 'dark', 'w
 
 class StyleCategory(BaseModel):
     label: str = Field(min_length=1)
-    allowed_styles: list[ConfigStyleId] = Field(min_length=1)
+    allowed_styles: list[ConfigStyleId]
 
 
 class StyleConfiguration(BaseModel):

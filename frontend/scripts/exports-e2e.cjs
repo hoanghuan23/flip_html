@@ -54,7 +54,7 @@ fs.mkdirSync(qa, { recursive: true });
       for (const [id, title] of [["export-a", "Xuất A"], ["export-b", "Xuất B"]]) {
         const scenes = [1, 2].map((n) => ({ id: String(n), name: `Cảnh ${n}`, duration: 1.5,
           narration: "Kiểm thử xuất video giữ đúng thứ tự.", description: "Animation kiểm thử." }));
-        const config = { projectId: id, categoryId: "news_current_affairs", styleId: "flat" };
+        const config = { projectId: id, categoryId: "all_styles", styleId: "flat" };
         const response = await fetch("/api/previews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...config, title, scenes }) });
         if (!response.ok) throw new Error("Không tạo được fixture preview.");
         const snapshot = await response.json();

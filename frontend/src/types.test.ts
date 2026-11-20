@@ -32,7 +32,7 @@ describe("draft and snapshot contracts", () => {
     expect(signature({ ...p, styleId: "outlined-cartoon" })).not.toBe(
       signature(p),
     );
-    expect(signature({ ...p, categoryId: "science" })).not.toBe(signature(p));
+    expect(signature({ ...p, categoryId: "economy_finance" })).not.toBe(signature(p));
     expect(signature({ ...p, title: "Mới" })).toBe(signature(p));
     expect(signature({ ...p, scriptId: "a".repeat(32) })).not.toBe(signature(p));
     expect(
@@ -80,16 +80,16 @@ describe("draft and snapshot contracts", () => {
   });
 });
 describe("category style configuration", () => {
-  it("keeps a permitted style and resets an incompatible selection", () => {
-    expect(categories.find((c) => c.id === "science")?.label).toBe("Khoa học");
-    expect(styleForCategory("science", "outlined-cartoon")).toBe(
-      "flat",
-    );
-    expect(styleForCategory("technology", "outlined-cartoon")).toBe(
-      "isometric-mono",
-    );
+  it("leaves topic style lists empty and keeps all styles available", () => {
+    expect(categories.map((c) => c.label)).toEqual([
+      "Khoa học – Công nghệ", "Kinh doanh – Tài chính", "Thời sự – Đời sống",
+      "Thế giới – Quân sự", "Sức khỏe – Y tế", "Giáo dục", "Xe – Giao thông",
+      "Bất động sản – Quy hoạch", "Tất cả phong cách",
+    ]);
+    expect(categories.filter((c) => c.id !== "all_styles").every((c) => !c.allowedStyles.length)).toBe(true);
+    expect(categories.find((c) => c.id === "all_styles")?.allowedStyles).toHaveLength(16);
+    expect(styleForCategory("science", "outlined-cartoon")).toBe("outlined-cartoon");
     expect(styleForCategory("science", "flat")).toBe("flat");
-    expect(styleForCategory("technology", "flat")).toBe("isometric-mono");
     const p = newProject();
     expect(
       parseDraft({
@@ -97,7 +97,11 @@ describe("category style configuration", () => {
         categoryId: "technology",
         styleId: "outlined-cartoon",
       }).styleId,
-    ).toBe("isometric-mono");
+    ).toBe("outlined-cartoon");
+    expect(parseDraft({ ...p, categoryId: "technology", sourceContent: "Nội dung cũ" }))
+      .toMatchObject({ categoryId: "science", sourceContent: "Nội dung cũ" });
+    expect(parseDraft({ ...p, categoryId: "3D", styleId: "3d-motion-infographic" }))
+      .toMatchObject({ categoryId: "all_styles", styleId: "3d-motion-infographic" });
     expect(
       parseDraft({ ...p, categoryId: "all_styles", styleId: "one-line" }).styleId,
     ).toBe("one-line");

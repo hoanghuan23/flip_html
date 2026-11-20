@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.app import create_app
 from backend.jobs import JobManager
-from backend.models import ExportConfig, ExportRequest
+from backend.models import ExportConfig, ExportRequest, GraphicsRequest, load_style_config
 from render_hyperframes import PreviewError, verify_video
 
 
@@ -64,16 +64,26 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
 
     def test_category_style_pair_uses_shared_configuration(self):
-        data = dict(draft(), categoryId='education', styleId='outlined-cartoon')
+        config = load_style_config()
+        self.assertEqual(len(config['categories']), 9)
+        self.assertTrue(all(not category['allowed_styles']
+                            for key, category in config['categories'].items() if key != 'all_styles'))
+        data = dict(draft(), categoryId='all_styles', styleId='outlined-cartoon')
         response = self.client.post('/api/previews', json=data)
         self.assertEqual(response.status_code, 201, response.text)
         self.assertIn('#78ccc4', self.client.get(response.json()['phases'][0]['url']).text)
         data['styleId'] = 'flat'
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
-        data['categoryId'] = 'technology'
-        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-        data['styleId'] = 'isometric-mono'
-        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
+        for category_id in config['categories']:
+            request = dict(projectId='project-1', scriptId='a' * 32,
+                           categoryId=category_id, styleId='flat')
+            if category_id == 'all_styles':
+                self.assertEqual(GraphicsRequest(**request).styleId, 'flat')
+                continue
+            data['categoryId'] = category_id
+            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
+            with self.assertRaises(ValueError):
+                GraphicsRequest(**request)
         data['categoryId'] = 'unknown'
         self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
 
