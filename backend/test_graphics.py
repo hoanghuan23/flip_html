@@ -1,6 +1,7 @@
 import base64
 import contextlib
 import copy
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -10,7 +11,7 @@ import threading
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -168,6 +169,61 @@ class StyleAndPipelineTests(unittest.TestCase):
 
 
 class GraphicsStorageTests(unittest.TestCase):
+    def test_retry_recovers_3d_output_with_legacy_renderer_key(self):
+        from three_motion import build_preview as build_three
+        with tempfile.TemporaryDirectory() as directory:
+            storage = Path(directory)
+            seed_script(storage)
+            manager = GraphicsJobManager(storage)
+            try:
+                config = GraphicsRequest(projectId='project-one', scriptId='a' * 32,
+                                         categoryId='3D', styleId='3d-motion-infographic')
+                with patch.object(manager.executor, 'submit'):
+                    job = manager.create(config)
+                output = storage / 'previews' / job['id']
+                context = load_render_style(config.styleId)
+                plan = {'nodes': [{'id': 'cloud', 'geometry': 'sphere'}],
+                        'camera': [{'t': 0, 'position': [0, 0, 8]}]}
+                build_three(graphics_script(), output, lambda _: json.dumps(plan), style_context=context)
+                legacy_identity = {'config': job['config'],
+                                   'script': hashlib.sha256((output / 'kich_ban.json').read_bytes()).hexdigest(),
+                                   'style': context, 'renderer': motion.VERSION}
+                legacy_key = hashlib.sha256(json.dumps(legacy_identity, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+                manager.update(job['id'], status='failed', key=legacy_key)
+                with patch.object(manager.executor, 'submit') as submit:
+                    recovered = manager.create(config)
+                    submit.assert_not_called()
+                self.assertEqual(recovered['id'], job['id'])
+                self.assertEqual(recovered['status'], 'succeeded')
+                self.assertEqual(recovered['key'], job['key'])
+                self.assertEqual(recovered['result']['renderer'], 'three-motion-v1')
+                self.assertEqual(len(recovered['result']['phases']), 2)
+            finally:
+                manager.close()
+
+    def test_publication_failure_records_traceback_without_publishing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            storage = Path(directory)
+            seed_script(storage)
+            manager = GraphicsJobManager(storage)
+            try:
+                with patch.object(manager.executor, 'submit'):
+                    job = manager.create(request())
+                process = Mock(stdout=io.StringIO('{"status":"succeeded","fingerprint":"revision"}\n'))
+                process.wait.return_value = 0
+                with patch('backend.graphics.subprocess.Popen', return_value=process), \
+                        patch('backend.graphics.JobManager.kill_process'), \
+                        patch('backend.graphics.completed_snapshot', side_effect=ValueError('publication failed')):
+                    manager.run(job['id'])
+                failed = manager.read(job['id'])
+                self.assertEqual(failed['status'], 'failed')
+                self.assertIsNone(failed['result'])
+                log = (storage / 'graphics' / job['id'] / 'worker.log').read_text()
+                self.assertIn('Traceback', log)
+                self.assertIn('ValueError: publication failed', log)
+            finally:
+                manager.close()
+
     def test_creation_recovers_deleted_job_storage_with_selected_style(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(GraphicsJobManager, 'run'):
             storage = Path(directory)
@@ -243,6 +299,35 @@ class GraphicsApiTests(unittest.TestCase):
         manager.update(next_job['id'], status='failed')
         changed = self.create(styleId='flat-with-black').json()
         self.assertNotEqual(changed['id'], next_job['id'])
+
+    def test_retry_recovers_complete_output_and_rejects_damaged_output(self):
+        manager = self.client.app.state.graphics
+        job = self.create().json()
+        output = self.root / 'previews' / job['id']
+        with patch('image_asset_generator.urlopen', side_effect=lambda *a, **k: io.BytesIO(png_response())), \
+                contextlib.redirect_stdout(io.StringIO()):
+            def draw(prompt):
+                phase = json.loads(prompt.split('\nPHASE:\n')[1].split('\nSTYLE:\n')[0])
+                return phase_svg(phase)
+            build_preview(graphics_script(), output, draw, style_context=load_render_style('flat'))
+        manager.update(job['id'], status='failed')
+        with patch.object(manager.executor, 'submit') as submit:
+            recovered = self.create().json()
+            submit.assert_not_called()
+        self.assertEqual(recovered['id'], job['id'])
+        self.assertEqual(recovered['status'], 'succeeded')
+        self.assertIsNone(recovered['error'])
+        self.assertEqual(len(recovered['result']['phases']), 2)
+        self.assertEqual(self.client.get('/api/previews/' + job['id']).status_code, 200)
+
+        manager.update(job['id'], status='failed', result=None)
+        (output / 'phase_2.svg').write_text('<svg/>')
+        with patch.object(manager.executor, 'submit') as submit:
+            retry = self.create().json()
+            submit.assert_called_once()
+        self.assertEqual(retry['status'], 'queued')
+        self.assertIsNone(retry['result'])
+        self.assertEqual(self.client.get('/api/previews/' + job['id']).status_code, 404)
 
     def test_restart_marks_incomplete_failed_preserving_outputs(self):
         job = self.create().json()

@@ -3,6 +3,7 @@ from contextlib import redirect_stdout
 import json
 from pathlib import Path
 import sys
+import traceback
 from urllib.error import HTTPError, URLError
 
 import plant_kurzge as planner
@@ -15,6 +16,10 @@ def run(output):
 
     def emit(**event):
         print(json.dumps(event, ensure_ascii=False), file=protocol, flush=True)
+
+    def fail(message):
+        traceback.print_exc(file=sys.stderr)
+        emit(status='failed', error=message)
 
     try:
         emit(stage='preparing')
@@ -46,15 +51,15 @@ def run(output):
         emit(stage='checking')
         emit(status='succeeded', fingerprint=fingerprint)
     except HTTPError as error:
-        emit(status='failed', error=f'Dịch vụ AI trả HTTP {error.code}. Hãy thử tạo đồ họa lại.')
+        fail(f'Dịch vụ AI trả HTTP {error.code}. Hãy thử tạo đồ họa lại.')
     except (URLError, TimeoutError):
-        emit(status='failed', error='Không kết nối được dịch vụ AI. Hãy kiểm tra máy chủ và thử lại.')
+        fail('Không kết nối được dịch vụ AI. Hãy kiểm tra máy chủ và thử lại.')
     except OSError:
-        emit(status='failed', error='Không thể đọc hoặc lưu dữ liệu đồ họa trên máy chủ.')
+        fail('Không thể đọc hoặc lưu dữ liệu đồ họa trên máy chủ.')
     except ValueError as error:
-        emit(status='failed', error=str(error))
+        fail(str(error))
     except Exception:
-        emit(status='failed', error='Không thể dựng đồ họa. Hãy kiểm tra cấu hình và thử lại.')
+        fail('Không thể dựng đồ họa. Hãy kiểm tra cấu hình và thử lại.')
 
 
 if __name__ == '__main__':

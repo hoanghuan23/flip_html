@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 import subprocess
 import sys
+import traceback
 import uuid
 import xml.etree.ElementTree as ET
 
@@ -111,11 +112,15 @@ class GraphicsJobManager(ScriptJobManager):
         context = load_render_style(request.styleId)
         check_image_mentions(json.dumps(script, ensure_ascii=False), request.referenceImages)
         from image_motion_ai import VERSION
+        legacy_renderer = VERSION
         if request.styleId == '3d-motion-infographic':
             from three_motion import VERSION
-        key = hashlib.sha256(json.dumps({'config': config, 'script': hashlib.sha256(raw).hexdigest(),
-                                        'style': context, 'renderer': VERSION},
-                                       ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        identity = {'config': config, 'script': hashlib.sha256(raw).hexdigest(),
+                    'style': context, 'renderer': VERSION}
+        key = hashlib.sha256(json.dumps(identity, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        # Older server processes keyed 3D jobs with the 2D renderer version.
+        retry_keys = {key, hashlib.sha256(json.dumps({**identity, 'renderer': legacy_renderer},
+                                                    ensure_ascii=False, sort_keys=True).encode()).hexdigest()}
         with self.lock:
             if self.stopping:
                 raise RuntimeError('Máy chủ đang dừng.')
@@ -124,9 +129,27 @@ class GraphicsJobManager(ScriptJobManager):
                 job = json.loads(path.read_text(encoding='utf-8'))
                 if job['projectId'] == request.projectId and job['status'] in ACTIVE:
                     return job
-                if job.get('key') == key and job['status'] == 'failed':
+                if job.get('key') in retry_keys and job['status'] == 'failed':
                     previous.append(job)
             retry = max(previous, key=lambda j: j['updatedAt']) if previous else None
+            if retry:
+                # A worker may finish before publication fails. Validate its saved
+                # output before replacing the narrated script or calling AI again.
+                output = self.storage / 'previews' / retry['id']
+                try:
+                    if context['id'] == '3d-motion-infographic':
+                        fingerprint = json.loads((output / 'phase_1.scene.json').read_text(encoding='utf-8'))['fingerprint']
+                    else:
+                        fingerprint = ET.fromstring((output / 'phase_1.svg').read_text(encoding='utf-8')).get('data-fingerprint')
+                    if not isinstance(fingerprint, str) or not re.fullmatch(r'[a-f0-9]{64}', fingerprint):
+                        raise ValueError('Thiếu fingerprint của lần dựng.')
+                    snapshot = completed_snapshot(self.storage, retry, fingerprint)
+                except (OSError, ValueError, KeyError, TypeError, ET.ParseError):
+                    pass
+                else:
+                    return self.update(retry['id'], status='succeeded', stage='completed',
+                                       completed=len(snapshot['phases']), total=len(snapshot['phases']),
+                                       result=snapshot, error=None, key=key)
             job_id = retry['id'] if retry else uuid.uuid4().hex
             directory = self.root / job_id
             # Storage may have been cleaned up since the server started.
@@ -181,6 +204,12 @@ class GraphicsJobManager(ScriptJobManager):
                 snapshot = completed_snapshot(self.storage, job, outcome['fingerprint'])
                 self.update(job_id, status='succeeded', stage='completed', result=snapshot, error=None)
         except Exception:
+            diagnostic = traceback.format_exc()
+            try:
+                with (self.root / job_id / 'worker.log').open('a', encoding='utf-8') as log:
+                    log.write(diagnostic)
+            except OSError:
+                sys.stderr.write(diagnostic)
             self.update(job_id, status='failed', stage='failed', result=None,
                         error='Không thể hoàn tất hoặc lưu toàn bộ animation. Hãy bấm Tạo đồ họa để thử lại.')
         finally:
