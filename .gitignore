@@ -2,9 +2,6 @@
 __pycache__/
 preview*
 !backend/previews.py
-!skills/*/demo/preview.png
-!skills/*/demo/preview.jpg
-!skills/*/demo/preview.jpeg
 
 tests/
 videos/
@@ -15,6 +12,8 @@ rain_chart_video/
 frontend/node_modules/
 frontend/dist/
 frontend/*.tsbuildinfo
+frontend/.hyperframes/
+frontend/.thumbnails/
 storage/
 .venv/
 

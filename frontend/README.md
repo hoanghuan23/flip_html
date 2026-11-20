@@ -360,7 +360,7 @@ Kiểm tra player 3D/audio độc lập, không gọi API trả phí (audio là 
 ```bash
 # Từ gốc dự án; build frontend trước:
 python3 frontend/scripts/narrated-qa.py
-python3 -m uvicorn backend.app:app --host 127.0.0.1 --port 8134
+VIDEO_STORAGE_DIR=storage/qa/narrated python3 -m uvicorn backend.app:app --host 127.0.0.1 --port 8134
 # Terminal khác:
 cd frontend
 npm run test:narrated
@@ -369,6 +369,9 @@ npm run test:narrated
 Bài kiểm tra bao gồm phát/dừng/tua, đổi phase, tua ngược tái hiện cùng frame,
 ảnh tham chiếu số 7 trong sandbox và tải lại không tự phát tiếng. Có thể dùng
 `NARRATED_PROJECT=/đường/dẫn/project.json` để kiểm tra snapshot có audio thật.
+Fixture 3D/audio nằm riêng trong `storage/qa/narrated/`, không ghi vào preview
+của dự án thực. Có thể xóa toàn bộ `storage/qa/` sau khi kiểm thử; lần chạy sau
+sẽ tạo lại các file cần thiết.
 
 CLI giữ cách dùng cũ; để chọn phong cách rõ ràng:
 

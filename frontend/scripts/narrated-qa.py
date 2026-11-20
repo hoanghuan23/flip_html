@@ -17,7 +17,7 @@ from three_motion import build_preview
 
 
 def main():
-    storage = ROOT / 'storage'
+    storage = ROOT / 'storage' / 'qa' / 'narrated'
     output = storage / 'previews' / ('9' * 32)
     output.mkdir(parents=True, exist_ok=True)
     asset = output / 'assets/audio'
@@ -58,7 +58,7 @@ def main():
     plan = runpy.run_path(str(ROOT / 'skills/3d-motion-infographic/scripts/build_demo.py'))['starlink_plan'](duration, 7)
     plan['overlays'][-1]['text'] = 'Ảnh kiểm thử · Hình 7'
     fingerprint = build_preview(script, output, lambda _: json.dumps(plan), style_context=context, references=refs)
-    config = {'projectId': 'narrated-qa', 'scriptId': 'a'*32, 'categoryId': '3D', 'styleId': context['id']}
+    config = {'projectId': 'narrated-qa', 'scriptId': 'a'*32, 'categoryId': 'all_styles', 'styleId': context['id']}
     snapshot = completed_snapshot(storage, {'id': output.name, 'config': config}, fingerprint)
     project = {'id': config['projectId'], 'title': script['title'], 'sourceContent': 'Dữ liệu QA: audio là tín hiệu thử.',
                **{k: config[k] for k in ('scriptId', 'categoryId', 'styleId')}, 'snapshot': snapshot,
