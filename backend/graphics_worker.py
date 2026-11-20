@@ -41,10 +41,8 @@ def run(output):
                 temporary.replace(output / 'kich_ban.json')
             if is_three:
                 from three_motion import build_preview as build_three
-                reference_path = output / 'references.json'
-                references = json.loads(reference_path.read_text()) if reference_path.exists() else []
                 fingerprint = build_three(script, output, planner.request_text, style_context=context,
-                                          references=references, on_progress=progress)
+                                          on_progress=progress)
             else:
                 fingerprint = build_preview(script, output, planner.request_text, style_context=context,
                                             on_progress=progress, resume=True)

@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from backend.app import create_app
-from backend.inputs import ReferenceImage, attach_voiceover, check_image_mentions, save_references, split_input
+from backend.inputs import attach_voiceover, split_input
 from backend.models import GraphicsRequest
 from backend.narration import prepare_narration, synthesize
 from backend.graphics import completed_snapshot
@@ -24,11 +24,15 @@ from render_hyperframes import PreviewError, collect_scenes, prepare_project, ve
 from three_motion import build_preview, validate_plan, verify_phases
 
 
-def reference(number=2):
-    data = io.BytesIO()
-    Image.new('RGB', (24, 16), '#3766ab').save(data, format='PNG')
-    return ReferenceImage(id='photo', name='Vệ tinh.png', number=number,
-                          dataUrl='data:image/png;base64,' + base64.b64encode(data.getvalue()).decode())
+def reference(directory, number=2):
+    # Local renderer fixture; input images are no longer accepted by the API.
+    path = directory / 'assets/references/photo.png'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new('RGB', (24, 16), '#3766ab').save(path, format='PNG')
+    rows = [{'id': 'photo', 'name': 'Vệ tinh.png', 'number': number,
+             'src': path.relative_to(directory).as_posix()}]
+    (directory / 'references.json').write_text(json.dumps(rows))
+    return rows
 
 
 def mesh_plan(duration=2):
@@ -76,31 +80,20 @@ class NarratedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'trống'):
             split_input('Mô tả: Cảnh\nThuyết minh:\n')
 
-    def test_references_validate_bytes_and_keep_nonconsecutive_numbers(self):
-        image = reference(7)
-        check_image_mentions('Dùng Hình 7', [image])
-        with self.assertRaisesRegex(ValueError, 'Hình 2'):
-            check_image_mentions('Dùng Hình 2', [image])
-        with self.assertRaises(ValueError):
-            ReferenceImage(**{**image.model_dump(), 'dataUrl': 'data:image/png;base64,aGVsbG8='})
-        with tempfile.TemporaryDirectory() as temporary:
-            rows = save_references(Path(temporary), [image])
-            self.assertEqual(rows[0]['number'], 7)
-            self.assertTrue((Path(temporary) / rows[0]['src']).is_file())
-
-    def test_script_worker_preserves_speech_and_supplies_reference_metadata(self):
+    def test_script_worker_preserves_speech_and_ignores_reference_metadata(self):
         script = screenplay()
         script['phases'][0]['voiceover'] = 'Độ cao 550 km.'
         with tempfile.TemporaryDirectory() as temporary, patch.multiple('plant_kurzge', API_URL='test', API_KEY='test', MODEL='test'):
             directory = Path(temporary)
             (directory / 'input.txt').write_text('Vệ tinh\nMô tả:\nDùng Hình 2.\nThuyết minh:\nĐộ cao 550 km.')
-            save_references(directory, [reference()])
+            reference(directory)
             with patch('plant_kurzge.request_text', side_effect=[ACCEPTED, json.dumps(script)]) as api, patch('sys.stdout', new_callable=io.StringIO):
                 script_worker(directory)
             saved = json.loads((directory / 'kich_ban.json').read_text())
             self.assertEqual(saved['voiceoverText'], 'Độ cao 550 km.')
             self.assertIn('voiceover', api.call_args.args[0])
-            self.assertIn('"number": 2', api.call_args.args[0])
+            self.assertNotIn('REFERENCE IMAGES', api.call_args.args[0])
+            self.assertNotIn('assets/references', api.call_args.args[0])
 
     def test_tts_cache_and_invalid_cache_regeneration(self):
         with tempfile.TemporaryDirectory() as temporary, self.config(), patch('backend.narration.urlopen', side_effect=lambda *a, **k: self.response()) as api:
@@ -145,7 +138,7 @@ class NarratedTests(unittest.TestCase):
             script = screenplay()
             script['phases'][0]['voiceover'] = text
             script['phases'][0]['actions'][0]['cue'] = '550'
-            refs = save_references(output, [reference()])
+            refs = reference(output)
             prepare_narration(script, output, storage / 'cache')
             phase = script['phases'][0]
             self.assertLess(phase['duration'], 2)
@@ -267,13 +260,18 @@ class NarratedTests(unittest.TestCase):
             self.assertEqual(json.loads(events.getvalue().splitlines()[-1])['status'], 'succeeded')
             tts.assert_not_called()
 
-    def test_missing_image_returns_validation_error_before_creating_job(self):
-        with tempfile.TemporaryDirectory() as temporary, TestClient(create_app(Path(temporary))) as client:
-            response = client.post('/api/scripts', json={'projectId': 'missing', 'content': 'Sử dụng Hình 7',
-                                                        'referenceImages': [reference().model_dump()]})
-            self.assertEqual(response.status_code, 422)
-            self.assertIn('Hình 7', response.json()['detail'])
-            self.assertEqual(list((Path(temporary) / 'scripts').iterdir()), [])
+    def test_text_mentions_need_no_images_and_legacy_image_fields_are_ignored(self):
+        with tempfile.TemporaryDirectory() as temporary, TestClient(create_app(Path(temporary))) as client, \
+                patch.object(client.app.state.scripts.executor, 'submit'):
+            for project, extra in [('text-only', {}), ('legacy', {'referenceImages': [{'dataUrl': 'invalid'}]})]:
+                with self.subTest(project=project):
+                    response = client.post('/api/scripts', json={
+                        'projectId': project, 'content': 'Sử dụng Hình 7', **extra})
+                    self.assertEqual(response.status_code, 202)
+                    directory = Path(temporary) / 'scripts' / response.json()['id']
+                    self.assertEqual((directory / 'input.txt').read_text(), 'Sử dụng Hình 7')
+                    self.assertFalse((directory / 'references.json').exists())
+                    self.assertFalse((directory / 'assets').exists())
 
     def test_mp4_verification_requires_narration_stream(self):
         with tempfile.TemporaryDirectory() as temporary:

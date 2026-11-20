@@ -19,8 +19,6 @@ def run(directory):
         content = (directory / 'input.txt').read_text(encoding='utf-8')
         from .inputs import split_input, attach_voiceover, requested_labels
         visual, voiceover = split_input(content)
-        references_path = directory / 'references.json'
-        references = json.loads(references_path.read_text()) if references_path.exists() else []
         def validate_script(value):
             if voiceover:
                 try:
@@ -44,8 +42,6 @@ def run(directory):
                       'Keep each spoken segment below 1000 characters. '
                       'Actions may include cue: an exact short phrase from that phase voiceover, '
                       'to anchor action start to speech. Durations are provisional until TTS.\nVOICEOVER:\n' + voiceover)
-        if references:
-            extra += '\nREFERENCE IMAGES (keep exact number and id):\n' + json.dumps(references, ensure_ascii=False)
         script = planner.generate_script(
             (visual or voiceover) if voiceover else content, on_stage=lambda stage: emit(stage=stage),
             extra_validate=validate_script,

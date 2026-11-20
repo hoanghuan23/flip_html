@@ -25,15 +25,15 @@ Nhập chung một ô, ví dụ:
 Vệ tinh Starlink trong không gian
 Mô tả:
 Trái Đất ở dưới trái, vệ tinh chuyển động chậm. Camera tiến gần rồi lùi ra.
-Hiện Hình 2 ở góc phải, kèm dòng chữ "Quỹ đạo thấp – khoảng 550 km".
+Hiện dòng chữ "Quỹ đạo thấp – khoảng 550 km" ở góc phải.
 
 Thuyết minh:
 Đây là một vệ tinh Starlink đang hoạt động ngoài không gian...
 ```
 
-Tải đúng ảnh mang số **Hình 2** nếu nội dung gọi số đó; số hình không đổi khi
-xóa ảnh khác. API kiểm tra số hình, định dạng và dữ liệu ảnh thật. Bấm **Tạo
-kịch bản**, chọn danh mục **3D** → **3D Motion Infographic**, rồi **Tạo đồ họa**.
+Ảnh tham khảo hiện chỉ lưu trong bản nháp trên trình duyệt để xem lại giao diện;
+backend không nhận hoặc xử lý ảnh input, cũng không yêu cầu ảnh khi văn bản
+nhắc đến số hình. Bấm **Tạo kịch bản**, chọn **3D Motion Infographic**, rồi **Tạo đồ họa**.
 
 Backend giữ nguyên lời thuyết minh khi chia cảnh. ElevenLabs tạo audio trước
 khi dựng đồ họa; `ffprobe` đo thời lượng, làm tròn lên ở 30 FPS. Thời lượng
@@ -269,9 +269,9 @@ Biến môi trường tùy chọn, đặt khi khởi động backend:
 
 | Endpoint | Nội dung |
 | --- | --- |
-| `POST /api/scripts` | `{projectId, content, referenceImages?}` → tác vụ nền, HTTP 202; gửi lặp khi tác vụ còn chạy trả cùng ID |
+| `POST /api/scripts` | `{projectId, content}` → tác vụ nền, HTTP 202; gửi lặp khi tác vụ còn chạy trả cùng ID |
 | `GET /api/scripts/{id}` | Trạng thái/giai đoạn, lỗi hoặc `{title, scenes}` trích xuất; không trả JSON AI đầy đủ |
-| `POST /api/graphics` | `{projectId, scriptId, categoryId, styleId, referenceImages?}` → tác vụ audio/PNG/3D/HTML nền, HTTP 202 |
+| `POST /api/graphics` | `{projectId, scriptId, categoryId, styleId}` → tác vụ audio/PNG/3D/HTML nền, HTTP 202 |
 | `GET /api/graphics/{id}` | Trạng thái, `stage`, `completed/total`, lỗi hoặc snapshot hoàn chỉnh trong `result` |
 | `POST /api/previews` | API tạo template cũ, giữ tương thích; giao diện mới không gọi API này |
 | `GET /api/previews/{id}` | Kiểm tra snapshot còn tồn tại |
@@ -288,7 +288,9 @@ Schema tương tác ở **http://127.0.0.1:8000/docs**. Không dùng JSON bản 
 frontend trực tiếp làm `kich_ban.json` của pipeline AI: bản nháp chỉ chứa dữ liệu
 giao diện. Dùng file `storage/scripts/<id>/kich_ban.json` cho pipeline AI chi tiết.
 
-Mỗi `referenceImages` gồm `{id, name, number, dataUrl}`. Snapshot có renderer
+Giao diện ảnh tham khảo chỉ lưu ảnh trong bản nháp trên trình duyệt; không gửi ảnh
+qua API và không dùng ảnh để tạo kịch bản hoặc đồ họa. Backend chỉ xử lý nội dung
+văn bản và cấu hình. Snapshot có renderer
 `three-motion-v1` hoặc renderer ảnh hiện có; phase có thể có
 `audio: {url, duration}`. `voiceover` là lời đọc, tách khỏi `narration` cũ.
 

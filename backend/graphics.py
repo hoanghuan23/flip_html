@@ -91,10 +91,7 @@ class GraphicsJobManager(ScriptJobManager):
         self.storage = storage
 
     def create(self, request: GraphicsRequest):
-        from .inputs import check_image_mentions, reference_signature, save_references
-        config = request.model_dump(exclude={'referenceImages'})
-        if request.referenceImages:
-            config['referenceImages'] = reference_signature(request.referenceImages)
+        config = request.model_dump()
         source = self.storage / 'scripts' / request.scriptId
         try:
             script_job = json.loads((source / 'job.json').read_text(encoding='utf-8'))
@@ -110,7 +107,6 @@ class GraphicsJobManager(ScriptJobManager):
         except (OSError, json.JSONDecodeError, KeyError) as error:
             raise GraphicsInputError('Không tìm thấy JSON đầy đủ. Hãy tạo lại kịch bản ở bước 1.') from error
         context = load_render_style(request.styleId)
-        check_image_mentions(json.dumps(script, ensure_ascii=False), request.referenceImages)
         from image_motion_ai import VERSION
         legacy_renderer = VERSION
         if request.styleId == '3d-motion-infographic':
@@ -157,7 +153,6 @@ class GraphicsJobManager(ScriptJobManager):
             output = self.storage / 'previews' / job_id
             output.mkdir(parents=True, exist_ok=True)
             (output / 'kich_ban.json').write_bytes(raw)
-            save_references(output, request.referenceImages)
             (output / 'render_config.json').write_text(
                 json.dumps(context, ensure_ascii=False, indent=2), encoding='utf-8')
             # An incomplete attempt is never served, including after a failed publication.

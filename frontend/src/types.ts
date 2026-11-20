@@ -113,18 +113,8 @@ export const previewInput = (p: ProjectDraft) => ({
   scriptId: p.scriptId,
   categoryId: p.categoryId,
   styleId: p.styleId,
-  ...(p.referenceImages?.length ? {referenceImages: numberReferenceImages(p.referenceImages)} : {}),
 });
-export const signature = (p: ProjectDraft) => {
-  const input = previewInput(p);
-  return JSON.stringify({...input, ...(input.referenceImages ? {
-    referenceImages: input.referenceImages.map(({id, name, number, dataUrl}) => {
-      let hash = 2166136261;
-      for (let i=0; i<dataUrl.length; i++) hash = Math.imul(hash ^ dataUrl.charCodeAt(i), 16777619) >>> 0;
-      return {id, name, number, checksum: hash.toString(16).padStart(8,"0")};
-    }),
-  } : {})});
-};
+export const signature = (p: ProjectDraft) => JSON.stringify(previewInput(p));
 export function sceneValid(s: Scene) {
   return (
     !!s.name.trim() &&

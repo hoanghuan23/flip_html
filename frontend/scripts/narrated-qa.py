@@ -1,5 +1,5 @@
 """Build two narrated 3D QA phases locally. Uses a test tone, never paid APIs."""
-import base64
+import shutil
 import copy
 import hashlib
 import json
@@ -11,7 +11,6 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from backend.graphics import completed_snapshot
-from backend.inputs import ReferenceImage, save_references
 from render_style import load_render_style
 from three_motion import build_preview
 
@@ -50,8 +49,12 @@ def main():
               'assets': [{'id': 'SATELLITE', 'category': 'object', 'name': 'Vệ tinh', 'description': 'Thân và pin mặt trời.'}],
               'phases': [phase, second]}
     image = ROOT / 'skills/3d-motion-infographic/assets/earth.jpg'
-    refs = save_references(output, [ReferenceImage(id='qa-image-7', name='Ảnh kiểm thử số 7.jpg', number=7,
-                                  dataUrl='data:image/jpeg;base64,' + base64.b64encode(image.read_bytes()).decode())])
+    target = output / 'assets/references/earth.jpg'
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(image, target)
+    refs = [{'id': 'qa-image-7', 'name': 'Ảnh kiểm thử số 7.jpg', 'number': 7,
+             'src': target.relative_to(output).as_posix(), 'sha256': hashlib.sha256(target.read_bytes()).hexdigest()}]
+    (output / 'references.json').write_text(json.dumps(refs, ensure_ascii=False))
     context = load_render_style('3d-motion-infographic')
     (output / 'kich_ban.json').write_text(json.dumps(script, ensure_ascii=False))
     (output / 'render_config.json').write_text(json.dumps(context, ensure_ascii=False))

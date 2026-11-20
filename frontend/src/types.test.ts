@@ -5,7 +5,7 @@ import { afterEach, vi } from "vitest";
 import { categories, restoreStyle, styleForCategory } from "./styleConfig";
 
 describe("draft and snapshot contracts", () => {
-  it("migrates 3D aliases and invalidates snapshots when referenced image bytes change", () => {
+  it("migrates 3D aliases and keeps local images out of snapshot signatures", () => {
     const p = {...newProject(), categoryId: "3D", styleId: "3D-Motion-InFographic"};
     expect(parseDraft(p).styleId).toBe("3d-motion-infographic");
     for (const name of ["3D-Motion-Infographic", "3D-Motion_Infographic"])
@@ -13,8 +13,10 @@ describe("draft and snapshot contracts", () => {
     const image = {id:"photo", name:"photo.png", number:7, dataUrl:"data:image/png;base64,aGVsbG8="};
     const before = signature({...p, referenceImages:[image]});
     expect(before).not.toContain("base64");
-    expect(signature({...p, referenceImages:[{...image,dataUrl:"data:image/png;base64,Yg=="}]})).not.toBe(before);
-    expect(signature({...p, referenceImages:[{...image,number:2}]})).not.toBe(before);
+    expect(before).not.toContain("referenceImages");
+    expect(signature(p)).toBe(before);
+    expect(signature({...p, referenceImages:[{...image,dataUrl:"data:image/png;base64,Yg=="}]})).toBe(before);
+    expect(signature({...p, referenceImages:[{...image,number:2}]})).toBe(before);
   });
   it("accepts only a versioned project shape with valid scenes", () => {
     const p = newProject();
@@ -156,7 +158,9 @@ describe("AI script API boundary", () => {
 describe("graphics generation contract", () => {
   afterEach(() => vi.unstubAllGlobals());
   it("submits only canonical script and selected style references", async () => {
-    const project = { ...newProject(), scriptId: "c".repeat(32) };
+    const project = { ...newProject(), scriptId: "c".repeat(32), referenceImages: [
+      {id: "local-photo", name: "photo.png", number: 1, dataUrl: "data:image/png;base64,aGVsbG8="},
+    ] };
     const job = { id: "d".repeat(32), projectId: project.id, status: "queued", stage: "queued", completed: 0, total: 0, error: null, result: null };
     const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(job)));
     vi.stubGlobal("fetch", fetchMock);

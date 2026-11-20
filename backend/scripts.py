@@ -82,8 +82,6 @@ class ScriptJobManager:
             return data
 
     def create(self, request: ScriptRequest):
-        from .inputs import check_image_mentions, save_references
-        check_image_mentions(request.content, request.referenceImages)
         with self.lock:
             if self.stopping:
                 raise RuntimeError('Máy chủ đang dừng. Hãy thử lại.')
@@ -95,7 +93,6 @@ class ScriptJobManager:
             directory = self.root / job_id
             directory.mkdir()
             (directory / 'input.txt').write_text(request.content, encoding='utf-8')
-            save_references(directory, request.referenceImages)
             job = {'id': job_id, 'projectId': request.projectId, 'status': 'queued',
                    'stage': 'queued', 'createdAt': now(), 'updatedAt': now(),
                    'error': None, 'result': None}

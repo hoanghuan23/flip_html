@@ -140,7 +140,7 @@ class StyleAndPipelineTests(unittest.TestCase):
             self.assertIn('Thiếu cấu hình', outcome['error'])
             text.assert_not_called()
 
-    def test_three_worker_supports_legacy_jobs_without_reference_manifest(self):
+    def test_three_worker_ignores_input_reference_manifests(self):
         from backend.graphics_worker import run
         import plant_kurzge as planner
         with tempfile.TemporaryDirectory() as directory, \
@@ -158,7 +158,7 @@ class StyleAndPipelineTests(unittest.TestCase):
                         run(output)
                     outcome = json.loads(events.getvalue().splitlines()[-1])
                     self.assertEqual(outcome, {'status': 'succeeded', 'fingerprint': 'revision'})
-                    self.assertEqual(build.call_args.kwargs['references'], references or [])
+                    self.assertNotIn('references', build.call_args.kwargs)
 
     def test_selected_style_reaches_image_and_phase_prompts(self):
         script = graphics_script()
@@ -300,6 +300,18 @@ class GraphicsApiTests(unittest.TestCase):
         self.assertEqual((output / 'kich_ban.json').read_bytes(), before)
         self.assertEqual(self.client.get('/api/previews/' + job['id']).status_code, 404)
         self.assertEqual(self.client.get('/api/previews/' + job['id'] + '/phase_1.html').status_code, 404)
+
+    def test_input_images_are_ignored_and_text_mentions_are_allowed(self):
+        script = graphics_script()
+        script['phases'][0]['description'] += ' Dùng Hình 7.'
+        seed_script(self.root, script)
+        response = self.create(referenceImages=[{'dataUrl': 'invalid'}])
+        self.assertEqual(response.status_code, 202)
+        job = response.json()
+        self.assertNotIn('referenceImages', job['config'])
+        output = self.root / 'previews' / job['id']
+        self.assertFalse((output / 'references.json').exists())
+        self.assertFalse((output / 'assets/references').exists())
 
     def test_rejects_missing_pending_script_and_invalid_category_style(self):
         self.assertEqual(self.create(scriptId='b' * 32).status_code, 409)
