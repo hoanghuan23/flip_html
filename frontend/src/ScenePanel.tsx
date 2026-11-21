@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { ChevronDown, ChevronUp, Clock3, MessageSquare, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { SectionHeading } from "./components";
-import { signature, type ProjectDraft } from "./types";
+import { safeSourceUrl, signature, type ProjectDraft } from "./types";
 import s from "./Studio.module.css";
 
 export default function ScenePanel({ project, selectedId, onSelect }: {
@@ -14,7 +14,9 @@ export default function ScenePanel({ project, selectedId, onSelect }: {
   const resolved = project.snapshot?.sourceSignature === signature(project) ? project.snapshot : undefined;
   const durationOf = (id: string, fallback: number) => resolved?.phases.find(p => p.id === id)?.duration ?? fallback;
   const total = project.scenes.reduce((sum, scene) => sum + durationOf(scene.id, scene.duration), 0);
-  const estimated = !resolved && project.scenes.some(scene => scene.voiceover);
+  const estimated = !resolved && project.scenes.some(scene => scene.voiceover || scene.duration_status === "estimated");
+  const research = project.scriptReview?.research;
+  const warnings = project.scriptReview?.warnings ?? [];
   const readonlyNote = "Phiên bản hiện tại chỉ hỗ trợ xem kịch bản.";
   return (
     <section className={s.embeddedScript} id="kich-ban">
@@ -47,6 +49,22 @@ export default function ScenePanel({ project, selectedId, onSelect }: {
             {readonlyNote}
           </span>
         </div>
+        {(warnings.length > 0 || (research && research.status !== "not_required")) && (
+          <details className={s.scriptReview}>
+            <summary>Nguồn tham khảo và cảnh báo{warnings.length > 0 ? ` (${warnings.length})` : ""}</summary>
+            {warnings.length > 0 && <ul>{warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
+            {research?.status === "unverified" && <p>Nội dung chưa được kiểm chứng bằng nguồn web.</p>}
+            {research?.status === "sources_reported" && <>
+              <p>Nguồn do AI cung cấp, chưa được hệ thống xác minh độc lập.</p>
+              <ul>{research.sources.map((source, index) => <li key={index}>
+                {safeSourceUrl(source.url)
+                  ? <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>
+                  : <span>{source.title}</span>}
+                <ul>{source.claims.map((claim, i) => <li key={i}>{claim}</li>)}</ul>
+              </li>)}</ul>
+            </>}
+          </details>
+        )}
         <div className={s.scriptLayout}>
           <div className={s.sceneList}>
             <div className={s.tableHeading}>
@@ -64,6 +82,10 @@ export default function ScenePanel({ project, selectedId, onSelect }: {
                   <strong>{scene.name}</strong>
                   <p>{scene.voiceover || scene.narration}</p>
                   <small>{scene.description}</small>
+                  {!!scene.annotations?.length && <div className={s.sceneAnnotations}>
+                    <span>Chú giải trên màn hình</span>
+                    <ul>{scene.annotations.map((note, i) => <li key={i}>{note.text}</li>)}</ul>
+                  </div>}
                 </div>
                 <span className={s.duration}>{Number(durationOf(scene.id, scene.duration).toFixed(2))}s</span>
                 <div className={s.rowActions}>

@@ -9,6 +9,21 @@ import {
 } from "./styleConfig";
 import { numberReferenceImages, validReferenceImages, type ReferenceImage } from "./referenceImages";
 export type { CategoryId, StyleId } from "./styleConfig";
+export interface Annotation {
+  text: string;
+  target: string;
+  action_index?: number | null;
+  cue?: string | null;
+}
+export interface ScriptReview {
+  input_type?: "topic" | "detailed_script" | "legacy";
+  research?: {
+    status: "sources_reported" | "unverified" | "not_required";
+    sources: { title: string; url: string; claims: string[] }[];
+    summary?: string;
+  };
+  warnings?: string[];
+}
 export interface Scene {
   id: string;
   name: string;
@@ -16,6 +31,8 @@ export interface Scene {
   description: string;
   duration: number;
   voiceover?: string;
+  annotations?: Annotation[];
+  duration_status?: "estimated";
 }
 export interface ScriptJob {
   id: string;
@@ -23,7 +40,7 @@ export interface ScriptJob {
   status: "queued" | "running" | "succeeded" | "rejected" | "failed";
   stage: string;
   error: string | null;
-  result: { title: string; scenes: Scene[] } | null;
+  result: ({ title: string; scenes: Scene[] } & ScriptReview) | null;
 }
 export interface ChatMessage {
   id: string;
@@ -84,6 +101,7 @@ export interface ProjectDraft {
   categoryId: CategoryId;
   styleId: StyleId;
   scenes: Scene[];
+  scriptReview?: ScriptReview;
   messages: ChatMessage[];
   updatedAt: string;
   snapshot?: PreviewSnapshot;
@@ -115,12 +133,48 @@ export const previewInput = (p: ProjectDraft) => ({
   styleId: p.styleId,
 });
 export const signature = (p: ProjectDraft) => JSON.stringify(previewInput(p));
+
+export function safeSourceUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && !!url.hostname && !url.username && !url.password;
+  } catch { return false; }
+}
+
+function annotationsValid(value: unknown): value is Annotation[] {
+  return Array.isArray(value) && value.every((note) => note &&
+    typeof note.text === "string" && !!note.text.trim() && note.text.length <= 200 &&
+    typeof note.target === "string" && !!note.target.trim() &&
+    (note.action_index == null || (Number.isSafeInteger(note.action_index) && note.action_index >= 0)) &&
+    (note.cue == null || (typeof note.cue === "string" && !!note.cue.trim())));
+}
+
+function reviewValid(value: unknown): value is ScriptReview {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const review = value as ScriptReview;
+  const research = review.research;
+  return (review.input_type === undefined || ["topic", "detailed_script", "legacy"].includes(review.input_type)) &&
+    (review.warnings === undefined || (Array.isArray(review.warnings) && review.warnings.every((w) => typeof w === "string" && !!w.trim()))) &&
+    (research === undefined || (!!research &&
+      ["sources_reported", "unverified", "not_required"].includes(research.status) &&
+      (research.summary === undefined || typeof research.summary === "string") &&
+      Array.isArray(research.sources) &&
+      (research.status === "sources_reported" ? research.sources.length > 0 : research.sources.length === 0) &&
+      research.sources.every((source) => source && typeof source.title === "string" && !!source.title.trim() &&
+        safeSourceUrl(source.url) && Array.isArray(source.claims) && source.claims.length > 0 &&
+        source.claims.every((claim) => typeof claim === "string" && !!claim.trim()))));
+}
+
 export function sceneValid(s: Scene) {
   return (
     !!s.name.trim() &&
     s.name.length <= 160 &&
     s.narration.length <= 2000 &&
     (s.voiceover === undefined || (typeof s.voiceover === "string" && s.voiceover.length <= 10000)) &&
+    (s.annotations === undefined || (annotationsValid(s.annotations) && s.annotations.every((note) =>
+      !note.cue || !!s.voiceover?.includes(note.cue)))) &&
+    (s.duration_status === undefined || s.duration_status === "estimated") &&
     s.description.length <= 3000 &&
     Number.isFinite(s.duration) &&
     s.duration > 0 &&
@@ -140,6 +194,7 @@ export function parseDraft(value: unknown): ProjectDraft {
     !p.title.trim() ||
     p.title.length > 160 ||
     typeof p.sourceContent !== "string" ||
+    (p.scriptReview !== undefined && !reviewValid(p.scriptReview)) ||
     (p.referenceImages !== undefined && !validReferenceImages(p.referenceImages)) ||
     (p.lastReferenceImageNumber !== undefined &&
       (!Number.isSafeInteger(p.lastReferenceImageNumber) || p.lastReferenceImageNumber < 0)) ||
@@ -185,6 +240,7 @@ export function parseDraft(value: unknown): ProjectDraft {
     categoryId,
     styleId: styleForCategory(categoryId, savedStyle),
     scenes: p.scenes,
+    scriptReview: p.scriptReview,
     messages: p.messages,
     updatedAt: new Date().toISOString(),
     sourceFilename:

@@ -17,36 +17,9 @@ def run(directory):
         if not all((planner.API_URL, planner.API_KEY, planner.MODEL)):
             raise ValueError('Thiếu cấu hình CODEX_API_URL, CODEX_API_TOKEN hoặc CODEX_MODEL trên máy chủ.')
         content = (directory / 'input.txt').read_text(encoding='utf-8')
-        from .inputs import split_input, attach_voiceover, requested_labels
-        visual, voiceover = split_input(content)
-        def validate_script(value):
-            if voiceover:
-                try:
-                    attach_voiceover(value, voiceover)
-                except ValueError as error:
-                    return [str(error)]
-            errors = validate_for_ui(value)
-            for label in requested_labels(visual):
-                if not any(label in phase.get('description', '') for phase in value['phases']):
-                    errors.append('Giữ nguyên nhãn trong description của cảnh tương ứng, kể cả dấu ngoặc kép: "' + label + '".')
-            return errors
-        extra = ''
-        if voiceover:
-            extra += ('\nNARRATED INPUT: The user supplies the exact spoken script below. '
-                      'Preserve explicitly requested on-screen labels VERBATIM, in quotation marks, '
-                      'in the description of the relevant phase. '
-                      'Add voiceover to each phase: partition ALL of this text into nonempty consecutive '
-                      'segments, preserving every word and punctuation in order. Never rewrite, summarize '
-                      'or omit speech. Use fewer phases if necessary. narration is only a SHORT script note, '
-                      'never the spoken paragraph or an on-screen subtitle. Do not reserve a bottom caption strip. '
-                      'Keep each spoken segment below 1000 characters. '
-                      'Actions may include cue: an exact short phrase from that phase voiceover, '
-                      'to anchor action start to speech. Durations are provisional until TTS.\nVOICEOVER:\n' + voiceover)
         script = planner.generate_script(
-            (visual or voiceover) if voiceover else content, on_stage=lambda stage: emit(stage=stage),
-            extra_validate=validate_script,
-            **({'prompt_suffix': extra} if extra else {}),
-            **({'validation_text': visual + '\n' + voiceover} if voiceover else {}),
+            content, on_stage=lambda stage: emit(stage=stage),
+            extra_validate=validate_for_ui,
         )
         project_script(script)
         emit(stage='saving')

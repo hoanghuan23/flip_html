@@ -54,7 +54,10 @@ export const getScriptJob = (id: string) => api<ScriptJob>(`/api/scripts/${id}`)
 export const scriptStages: Record<string, string> = {
   queued: "Đang chờ tạo kịch bản…",
   validating: "AI đang kiểm tra nội dung…",
+  classifying: "AI đang phân loại văn bản…",
+  researching: "AI đang nghiên cứu chủ đề và tổng hợp nguồn…",
   generating: "AI đang tạo kịch bản…",
+  normalizing: "Đang chuẩn hóa chú giải và ước tính thời lượng…",
   saving: "Đang lưu kịch bản…",
 };
 export const createGraphicsJob = (p: ProjectDraft) =>

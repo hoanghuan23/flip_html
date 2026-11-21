@@ -12,6 +12,12 @@ Phong cách **3D Motion Infographic** dùng mesh Three.js, camera và ảnh tham
 chiếu đánh số trong khung thông tin; preview và MP4 có cùng giọng đọc.
 Xem cấu hình và cách sử dụng trong [hướng dẫn frontend](frontend/README.md).
 
+Web và CLI nay dùng chung phân loại văn bản `topic` / `detailed_script` / `legacy`.
+Chủ đề được nghiên cứu rồi viết lời đọc và hoạt ảnh; kịch bản đã chia phase giữ
+nguyên số cảnh, thứ tự, tên và audio. JSON bổ sung chú giải riêng, nguồn/cảnh báo
+và thời lượng dự kiến. Chỉ nhận văn bản; ảnh trong bản nháp không gửi qua API.
+Xem mẫu input và hợp đồng dữ liệu trong [phân tích văn bản](frontend/README.md#phân-tích-văn-bản-chủ-đề-kịch-bản-chi-tiết-và-input-cũ).
+
 Kịch bản và đồ họa chạy qua tác vụ nền riêng; chỉ công bố preview khi đủ mọi
 phase. Phong cách đã chọn được đưa vào cả sinh ảnh và diễn hoạt. CLI Python bên
 dưới giữ cách sử dụng hiện có; thêm `--style <id>` để chỉ định phong cách.

@@ -24,6 +24,13 @@ def load_style_config():
     ).model_dump()
 
 
+class Annotation(BaseModel):
+    text: str = Field(min_length=1, max_length=200)
+    target: str = Field(min_length=1)
+    action_index: int | None = Field(default=None, ge=0, strict=True)
+    cue: str | None = Field(default=None, min_length=1)
+
+
 class Scene(BaseModel):
     id: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=160)
@@ -31,6 +38,8 @@ class Scene(BaseModel):
     description: str = Field(max_length=3000)
     duration: float = Field(gt=0, le=120)
     voiceover: str | None = Field(default=None, max_length=10000)
+    annotations: list[Annotation] | None = None
+    duration_status: Literal['estimated'] | None = None
 
     @field_validator('duration')
     @classmethod

@@ -190,13 +190,13 @@ export default function InputPanel({
             disabled={busy || reading}
             value={project.sourceContent}
             onChange={(e) => patch({ sourceContent: e.target.value })}
-            placeholder={'Tên chủ đề\nMô tả:\nBối cảnh, chuyển động camera, ảnh Hình N…\n\nThuyết minh:\nLời đọc được giữ nguyên và chuyển thành giọng nói.'}
+            placeholder={'Mưa đá hình thành như thế nào?\n\nHoặc nhập kịch bản chi tiết:\nPhase 1: Giới thiệu\nHoạt ảnh: Bối cảnh, đối tượng và chuyển động…\nAudio: Lời đọc nguyên văn cho phase này.'}
           />
           <div className={s.inputMeta}>
             <span>
               {project.sourceContent.length.toLocaleString("vi")} ký tự
             </span>
-            <span>Có “Thuyết minh:” → thời lượng cảnh theo audio thực tế</span>
+            <span>AI tự nhận diện nội dung và ước tính thời lượng</span>
           </div>
         </div>
         <ReferenceImages

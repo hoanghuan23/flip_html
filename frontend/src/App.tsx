@@ -120,6 +120,11 @@ export default function App() {
             scriptScrollRef.current = projectId;
             dispatch({ type: "patch", id: projectId, patch: {
               scenes: job.result.scenes, scriptId: job.id, scriptJobId: undefined,
+              scriptReview: {
+                input_type: job.result.input_type,
+                research: job.result.research,
+                warnings: job.result.warnings,
+              },
               messages: [],
               ...(current.title === "Dự án chưa đặt tên" ? { title: job.result.title } : {}),
             } });

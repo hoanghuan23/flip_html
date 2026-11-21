@@ -30,6 +30,9 @@ def project_script(script):
                  'duration': phase['duration']}
         if 'voiceover' in phase:
             scene['voiceover'] = phase['voiceover']
+        for field in ('annotations', 'duration_status'):
+            if field in phase:
+                scene[field] = phase[field]
         try:
             Scene.model_validate(scene)
         except ValidationError as error:
@@ -38,7 +41,11 @@ def project_script(script):
         scenes.append(scene)
     if sum(scene['duration'] for scene in scenes) > 1800:
         raise ValueError('Giao diện hỗ trợ tổng thời lượng tối đa 30 phút.')
-    return {'title': title, 'scenes': scenes}
+    result = {'title': title, 'scenes': scenes}
+    for field in ('input_type', 'research', 'warnings'):
+        if field in script:
+            result[field] = script[field]
+    return result
 
 
 def validate_for_ui(script):
@@ -116,7 +123,7 @@ class ScriptJobManager:
             outcome = None
             for line in process.stdout:
                 event = json.loads(line)
-                if event.get('stage') in ('validating', 'generating', 'saving'):
+                if event.get('stage') in ('validating', 'classifying', 'researching', 'generating', 'normalizing', 'saving'):
                     self.update(job_id, stage=event['stage'])
                 if event.get('status') in ('succeeded', 'rejected', 'failed'):
                     outcome = event

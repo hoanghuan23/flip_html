@@ -50,7 +50,7 @@ class PlannerTests(unittest.TestCase):
         with patch.object(planner, 'request_text', side_effect=[ACCEPTED, json.dumps(broken), json.dumps(script)]) as call:
             self.assertEqual(planner.generate_script('Vì sao có mưa?', on_stage=stages.append), script)
         self.assertEqual(call.call_count, 3)
-        self.assertEqual(stages, ['validating', 'generating'])
+        self.assertEqual(stages, ['validating', 'classifying', 'generating'])
         self.assertIn('thiếu description', call.call_args.args[0])
 
     def test_invalid_json_and_exhausted_repairs(self):
@@ -100,7 +100,7 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(saved, script)
         self.assertIn('Ý tưởng riêng do người dùng nhập', call.call_args.args[0])
         self.assertEqual(events[-1], {'status': 'succeeded'})
-        self.assertEqual([e['stage'] for e in events[:-1]], ['validating', 'generating', 'saving'])
+        self.assertEqual([e['stage'] for e in events[:-1]], ['validating', 'classifying', 'generating', 'saving'])
         row = project_script(saved)['scenes'][0]
         self.assertEqual(set(row), {'id', 'name', 'narration', 'description', 'duration'})
         for field in ('name', 'narration', 'description', 'duration'):

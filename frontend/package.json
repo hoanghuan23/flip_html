@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:e2e": "node scripts/e2e.cjs",
     "test:scripts": "node scripts/script-e2e.cjs",
+    "test:analysis": "node scripts/analysis-e2e.cjs",
     "test:graphics": "node scripts/graphics-e2e.cjs",
     "test:exports": "node scripts/exports-e2e.cjs",
     "build:three": "node scripts/build-three.mjs",

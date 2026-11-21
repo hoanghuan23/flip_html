@@ -313,6 +313,16 @@ class GraphicsApiTests(unittest.TestCase):
         self.assertFalse((output / 'references.json').exists())
         self.assertFalse((output / 'assets/references').exists())
 
+    def test_science_accepts_3d_motion_and_serves_its_demo(self):
+        response = self.create(categoryId='science', styleId='3d-motion-infographic')
+        self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(response.json()['config']['categoryId'], 'science')
+        self.assertEqual(response.json()['config']['styleId'], '3d-motion-infographic')
+        sample = self.client.get('/api/styles/3d-motion-infographic/preview')
+        self.assertEqual(sample.status_code, 200, sample.text)
+        self.assertEqual(sample.json()['url'], '/api/styles/3d-motion-infographic/demo/index.html')
+        self.assertEqual(self.client.get(sample.json()['url']).status_code, 200)
+
     def test_rejects_missing_pending_script_and_invalid_category_style(self):
         self.assertEqual(self.create(scriptId='b' * 32).status_code, 409)
         self.assertEqual(self.create(styleId='../flat').status_code, 422)

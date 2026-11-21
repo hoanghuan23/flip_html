@@ -82,8 +82,6 @@ export default function ReferenceImages({ images, lastNumber, onChange, notify, 
         <span className={s.referenceIcon}><ImagePlus size={21} strokeWidth={1.7} /></span>
         <div>
           <h3 id="reference-images-title">Thêm hình ảnh tham khảo <span>(tùy chọn)</span></h3>
-          <p>Ảnh chỉ lưu trong bản nháp trên trình duyệt, chưa gửi lên máy chủ.</p>
-          <p>Hiện tại chỉ nội dung văn bản được dùng để tạo kịch bản và đồ họa.</p>
           <small id="reference-images-help">JPG, PNG, WEBP · tối đa 5 MB/ảnh · có thể kéo thả</small>
         </div>
       </div>

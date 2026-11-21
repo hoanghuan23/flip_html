@@ -82,16 +82,18 @@ describe("draft and snapshot contracts", () => {
   });
 });
 describe("category style configuration", () => {
-  it("leaves topic style lists empty and keeps all styles available", () => {
+  it("assigns 3D motion to science and keeps all styles available", () => {
     expect(categories.map((c) => c.label)).toEqual([
       "Khoa học – Công nghệ", "Kinh doanh – Tài chính", "Thời sự – Đời sống",
       "Thế giới – Quân sự", "Sức khỏe – Y tế", "Giáo dục", "Xe – Giao thông",
       "Bất động sản – Quy hoạch", "Tất cả phong cách",
     ]);
-    expect(categories.filter((c) => c.id !== "all_styles").every((c) => !c.allowedStyles.length)).toBe(true);
+    expect(categories.find((c) => c.id === "science")?.allowedStyles).toEqual(["3d-motion-infographic"]);
+    expect(categories.filter((c) => !["science", "all_styles"].includes(c.id)).every((c) => !c.allowedStyles.length)).toBe(true);
     expect(categories.find((c) => c.id === "all_styles")?.allowedStyles).toHaveLength(16);
-    expect(styleForCategory("science", "outlined-cartoon")).toBe("outlined-cartoon");
-    expect(styleForCategory("science", "flat")).toBe("flat");
+    expect(styleForCategory("science", "outlined-cartoon")).toBe("3d-motion-infographic");
+    expect(styleForCategory("science", "flat")).toBe("3d-motion-infographic");
+    expect(newProject()).toMatchObject({ categoryId: "science", styleId: "3d-motion-infographic" });
     const p = newProject();
     expect(
       parseDraft({
@@ -99,7 +101,7 @@ describe("category style configuration", () => {
         categoryId: "technology",
         styleId: "outlined-cartoon",
       }).styleId,
-    ).toBe("outlined-cartoon");
+    ).toBe("3d-motion-infographic");
     expect(parseDraft({ ...p, categoryId: "technology", sourceContent: "Nội dung cũ" }))
       .toMatchObject({ categoryId: "science", sourceContent: "Nội dung cũ" });
     expect(parseDraft({ ...p, categoryId: "3D", styleId: "3d-motion-infographic" }))
@@ -126,7 +128,7 @@ describe("category style configuration", () => {
     });
     expect(imported.styleId).toBe(styleForCategory(p.categoryId, "outlined-cartoon"));
     expect(imported.scenes).toEqual([scene]);
-    expect(parseDraft({ ...p, styleId: "flat" }).styleId).toBe("flat");
+    expect(parseDraft({ ...p, categoryId: "all_styles", styleId: "flat" }).styleId).toBe("flat");
   });
 });
 describe("AI script API boundary", () => {

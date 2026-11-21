@@ -5,8 +5,8 @@ nhập nội dung và xem kịch bản, chọn phong cách và xem HTML animatio
 Sau khi chọn **Tạo kịch bản**, danh sách cảnh hiển thị ngay trong mục 1.
 
 Kịch bản được AI phân tích thật qua `plant_kurzge.py`: kiểm tra đầu vào, sinh
-JSON chi tiết, kiểm tra và yêu cầu sửa nếu cần. Bảng chỉ trích tên, chữ giải
-thích, mô tả hình ảnh và thời lượng từng phase. Hiện chỉ hỗ trợ xem kịch bản;
+JSON chi tiết, kiểm tra và yêu cầu sửa nếu cần. Bảng trích tên, lời đọc, mô tả,
+chú giải và thời lượng từng phase; nguồn/cảnh báo có thể thu gọn. Hiện chỉ hỗ trợ xem kịch bản;
 các nút sửa/thêm/xóa/chat được khóa.
 
 Mục 2 dùng JSON đầy đủ của bước 1 để sinh thư viện PNG và SVG/CSS animation.
@@ -16,6 +16,57 @@ Phong cách được chọn đi vào cả prompt sinh ảnh và prompt diễn ho
 chọn phase, phát/dừng và tua; sửa/xóa/chat/tạo lại phase chỉ hiển thị ở trạng
 thái khóa. Tạo hoặc thử lại đồ họa ở mục 2. Nội dung có phần “Thuyết minh:”
 được chuyển thành giọng đọc; nội dung cũ tiếp tục chạy không âm thanh.
+
+## Phân tích văn bản: chủ đề, kịch bản chi tiết và input cũ
+
+Web và CLI dùng chung `plant_kurzge.generate_script()`; không có bộ chọn loại.
+`topic` nghiên cứu câu hỏi như “Mưa đá hình thành như thế nào?”, rồi tự viết
+phase, hoạt ảnh, `voiceover` và chú giải. Nghiên cứu dùng endpoint văn bản hiện có.
+`research.status=sources_reported` chỉ có nghĩa AI cung cấp nguồn hỗ trợ, chưa
+được hệ thống xác minh độc lập; `unverified` là bản nháp chưa kiểm chứng bằng web.
+Không tra cứu được vẫn cho phép dùng kiến thức phổ thông đủ chắc, kèm cảnh báo;
+thiếu dữ kiện cốt lõi thì yêu cầu bổ sung, không tự bịa.
+
+`detailed_script` nhận các tiêu đề Phase/Cảnh/Phần đánh số; từng phase cần đủ
+Hoạt ảnh/Mô tả và Audio/Thuyết minh/Lời đọc, có thể dùng tiêu đề Markdown:
+
+```text
+## Phase 1: Giới thiệu
+Hoạt ảnh: Vệ tinh chuyển động phía trên Trái Đất; nhãn độ cao ở cạnh vệ tinh.
+Audio: Vệ tinh này hoạt động ở độ cao khoảng 550 km.
+
+## Cảnh 2: So sánh
+Mô tả: Camera lùi để thấy Trái Đất và hai quỹ đạo.
+Lời đọc: Quỹ đạo thấp nằm gần bề mặt Trái Đất hơn quỹ đạo địa tĩnh.
+```
+
+Hệ thống giữ số phase, thứ tự, tên đã đặt và nguyên văn audio (kể cả xuống dòng),
+chỉ bổ sung chi tiết dựng cảnh. Thiếu phần hoạt ảnh/audio hoặc ranh giới không rõ
+thì yêu cầu sửa input. Không tự chia phase quá dài; tối đa 100 phase, 120 giây/phase,
+30 phút/video và 10.000 ký tự audio/phase. Luồng `legacy` tiếp tục xử lý bài viết,
+bản tin, câu chuyện và Mô tả/Thuyết minh chưa chia phase theo cách cũ.
+
+Chú giải lưu riêng trong `annotations`: `text`, `target` (asset ID), `action_index`
+(tùy chọn, đếm từ 0), `cue` (tùy chọn, cụm lời đọc để canh thời điểm). Cue khác
+chữ hoa/thường hoặc khoảng trắng được khớp lại với audio gốc; cue không khớp
+được bỏ qua, giữ timeline hoạt ảnh thay vì chặn kịch bản. Danh sách
+có thể rỗng. Đợt này chuẩn hóa và hiển thị để duyệt; chưa ép renderer vẽ đủ mọi chú giải.
+`input_type`, `research`, `warnings` nằm ở cấp kịch bản, đồng thời có trong
+`job.json.result`; mỗi cảnh mới có `duration_status=estimated`. Bản nháp cũ vẫn đọc được.
+
+Thời lượng dự kiến lấy lớn nhất giữa lời đọc, timeline hoạt ảnh và thời gian đọc
+chú giải. Tốc độ mặc định 210 cụm cách nhau bởi khoảng trắng/phút, có cộng nghỉ
+theo dấu câu; cấu hình qua `SCRIPT_SPEECH_UNITS_PER_MINUTE` (số dương hữu hạn).
+Sau TTS, pipeline hiện tại tiếp tục dùng thời lượng audio thực tế. CLI chỉ xuất JSON,
+không tự tạo audio. Lỗi JSON/nội dung sinh được yêu cầu sửa tối đa hai lần.
+
+Ảnh cục bộ không gửi qua API, không xuất hiện trong prompt hoặc schema mới.
+Văn bản nhắc “Ảnh N”/“Hình N” không bị báo thiếu ảnh, nhưng có cảnh báo chỉ dẫn
+ảnh chưa được thực hiện. Nội dung phụ thuộc hoàn toàn vào ảnh cần mô tả bằng chữ.
+
+Kiểm thử phân tích: `python3 -m unittest backend.test_analysis -v`.
+Kiểm thử giao diện độc lập với AI: sau `npm run build`, chạy `npm run test:analysis`
+trong `frontend/`; báo cáo và ảnh màn hình lưu tại `storage/qa/analysis-*`.
 
 ## Thuyết minh và 3D Motion Infographic
 
