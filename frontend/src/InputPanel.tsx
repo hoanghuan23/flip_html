@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { SectionHeading, errorText } from "./components";
 import type { ProjectDraft } from "./types";
-import ReferenceImages from "./ReferenceImages";
+import ReferenceImages from "./ReferenceImagesPanel";
 import s from "./Studio.module.css";
 
 export default function InputPanel({
