@@ -1,7 +1,7 @@
 # AI Video Studio
 
 Frontend React + TypeScript cho pipeline video Python. Giao diện có ba bước:
-nhập nội dung và xem kịch bản, chọn phong cách và xem HTML animation.
+nhập nội dung và xem kịch bản, chọn phong cách và duyệt ảnh tĩnh, xem HTML animation.
 Sau khi chọn **Tạo kịch bản**, danh sách cảnh hiển thị ngay trong mục 1.
 
 Kịch bản được AI phân tích thật qua `plant_kurzge.py`: kiểm tra đầu vào, sinh
@@ -9,7 +9,8 @@ JSON chi tiết, kiểm tra và yêu cầu sửa nếu cần. Bảng trích tên
 chú giải và thời lượng từng phase; nguồn/cảnh báo có thể thu gọn. Hiện chỉ hỗ trợ xem kịch bản;
 các nút sửa/thêm/xóa/chat được khóa.
 
-Mục 2 dùng JSON đầy đủ của bước 1 để sinh thư viện PNG và SVG/CSS animation.
+Mục 2 dùng JSON đầy đủ của bước 1 để sinh ảnh tĩnh từng phase cho người dùng duyệt.
+Sau **Xác nhận và tạo hoàn chỉnh**, backend mới tạo thư viện PNG và SVG/CSS animation.
 HTML animation không chèn dải phụ đề phía dưới; chữ giải thích vẫn nằm trong
 bảng kịch bản. Chỉ các nhãn ngắn theo nội dung được đặt trong cảnh.
 Phong cách được chọn đi vào cả prompt sinh ảnh và prompt diễn hoạt. Mục 3 cho
@@ -102,6 +103,7 @@ Thuyết minh:
 Ảnh tham khảo hiện chỉ lưu trong bản nháp trên trình duyệt để xem lại giao diện;
 backend không nhận hoặc xử lý ảnh input, cũng không yêu cầu ảnh khi văn bản
 nhắc đến số hình. Bấm **Tạo kịch bản**, chọn **3D Motion Infographic**, rồi **Tạo đồ họa**.
+Duyệt đủ ảnh tĩnh rồi bấm **Xác nhận và tạo hoàn chỉnh** để dựng cảnh 3D và audio.
 
 Backend giữ nguyên lời thuyết minh khi chia cảnh. ElevenLabs tạo audio trước
 khi dựng đồ họa; `ffprobe` đo thời lượng, làm tròn lên ở 30 FPS. Thời lượng
@@ -230,10 +232,16 @@ diện. Không cần build lại khi phát triển. Cổng 8000 phục vụ bả
 
 1. Nhập nội dung hoặc tải TXT/DOCX, chọn **Tạo kịch bản** và đọc bảng ở mục 1.
 2. Chọn danh mục/phong cách ở mục 2 rồi bấm **Tạo đồ họa**.
-3. Theo dõi các giai đoạn chuẩn bị, sinh ảnh, dựng từng phase và kiểm tra.
-   Chỉ thay preview khi hoàn tất toàn bộ phase; lỗi giữa chừng vẫn giữ bản cũ.
-4. Ở mục 3, chọn phase, phát/dừng và tua để xem HTML animation thật.
-   Các nút chỉnh sửa, tạo lại và xuất video hiện chưa cho thao tác.
+3. Xem dải **Preview các phase** ngay trong mục 2: AI sinh một ảnh tĩnh minh họa
+   bố cục/phong cách cho từng phase, phase nào xong hiện ngay phase đó. Bấm ảnh
+   thu nhỏ để xem lớn; đóng bằng nút Đóng, phím Escape hoặc bấm ngoài hộp thoại.
+   Lượt này chưa tạo thuyết minh, animation hoặc snapshot ở mục 3.
+4. Khi đủ ảnh, nút đổi thành **Xác nhận và tạo hoàn chỉnh**. Bấm để bắt đầu tạo
+   audio, asset và HTML animation theo kịch bản/phong cách đã chọn. Ảnh duyệt là
+   hình minh họa riêng; API ảnh hiện chỉ nhận prompt văn bản nên ảnh này không
+   được gửi làm ảnh tham chiếu cho lượt tạo asset animation. Chỉ thay snapshot
+   ở mục 3 khi toàn bộ animation hoàn tất; lỗi vẫn giữ snapshot cũ và ảnh đã tạo.
+   Ở mục 3, chọn phase, phát/dừng và tua để xem animation, rồi xuất MP4.
 5. Đổi phong cách hoặc tạo kịch bản mới sẽ đánh dấu preview cũ cần cập nhật.
    Bấm **Tạo đồ họa** ở mục 2 để dựng bản mới.
 
@@ -305,12 +313,18 @@ Flat là phong cách riêng, được phép trong các danh mục có Outlined c
   Tải lại trang tiếp tục theo dõi ID đã lưu; chuyển dự án không trộn kết quả.
   Backend khởi động lại đánh dấu tác vụ dang dở là lỗi, giữ nguyên file đã hoàn tất.
 - `storage/graphics/<id>/job.json` giữ trạng thái và tiến độ tác vụ đồ họa;
-  `worker.log` giữ thông tin tiến trình.
+  `worker.log` giữ thông tin tiến trình. `awaiting_confirmation` là trạng thái đã
+  đủ ảnh tĩnh, đang chờ xác nhận; trạng thái này được giữ khi backend khởi động lại.
+  Lượt sinh ảnh lỗi có thể thử lại với cache đã kiểm tra. Lượt animation lỗi có
+  thể bấm **Xác nhận và tạo hoàn chỉnh** để tiếp tục cùng tác vụ.
 - `storage/previews/<id>/` giữ bản sao `kich_ban.json`, `render_config.json`
   (snapshot hướng dẫn/preset phong cách), `assets/`, `image_cache/`, `prompts/`,
   `assets.svg`, SVG/HTML từng phase, playlist `index.html` và `render.log`.
   `snapshot.json` chỉ được công bố sau khi đủ mọi phase đúng thứ tự/thời lượng.
-  Trước đó, GET preview/HTML trả 404; người dùng tiếp tục xem bản cũ.
+  Trước đó, GET preview/HTML trả 404; người dùng tiếp tục xem animation cũ.
+  Ảnh tĩnh ở `phase_N.preview.png`, danh sách/hash ở `stills.json`, cache ở
+  `still_cache/` và prompt ở `prompts/phase_N_still.txt`; endpoint ảnh tĩnh riêng
+  phục vụ từng phase đã hoàn tất mà không công bố snapshot dở dang.
   JSON gốc bước 1 giữ nguyên. Đổi nội dung phong cách hoặc cấu hình API ảnh
   làm cache tương ứng bị vô hiệu; không dùng nhầm ảnh của phong cách trước.
 - `storage/exports/<id>/` giữ `job.json`, `render.log`, `video.mp4` và project
@@ -339,8 +353,10 @@ Biến môi trường tùy chọn, đặt khi khởi động backend:
 | --- | --- |
 | `POST /api/scripts` | `{projectId, content}` → tác vụ nền, HTTP 202; gửi lặp khi tác vụ còn chạy trả cùng ID |
 | `GET /api/scripts/{id}` | Trạng thái/giai đoạn, lỗi hoặc `{title, scenes}` trích xuất; không trả JSON AI đầy đủ |
-| `POST /api/graphics` | `{projectId, scriptId, categoryId, styleId}` → tác vụ audio/PNG/3D/HTML nền, HTTP 202 |
-| `GET /api/graphics/{id}` | Trạng thái, `stage`, `completed/total`, lỗi hoặc snapshot hoàn chỉnh trong `result` |
+| `POST /api/graphics` | `{projectId, scriptId, categoryId, styleId, previewOnly: true}` → tác vụ ảnh tĩnh nền, HTTP 202; bỏ `previewOnly` giữ API animation cũ |
+| `GET /api/graphics/{id}` | Trạng thái, `stage`, `completed/total`, `previews` đã xong, `confirmed`, lỗi hoặc snapshot hoàn chỉnh trong `result` |
+| `GET /api/graphics/{id}/previews/phase_N.png` | PNG tĩnh của phase đã hoàn tất, kể cả khi các phase khác đang sinh |
+| `POST /api/graphics/{id}/confirm` | Kiểm tra đủ ảnh/hash, xác nhận và xếp hàng tạo audio/animation; gửi lặp trả cùng tác vụ |
 | `POST /api/previews` | API tạo template cũ, giữ tương thích; giao diện mới không gọi API này |
 | `GET /api/previews/{id}` | Kiểm tra snapshot còn tồn tại |
 | `GET /api/previews/{id}/phase_N.html` | HTML phase kiểm soát sẵn, có `renderAt(time)` |
@@ -408,8 +424,10 @@ npm run test:graphics
 # test:e2e chạy cùng bài kiểm tra giao diện đồ họa hiện tại
 ```
 
-Bài kiểm tra xác nhận PNG được nhúng trong HTML, tua tái hiện cùng trạng thái,
-đúng phong cách, không hiện phase dở dang, giữ preview cũ khi lỗi, dùng cache
+Bài kiểm tra xác nhận ảnh tĩnh xuất hiện lần lượt, phóng to/đóng ảnh, giữ trạng
+thái chờ xác nhận sau tải lại và không tạo animation trước khi xác nhận. PNG
+animation được nhúng trong HTML, tua tái hiện cùng trạng thái, đúng phong cách,
+không công bố animation dở dang, giữ preview cũ khi lỗi, dùng cache
 khi thử lại, khôi phục sau tải lại/chuyển dự án và bố cục 375/768/1440 px.
 Báo cáo: `storage/qa/graphics-browser-report.json`. Không gọi dịch vụ AI thật.
 Có thể đặt `CHROME_PATH` và `STUDIO_URL` để thay đường dẫn/cổng mặc định.

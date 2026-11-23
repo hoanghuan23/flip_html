@@ -21,7 +21,9 @@ nguyên số cảnh, thứ tự, tên và audio. JSON bổ sung chú giải riê
 và thời lượng dự kiến. Chỉ nhận văn bản; ảnh trong bản nháp không gửi qua API.
 Xem mẫu input và hợp đồng dữ liệu trong [phân tích văn bản](frontend/README.md#phân-tích-văn-bản-chủ-đề-kịch-bản-chi-tiết-và-input-cũ).
 
-Kịch bản và đồ họa chạy qua tác vụ nền riêng; chỉ công bố preview khi đủ mọi
+Kịch bản và đồ họa chạy qua tác vụ nền riêng. Mục 2 hiển thị ảnh tĩnh từng phase
+ngay khi AI sinh xong; bấm ảnh để xem lớn. Khi đủ ảnh, bấm **Xác nhận và tạo hoàn chỉnh**
+để bắt đầu tạo audio/animation ở mục 3. Snapshot animation chỉ công bố khi đủ mọi
 phase. Phong cách đã chọn được đưa vào cả sinh ảnh và diễn hoạt. CLI Python bên
 dưới giữ cách sử dụng hiện có; thêm `--style <id>` để chỉ định phong cách.
 

@@ -93,6 +93,34 @@ def create_app(storage_root: Path | None = None):
         except FileNotFoundError:
             raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa. Hãy bấm Tạo đồ họa để thử lại.')
 
+    @app.post('/api/graphics/{graphics_id}/confirm', status_code=202)
+    def confirm_graphics(graphics_id: str):
+        checked_id(graphics_id)
+        try:
+            return app.state.graphics.confirm(graphics_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa.')
+        except GraphicsInputError as error:
+            raise HTTPException(409, str(error))
+        except (OSError, RuntimeError):
+            raise HTTPException(503, 'Không thể bắt đầu dựng animation. Hãy thử lại.')
+
+    @app.get('/api/graphics/{graphics_id}/previews/{filename}')
+    def graphics_still(graphics_id: str, filename: str):
+        checked_id(graphics_id)
+        match = re.fullmatch(r'phase_([1-9][0-9]*)\.png', filename)
+        if not match:
+            raise HTTPException(404, 'Không tìm thấy ảnh preview.')
+        try:
+            job = app.state.graphics.read(graphics_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa.')
+        index = int(match[1])
+        path = storage / 'previews' / graphics_id / f'phase_{index}.preview.png'
+        if index > len(job.get('previews', [])) or not path.is_file():
+            raise HTTPException(404, 'Ảnh preview chưa sẵn sàng.')
+        return FileResponse(path, media_type='image/png', headers={'Cache-Control': 'no-store'})
+
     @app.get('/api/scripts/{script_id}')
     def get_script(script_id: str):
         checked_id(script_id)

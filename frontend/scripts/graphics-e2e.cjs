@@ -49,6 +49,13 @@ fs.mkdirSync(qa, { recursive: true });
     const p = state?.projects.find((p) => p.id === state.activeId);
     return p?.snapshot && !p.graphicsJobId && !document.querySelector("#source-text").disabled;
   }, { timeout: 60000 });
+  const waitStills = () => page.waitForFunction(() => [...document.querySelectorAll('#phong-cach button')]
+    .some((button) => !button.disabled && button.textContent.trim() === 'Xác nhận và tạo hoàn chỉnh'), { timeout: 60000 });
+  const confirm = async () => {
+    await waitStills();
+    await click('Xác nhận và tạo hoàn chỉnh');
+    await waitGraphics();
+  };
   const openProject = async (title) => {
     await click("Dự án của tôi");
     await page.evaluate((text) => [...document.querySelectorAll("dialog button strong")]
@@ -84,6 +91,29 @@ fs.mkdirSync(qa, { recursive: true });
     await page.waitForFunction(() => document.body.textContent.includes("Đang tự kết nối lại để theo dõi đồ họa"));
     failPolls = false;
     await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => {
+      const images = document.querySelectorAll('[aria-label="Preview tĩnh các phase"] img');
+      return images.length > 0 && images.length < 5;
+    });
+    assert.equal(await page.$('#xem-truoc iframe'), null);
+    const earlyStill = await page.$('[aria-label="Preview tĩnh các phase"] button:enabled');
+    await earlyStill.click();
+    await page.waitForSelector('dialog[open] img');
+    assert.equal(await page.$eval('dialog img', (img) => img.complete && img.naturalWidth > 0), true);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+    await waitStills();
+    assert.equal(await page.$$eval('[aria-label="Preview tĩnh các phase"] img', (imgs) => imgs.length), 5);
+    assert.equal(await page.$('#xem-truoc iframe'), null);
+    assert.equal(fs.existsSync(path.join(qa, 'script-api/previews', firstJob, 'phase_1.html')), false);
+    const stillState = await page.evaluate(async (id) => (await fetch(`/api/graphics/${id}`)).json(), firstJob);
+    assert.equal(stillState.status, 'awaiting_confirmation');
+    assert.equal(stillState.confirmed, false);
+    await page.evaluate(() => document.querySelector('[aria-label="Preview tĩnh các phase"]').scrollIntoView());
+    await page.screenshot({ path: path.join(qa, 'phase-stills-ready.png'), fullPage: true });
+    await page.reload({ waitUntil: 'networkidle0' });
+    await waitStills();
+    await confirm();
     await waitComplete();
     const first = await draft();
     assert.equal(first.snapshot.id, firstJob);
@@ -100,7 +130,7 @@ fs.mkdirSync(qa, { recursive: true });
     for (const name of [imagePrompt, "phase_1.txt"]) {
       assert.ok(fs.readFileSync(path.join(fullOutput, "prompts", name), "utf8").includes("SELECTED ILLUSTRATION STYLE: flat-with-black"));
     }
-    report.checks.push("full screenplay + selected style reach image/animation prompts; one POST; no partial preview; reload/reconnect recovery");
+    report.checks.push("static phases appear progressively; click to enlarge and Escape to close; no animation before confirmation; review survives reload; full screenplay/style preserved");
 
     await page.waitForFunction(() => !document.querySelector('button[aria-label="Phát preview"]').disabled);
     const frame = page.frames().find((f) => f.url().endsWith("phase_1.html"));
@@ -138,12 +168,13 @@ fs.mkdirSync(qa, { recursive: true });
     assert.equal(await page.evaluate(async () => (await fetch('/_qa/fail-next-phase', { method: 'POST' })).ok), true);
     await click("Tạo đồ họa"); await waitGraphics();
     const failedId = (await draft()).graphicsJobId;
+    await confirm();
     await page.waitForFunction(() => !document.querySelector("#source-text").disabled &&
       document.querySelector("#phong-cach").textContent.includes("HTTP 503"), { timeout: 30000 });
     assert.equal((await draft()).snapshot.id, firstJob);
     const partialStatus = await page.evaluate(async (id) => (await fetch(`/api/previews/${id}/phase_1.html`)).status, failedId);
     assert.equal(partialStatus, 404);
-    await click("Tạo đồ họa"); await waitGraphics();
+    await click("Xác nhận và tạo hoàn chỉnh"); await waitGraphics();
     assert.equal((await draft()).graphicsJobId, failedId);
     await waitComplete();
     assert.equal((await draft()).snapshot.id, failedId);
@@ -152,14 +183,17 @@ fs.mkdirSync(qa, { recursive: true });
 
     await selectStyle("Flat"); await click("Tạo đồ họa"); await waitGraphics();
     const secondA = (await draft()).graphicsJobId;
+    await confirm();
     await click("Dự án của tôi"); await click("Bắt đầu dự án mới");
     assert.equal(await page.$eval("#source-text", (input) => input.disabled), false);
     await fill('input[aria-label="Tên dự án"]', "Đồ họa B");
     await fill("#source-text", "Giải thích vòng tuần hoàn nước.");
     await click("Tạo kịch bản"); await waitScript();
     await click("Tất cả phong cách");
+    await selectStyle("Flat");
     await click("Tạo đồ họa"); await waitGraphics();
     const jobB = (await draft()).graphicsJobId;
+    await confirm();
     await waitComplete();
     assert.equal((await draft()).snapshot.id, jobB);
     await openProject("Đồ họa A");
@@ -174,6 +208,11 @@ fs.mkdirSync(qa, { recursive: true });
       await page.setViewport({ width, height: 1000 });
       await page.evaluate(() => document.querySelector("#xem-truoc").scrollIntoView());
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `overflow at ${width}`);
+      await page.evaluate(() => document.querySelector('[aria-label="Preview tĩnh các phase"] button:enabled').click());
+      await page.waitForSelector('dialog[open] img');
+      assert.equal(await page.$eval('dialog', (dialog) => dialog.getBoundingClientRect().width <= innerWidth), true);
+      await page.screenshot({ path: path.join(qa, `phase-still-modal-${width}.png`) });
+      await page.keyboard.press('Escape');
       await page.screenshot({ path: path.join(qa, `graphics-${width}.png`), fullPage: true });
     }
     await page.evaluate(() => {

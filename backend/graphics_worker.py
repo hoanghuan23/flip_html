@@ -11,7 +11,7 @@ from generate_kurzge import build_preview
 from image_asset_generator import image_config
 
 
-def run(output):
+def run(output, mode='complete'):
     protocol = sys.stdout
 
     def emit(**event):
@@ -23,7 +23,7 @@ def run(output):
 
     try:
         emit(stage='preparing')
-        if not all((planner.API_URL, planner.API_KEY, planner.MODEL)):
+        if mode != 'stills' and not all((planner.API_URL, planner.API_KEY, planner.MODEL)):
             raise ValueError('Thiếu cấu hình CODEX_API_URL, CODEX_API_TOKEN hoặc CODEX_MODEL.')
         script = json.loads((output / 'kich_ban.json').read_text(encoding='utf-8'))
         context = json.loads((output / 'render_config.json').read_text(encoding='utf-8'))
@@ -32,6 +32,11 @@ def run(output):
             raise ValueError('Thiếu cấu hình khóa API ảnh trên máy chủ.')
         progress = lambda stage, completed, total: emit(stage=stage, completed=completed, total=total)
         with (output / 'render.log').open('a', encoding='utf-8') as log, redirect_stdout(log):
+            if mode == 'stills':
+                from .still_previews import build_stills
+                build_stills(script, output, context, progress)
+                emit(status='succeeded')
+                return
             from .narration import prepare_narration
             if any(phase.get('voiceover') for phase in script['phases']):
                 prepare_narration(script, output, output.parent.parent / 'audio_cache', progress)
@@ -61,4 +66,4 @@ def run(output):
 
 
 if __name__ == '__main__':
-    run(Path(sys.argv[1]))
+    run(Path(sys.argv[1]), sys.argv[2] if len(sys.argv) > 2 else 'complete')

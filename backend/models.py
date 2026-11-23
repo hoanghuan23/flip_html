@@ -73,6 +73,7 @@ class GraphicsRequest(BaseModel):
     scriptId: str = Field(pattern=r'^[a-f0-9]{32}$')
     categoryId: str
     styleId: ConfigStyleId
+    previewOnly: bool = False
 
     @model_validator(mode='after')
     def valid_style(self):

@@ -168,14 +168,15 @@ describe("graphics generation contract", () => {
     vi.stubGlobal("fetch", fetchMock);
     expect(await createGraphicsJob(project)).toEqual(job);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
-      projectId: project.id, scriptId: project.scriptId, categoryId: project.categoryId, styleId: project.styleId,
+      projectId: project.id, scriptId: project.scriptId, categoryId: project.categoryId, styleId: project.styleId, previewOnly: true,
     });
     expect(fetchMock.mock.calls[0][0]).toBe("/api/graphics");
     expect(await getGraphicsJob(job.id)).toEqual(job);
     expect(fetchMock.mock.calls[1][0]).toBe(`/api/graphics/${job.id}`);
   });
   it("does not resume graphics tasks supplied by imported draft JSON", () => {
-    const project = { ...newProject(), graphicsJobId: "a".repeat(32) };
+    const project = { ...newProject(), graphicsJobId: "a".repeat(32), graphicsPreviewId: "b".repeat(32) };
     expect(parseDraft(project).graphicsJobId).toBeUndefined();
+    expect(parseDraft(project).graphicsPreviewId).toBeUndefined();
   });
 });

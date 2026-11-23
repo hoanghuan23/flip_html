@@ -64,12 +64,15 @@ export interface PreviewSnapshot {
 export interface GraphicsJob {
   id: string;
   projectId: string;
-  status: "queued" | "running" | "succeeded" | "failed";
+  status: "queued" | "running" | "awaiting_confirmation" | "succeeded" | "failed";
   stage: string;
   completed: number;
   total: number;
   error: string | null;
   result: PreviewSnapshot | null;
+  sourceSignature?: string;
+  confirmed?: boolean;
+  previews?: { id: string; name: string; url: string; width: number; height: number; sha256: string }[];
 }
 export interface ExportConfig {
   filename: string;
@@ -109,6 +112,7 @@ export interface ProjectDraft {
   scriptJobId?: string;
   scriptId?: string;
   graphicsJobId?: string;
+  graphicsPreviewId?: string;
   lastExportConfig?: ExportConfig;
 }
 export const defaultConfig: ExportConfig = {

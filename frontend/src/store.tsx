@@ -49,6 +49,9 @@ function initial(): State {
           graphicsJobId:
             typeof p.graphicsJobId === "string" && /^[a-f0-9]{32}$/.test(p.graphicsJobId)
               ? p.graphicsJobId : undefined,
+          graphicsPreviewId:
+            typeof p.graphicsPreviewId === "string" && /^[a-f0-9]{32}$/.test(p.graphicsPreviewId)
+              ? p.graphicsPreviewId : undefined,
           snapshot,
           jobId:
             p.jobId && /^[a-f0-9]{32}$/.test(p.jobId) ? p.jobId : undefined,

@@ -3,7 +3,8 @@
     "science": {
       "label": "Khoa học – Công nghệ",
       "allowed_styles": [
-        "3d-motion-infographic"
+        "3d-motion-infographic",
+        "3d-technical-illustration"
       ]
     },
     "economy_finance": {
@@ -24,7 +25,9 @@
     },
     "education": {
       "label": "Giáo dục",
-      "allowed_styles": []
+      "allowed_styles": [
+        "3d-technical-illustration"
+      ]
     },
     "transportation": {
       "label": "Xe – Giao thông",

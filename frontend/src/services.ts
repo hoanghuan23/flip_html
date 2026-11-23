@@ -61,8 +61,9 @@ export const scriptStages: Record<string, string> = {
   saving: "Đang lưu kịch bản…",
 };
 export const createGraphicsJob = (p: ProjectDraft) =>
-  api<GraphicsJob>("/api/graphics", previewInput(p));
+  api<GraphicsJob>("/api/graphics", { ...previewInput(p), previewOnly: true });
 export const getGraphicsJob = (id: string) => api<GraphicsJob>(`/api/graphics/${id}`);
+export const confirmGraphicsJob = (id: string) => api<GraphicsJob>(`/api/graphics/${id}/confirm`, {});
 export const exportVideo = (snapshotId: string, config: ExportConfig) =>
   api<RenderJob>("/api/exports", { snapshotId, config });
 export const getRenderJob = (id: string) => api<RenderJob>(`/api/exports/${id}`);

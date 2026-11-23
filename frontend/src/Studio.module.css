@@ -706,6 +706,126 @@
 .sectionFooter.styleFooter {
   justify-content: flex-end;
 }
+
+.phaseStills {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #eee8f3;
+}
+.phaseStillsHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.phaseStillsHeading h3 {
+  margin: 0 0 6px;
+  color: #272039;
+  font-size: 16px;
+}
+.phaseStillsHeading p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #7b728e;
+}
+.phaseStillsHeading > span {
+  flex-shrink: 0;
+  border-radius: 6px;
+  padding: 6px 9px;
+  color: #6850c7;
+  background: #f3efff;
+  font-size: 13px;
+}
+.phaseStillsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  gap: 12px;
+}
+.phaseStillCard {
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  overflow: hidden;
+  border: 1px solid #e5dfed;
+  border-radius: 9px;
+  background: white;
+  color: #544a60;
+}
+.phaseStillCard:enabled {
+  cursor: zoom-in;
+}
+.phaseStillCard:enabled:hover {
+  border-color: #8a70e8;
+  box-shadow: 0 3px 12px #6850c718;
+}
+.phaseStillCard:disabled {
+  opacity: 1;
+}
+.phaseStillImage {
+  display: block;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #f6f4fa;
+  border-bottom: 1px solid #eee8f3;
+}
+.phaseStillImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.phaseStillPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  color: #9486ae;
+}
+.phaseStillPlaceholder small {
+  font-size: 13px;
+}
+.phaseStillExpand {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  box-sizing: content-box;
+  padding: 5px;
+  border-radius: 5px;
+  color: white;
+  background: #272039b3;
+}
+.phaseStillCaption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  font-size: 14px;
+}
+.phaseStillCaption strong {
+  color: #6850c7;
+  font-weight: 600;
+}
+.phaseStillCaption > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+.modal.wideModal {
+  width: min(1120px, calc(100vw - 28px));
+}
+.phaseStillFull {
+  display: block;
+  width: 100%;
+  max-height: calc(100dvh - 170px);
+  object-fit: contain;
+  border-radius: 8px;
+  background: #f6f4fa;
+}
 .outlined-cartoon .artSun,
 .outlined-cartoon .artCloud,
 .outlined-cartoon .artHill,

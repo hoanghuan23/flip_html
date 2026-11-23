@@ -302,6 +302,7 @@ export default function App() {
           )}
         </InputPanel>
         <StylePicker
+          key={`style-${project.id}`}
           categoryId={project.categoryId}
           onCategoryChange={(categoryId) =>
             patch({
@@ -316,6 +317,9 @@ export default function App() {
           hasScript={!!project.scriptId}
           status={graphics.status}
           statusError={graphics.error}
+          scenes={project.scenes}
+          graphicsJob={graphics.reviewJob}
+          readyToConfirm={graphics.ready}
           onGenerate={() => void graphics.create()}
         />
         <PreviewPanel
