@@ -26,6 +26,14 @@ describe("script review persistence and rendering", () => {
     expect(second.scenes).toEqual([]);
     expect(parseDraft(project).scriptReview).toEqual(review);
   });
+  it("restores case 1 scripts with AI-written speech", () => {
+    const scriptReview: ScriptReview = {
+      input_type: "general_script", research: { status: "not_required", sources: [] }, warnings: [],
+    };
+    const restored = parseDraft(JSON.parse(JSON.stringify({ ...newProject(), scenes: [scene], scriptReview })));
+    expect(restored.scriptReview).toEqual(scriptReview);
+    expect(restored.scenes[0].voiceover).toBe(scene.voiceover);
+  });
   it("shows annotations, warnings, estimated duration and unverified source attribution", () => {
     const html = renderToStaticMarkup(<ScenePanel project={{ ...newProject(), scenes: [scene], scriptReview: review }}
       selectedId="1" onSelect={() => {}} />);

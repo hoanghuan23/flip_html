@@ -12,9 +12,21 @@ class InputRejectedError(ValueError):
 PHASE_HEADER = re.compile(
     r'(?im)^[ \t]*(?:#{1,6}[ \t]+)?(?:[-+*][ \t]+)?(?:\*\*)?'
     r'(?:phase|cảnh|phần)[ \t]+(?:\d+|[ivxlcdm]+)\b[^\r\n]*')
+
+
+def _section_labels(*labels):
+    """Allow aliases and compound headings within the same section category."""
+    alias = '(?:' + '|'.join(
+        r'[ \t]+'.join(re.escape(word) for word in label.split()) for label in labels
+    ) + ')'
+    return alias + r'(?:[ \t]*[/\-–—][ \t]*' + alias + r')*'
+
+
 SECTION = re.compile(
     r'(?im)^[ \t]*(?:#{1,6}[ \t]+)?(?:[-+*][ \t]+)?(?:\*\*)?'
-    r'(hoạt ảnh|mô tả|audio|thuyết minh|lời đọc)(?:\*\*)?[ \t]*[:：](?:\*\*)?[ \t]*')
+    r'(?:(?P<animation>' + _section_labels('hoạt ảnh', 'diễn biến', 'mô tả') + r')'
+    r'|(?P<voiceover>' + _section_labels('audio', 'thuyết minh', 'lời đọc', 'lời bình', 'voiceover') + r'))'
+    r'(?:\*\*)?[ \t]*[:：](?:\*\*)?[ \t]*')
 IMAGE_MENTION = re.compile(r'(?i)\b(?:ảnh|hình)[ \t]+(?:\d+|này|đính kèm|tham chiếu)\b')
 IMAGE_WARNING = 'Chỉ dẫn ảnh chưa được thực hiện: hệ thống chỉ phân tích văn bản, không nhận hoặc xem ảnh input.'
 UNVERIFIED_WARNING = 'Nội dung chưa được kiểm chứng bằng nguồn web; hãy kiểm tra trước khi dựng video.'
@@ -32,11 +44,12 @@ def parse_detailed(text):
         markers = list(SECTION.finditer(body))
         sections = {}
         for j, marker in enumerate(markers):
-            key = 'animation' if marker[1].casefold() in ('hoạt ảnh', 'mô tả') else 'voiceover'
+            key = 'animation' if marker.group('animation') is not None else 'voiceover'
             if key in sections:
                 raise InputRejectedError(f'Phase {index + 1}: có nhiều phần {key}, hãy làm rõ ranh giới.')
             sections[key] = body[marker.end():markers[j + 1].start() if j + 1 < len(markers) else len(body)].strip()
-        for key, label in [('animation', 'Hoạt ảnh/Mô tả'), ('voiceover', 'Audio/Thuyết minh/Lời đọc')]:
+        for key, label in [('animation', 'Hoạt ảnh/Diễn biến/Mô tả'),
+                           ('voiceover', 'Audio/Thuyết minh/Lời đọc/Lời bình/Voiceover')]:
             if not sections.get(key):
                 raise InputRejectedError(f'Phase {index + 1}: cần bổ sung phần {label}.')
         # Text before the first section must not be silently dropped.
@@ -86,7 +99,7 @@ def review_errors(script):
     """Optional metadata stays readable in legacy JSON; new metadata is checked."""
     errors = []
     kind = script.get('input_type')
-    if kind is not None and kind not in ('topic', 'detailed_script', 'legacy'):
+    if kind is not None and kind not in ('general_script', 'topic', 'detailed_script', 'legacy'):
         errors.append('input_type không hợp lệ.')
     warnings = script.get('warnings', [])
     if not isinstance(warnings, list) or any(not isinstance(w, str) or not w.strip() for w in warnings):
@@ -115,7 +128,7 @@ def review_errors(script):
     for index, phase in enumerate(script.get('phases', []) if isinstance(script.get('phases'), list) else [], 1):
         if not isinstance(phase, dict):
             continue
-        if kind in ('topic', 'detailed_script'):
+        if kind in ('general_script', 'topic', 'detailed_script'):
             if not isinstance(phase.get('voiceover'), str) or not phase['voiceover'].strip() or len(phase['voiceover']) > 10000:
                 errors.append(f'Phase {index}: cần voiceover có nội dung, tối đa 10.000 ký tự.')
             if 'annotations' not in phase:

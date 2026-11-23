@@ -12,7 +12,10 @@ Phong cách **3D Motion Infographic** dùng mesh Three.js, camera và ảnh tham
 chiếu đánh số trong khung thông tin; preview và MP4 có cùng giọng đọc.
 Xem cấu hình và cách sử dụng trong [hướng dẫn frontend](frontend/README.md).
 
-Web và CLI nay dùng chung phân loại văn bản `topic` / `detailed_script` / `legacy`.
+Web và CLI dùng chung phân loại `general_script` / `topic` / `detailed_script` / `legacy`.
+Kịch bản tổng quát (case 1) có bối cảnh, diễn biến/các bước và kết quả mong muốn:
+AI tự chia cảnh, viết `voiceover` tiếng Việt cho mỗi cảnh và ước tính thời lượng
+theo lời đọc, hoạt ảnh, chú giải. `narration` chỉ là ghi chú ngắn, không thay lời đọc.
 Chủ đề được nghiên cứu rồi viết lời đọc và hoạt ảnh; kịch bản đã chia phase giữ
 nguyên số cảnh, thứ tự, tên và audio. JSON bổ sung chú giải riêng, nguồn/cảnh báo
 và thời lượng dự kiến. Chỉ nhận văn bản; ảnh trong bản nháp không gửi qua API.

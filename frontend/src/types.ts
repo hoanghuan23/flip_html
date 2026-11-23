@@ -16,7 +16,7 @@ export interface Annotation {
   cue?: string | null;
 }
 export interface ScriptReview {
-  input_type?: "topic" | "detailed_script" | "legacy";
+  input_type?: "general_script" | "topic" | "detailed_script" | "legacy";
   research?: {
     status: "sources_reported" | "unverified" | "not_required";
     sources: { title: string; url: string; claims: string[] }[];
@@ -154,7 +154,7 @@ function reviewValid(value: unknown): value is ScriptReview {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const review = value as ScriptReview;
   const research = review.research;
-  return (review.input_type === undefined || ["topic", "detailed_script", "legacy"].includes(review.input_type)) &&
+  return (review.input_type === undefined || ["general_script", "topic", "detailed_script", "legacy"].includes(review.input_type)) &&
     (review.warnings === undefined || (Array.isArray(review.warnings) && review.warnings.every((w) => typeof w === "string" && !!w.trim()))) &&
     (research === undefined || (!!research &&
       ["sources_reported", "unverified", "not_required"].includes(research.status) &&

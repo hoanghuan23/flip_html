@@ -20,6 +20,14 @@ thái khóa. Tạo hoặc thử lại đồ họa ở mục 2. Nội dung có ph
 ## Phân tích văn bản: chủ đề, kịch bản chi tiết và input cũ
 
 Web và CLI dùng chung `plant_kurzge.generate_script()`; không có bộ chọn loại.
+`general_script` dành cho kịch bản tổng quát (case 1): bối cảnh, diễn biến/các bước
+xử lý và kết quả mong muốn, chưa mô tả chi tiết từng phase hoặc có lời đọc riêng.
+Ví dụ hướng dẫn phòng cháy chữa cháy và thoát hiểm chung cư có các mục `## 1. ...`.
+AI bám sát nội dung, tự chia phase và viết `voiceover` tiếng Việt hoàn chỉnh cho
+từng phase; `narration` chỉ là ghi chú ngắn riêng. Nhánh này không có bước nghiên
+cứu bổ sung (`research.status=not_required`). Thiếu hoặc rỗng `voiceover` sẽ yêu cầu
+AI sửa trước khi lưu `kich_ban.json`. Cần tạo lại kịch bản để áp dụng cho job đã lưu.
+
 `topic` nghiên cứu câu hỏi như “Mưa đá hình thành như thế nào?”, rồi tự viết
 phase, hoạt ảnh, `voiceover` và chú giải. Nghiên cứu dùng endpoint văn bản hiện có.
 `research.status=sources_reported` chỉ có nghĩa AI cung cấp nguồn hỗ trợ, chưa
@@ -27,8 +35,15 @@ phase, hoạt ảnh, `voiceover` và chú giải. Nghiên cứu dùng endpoint v
 Không tra cứu được vẫn cho phép dùng kiến thức phổ thông đủ chắc, kèm cảnh báo;
 thiếu dữ kiện cốt lõi thì yêu cầu bổ sung, không tự bịa.
 
-`detailed_script` nhận các tiêu đề Phase/Cảnh/Phần đánh số; từng phase cần đủ
-Hoạt ảnh/Mô tả và Audio/Thuyết minh/Lời đọc, có thể dùng tiêu đề Markdown:
+`detailed_script` (case 2) nhận cấu trúc rõ với các tiêu đề Phase/Cảnh/Phần đánh số;
+từng phase cần một mục hình ảnh và một mục lời đọc. Tên mục có thể thay đổi:
+
+- Hình ảnh: `Hoạt ảnh:`, `Diễn biến:`, `Mô tả:`.
+- Lời đọc: `Audio:`, `Thuyết minh:`, `Lời đọc:`, `Lời bình:`, `Voiceover:`.
+
+Chấp nhận tên ghép cùng nhóm như `Audio - Thuyết minh:` hoặc `Hoạt ảnh / Diễn biến:`,
+không phân biệt hoa thường; hỗ trợ khoảng trắng, tiêu đề Markdown và chữ đậm.
+Tên mục nằm đầu dòng và kết thúc bằng dấu hai chấm. Ví dụ:
 
 ```text
 ## Phase 1: Giới thiệu
@@ -36,15 +51,17 @@ Hoạt ảnh: Vệ tinh chuyển động phía trên Trái Đất; nhãn độ c
 Audio: Vệ tinh này hoạt động ở độ cao khoảng 550 km.
 
 ## Cảnh 2: So sánh
-Mô tả: Camera lùi để thấy Trái Đất và hai quỹ đạo.
-Lời đọc: Quỹ đạo thấp nằm gần bề mặt Trái Đất hơn quỹ đạo địa tĩnh.
+Diễn biến: Camera lùi để thấy Trái Đất và hai quỹ đạo.
+Audio - Thuyết minh: Quỹ đạo thấp nằm gần bề mặt Trái Đất hơn quỹ đạo địa tĩnh.
 ```
 
 Hệ thống giữ số phase, thứ tự, tên đã đặt và nguyên văn audio (kể cả xuống dòng),
 chỉ bổ sung chi tiết dựng cảnh. Thiếu phần hoạt ảnh/audio hoặc ranh giới không rõ
 thì yêu cầu sửa input. Không tự chia phase quá dài; tối đa 100 phase, 120 giây/phase,
-30 phút/video và 10.000 ký tự audio/phase. Luồng `legacy` tiếp tục xử lý bài viết,
-bản tin, câu chuyện và Mô tả/Thuyết minh chưa chia phase theo cách cũ.
+30 phút/video và 10.000 ký tự audio/phase. Luồng `legacy` tiếp tục giữ nguyên lời
+đọc trong Mô tả/Thuyết minh chưa chia phase. Bài viết, bản tin hoặc câu chuyện
+chưa có lời đọc riêng chuyển sang `general_script`, kể cả khi AI phân loại `legacy`.
+Phản hồi phân loại cũ không có `input_type` vẫn giữ luồng tương thích trước đây.
 
 Chú giải lưu riêng trong `annotations`: `text`, `target` (asset ID), `action_index`
 (tùy chọn, đếm từ 0), `cue` (tùy chọn, cụm lời đọc để canh thời điểm). Cue khác

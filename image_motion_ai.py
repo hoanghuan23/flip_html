@@ -13,6 +13,11 @@ VERSION = "image-motion-v3"
 NS = vector.NS
 
 
+def hidden_pose(pose):
+    return bool(re.search(r'\b(?:(?:chưa|không(?: còn)?)\s+(?:xuất hiện|hiển thị)'
+                          r'|hidden|invisible|not\s+(?:visible|shown))\b', pose, re.I))
+
+
 def image_specs(script):
     """One local canvas per asset, shared by all its poses and phases."""
     specs = []
@@ -31,7 +36,7 @@ def image_specs(script):
 
 
 def asset_prompt(script, asset, pose, style_context=None):
-    return ("Generate exactly ONE reusable PNG illustration asset, not a complete scene.\n"
+    prompt = ("Generate exactly ONE reusable PNG illustration asset, not a complete scene.\n"
             "Keep palette, identity, lighting and anchor consistent across poses. "
             "No captions, watermark, invented labels or unrelated objects.\n"
             "Apply the illustration skill's visual style. The asset, pose, canvas and PNG output "
@@ -74,6 +79,16 @@ def asset_prompt(script, asset, pose, style_context=None):
                "Origin at the center (0,0). True transparent alpha, including empty margins. "
                "Respect the described local coordinates and silhouette bounds. "
                "Do not crop tightly or recenter between poses. No scenery or painted background."))
+    if hidden_pose(pose):
+        visible = next((p['description'] for p in asset['poses'] if not hidden_pose(p['description'])),
+                       asset.get('description', ''))
+        prompt += ("\nVISIBILITY OVERRIDE: The requested hidden/not-yet-shown state belongs to the "
+                   "animation timeline, not the PNG pixels. Draw the underlying subject fully visible "
+                   "with nonzero alpha; only the surrounding background is transparent. "
+                   "Never return a blank or fully transparent PNG. The animation will hide this image "
+                   "with opacity=0 until its appearance cue. Use this visible artwork for the subject: "
+                   + visible)
+    return prompt
 
 
 def library_prompt(script, style_context=None):
@@ -114,7 +129,11 @@ def phase_prompt(script, index, library, previous=None, *, style_context=None):
             "Dùng kích thước phần hình và các điểm neo/điểm phát mà Plan mô tả để đặt tỷ lệ và hiệu ứng. "
             "Không điều khiển riêng chi tiết đã nằm trong một PNG: gắn lớp SVG phụ cạnh <use> "
             "trong cùng hệ tọa độ, thay điểm gắn theo pose khi cần. Hiệu ứng hành động đã nêu "
-            "được vẽ bằng SVG phụ theo quy tắc chung; không được bỏ chỉ vì không có PNG hiệu ứng riêng.")
+            "được vẽ bằng SVG phụ theo quy tắc chung; không được bỏ chỉ vì không có PNG hiệu ứng riêng. "
+            "Pose chỉ mô tả chưa xuất hiện/chưa hiển thị/ẩn vẫn có PNG chứa hình nhìn thấy được. "
+            "Trong animation, trạng thái đó phải có opacity=0. Khi chuyển từ ẩn sang hiện, "
+            "dùng opacity 0→1 theo mốc action; không crossfade hai ảnh cùng nhìn thấy được. "
+            "Khi chuyển từ hiện sang ẩn, dùng opacity 1→0.")
 
 
 class Renderer(vector.Renderer):
@@ -136,9 +155,12 @@ class Renderer(vector.Renderer):
                               *((p["id"], p["description"]) for p in asset["poses"])]:
                 if pose not in generated:
                     print(f"  generate_image: {asset['id']} ({pose})…", flush=True)
-                    generated[pose] = generator.generate(asset_prompt(self.script, asset, pose, self.style_context),
-                                                        transparent=asset["transparent"],
-                                                        requested_size=[asset["width"], asset["height"]])
+                    try:
+                        generated[pose] = generator.generate(asset_prompt(self.script, asset, pose, self.style_context),
+                                                            transparent=asset["transparent"],
+                                                            requested_size=[asset["width"], asset["height"]])
+                    except ValueError as error:
+                        raise ValueError(f"Asset {asset['id']} ({pose}): {error}") from error
                     completed += 1
                     self.progress('images', completed, total)
                 path, info = generated[pose]
