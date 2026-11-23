@@ -88,9 +88,12 @@ describe("category style configuration", () => {
       "Thế giới – Quân sự", "Sức khỏe – Y tế", "Giáo dục", "Xe – Giao thông",
       "Bất động sản – Quy hoạch", "Tất cả phong cách",
     ]);
-    expect(categories.find((c) => c.id === "science")?.allowedStyles).toEqual(["3d-motion-infographic"]);
-    expect(categories.filter((c) => !["science", "all_styles"].includes(c.id)).every((c) => !c.allowedStyles.length)).toBe(true);
-    expect(categories.find((c) => c.id === "all_styles")?.allowedStyles).toHaveLength(16);
+    expect(categories.find((c) => c.id === "science")?.allowedStyles).toEqual(["3d-motion-infographic", "3d-technical-illustration"]);
+    expect(categories.find((c) => c.id === "education")?.allowedStyles).toEqual(["3d-technical-illustration"]);
+    expect(categories.filter((c) => !["science", "education", "all_styles"].includes(c.id)).every((c) => !c.allowedStyles.length)).toBe(true);
+    expect(categories.find((c) => c.id === "all_styles")?.allowedStyles).toHaveLength(17);
+    expect(styleForCategory("education", "flat")).toBe("3d-technical-illustration");
+    expect(restoreStyle("3d-technical-illustration")).toBe("3d-technical-illustration");
     expect(styleForCategory("science", "outlined-cartoon")).toBe("3d-motion-infographic");
     expect(styleForCategory("science", "flat")).toBe("3d-motion-infographic");
     expect(newProject()).toMatchObject({ categoryId: "science", styleId: "3d-motion-infographic" });

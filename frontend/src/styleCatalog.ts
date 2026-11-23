@@ -8,6 +8,11 @@ interface StyleDetails {
 }
 
 const details: Record<string, Omit<StyleDetails, "id">> = {
+  "3d-technical-illustration": {
+    name: "3D Technical Illustration",
+    description: "Minh họa kỹ thuật chân thực, cắt lớp cấu tạo và diễn hoạt từng bộ phận theo lời đọc.",
+    colors: ["#f3f6fa", "#175fc0", "#ed9c2c"],
+  },
   "3d-motion-infographic": {
     name: "3D Motion Infographic",
     description: "Không gian 3D, camera chuyển động, ảnh tham chiếu và chú thích theo lời thuyết minh.",

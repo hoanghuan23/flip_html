@@ -1,0 +1,17 @@
+{
+  "name": "3D Technical Illustration",
+  "renderer": "image-motion-v3",
+  "background": "#f3f6fa",
+  "palette": [
+    {"name": "ink", "hex": "#142a43"},
+    {"name": "hero", "hex": "#175fc0"},
+    {"name": "energy", "hex": "#ed9c2c"},
+    {"name": "coolant", "hex": "#22a7c9"},
+    {"name": "recovery", "hex": "#299d76"},
+    {"name": "metal", "hex": "#aab6c4"}
+  ],
+  "layout": "full-frame",
+  "font": "Be Vietnam Pro",
+  "lighting": "soft upper-left key with neutral fill",
+  "technique": "realistic layered PNG cutaways with SVG labels and absolute-time motion"
+}

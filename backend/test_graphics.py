@@ -323,6 +323,18 @@ class GraphicsApiTests(unittest.TestCase):
         self.assertEqual(sample.json()['url'], '/api/styles/3d-motion-infographic/demo/index.html')
         self.assertEqual(self.client.get(sample.json()['url']).status_code, 200)
 
+    def test_technical_style_is_selectable_and_has_a_seekable_demo(self):
+        for category in ('science', 'education', 'all_styles'):
+            with self.subTest(category=category):
+                response = self.create(categoryId=category, styleId='3d-technical-illustration')
+                self.assertEqual(response.status_code, 202, response.text)
+        sample = self.client.get('/api/styles/3d-technical-illustration/preview')
+        self.assertEqual(sample.status_code, 200)
+        demo = self.client.get(sample.json()['url'])
+        self.assertEqual(demo.status_code, 200)
+        self.assertIn('window.renderAt', demo.text)
+        self.assertIn('data:image/png;base64,', demo.text)
+
     def test_rejects_missing_pending_script_and_invalid_category_style(self):
         self.assertEqual(self.create(scriptId='b' * 32).status_code, 409)
         self.assertEqual(self.create(styleId='../flat').status_code, 422)

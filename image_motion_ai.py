@@ -196,7 +196,17 @@ class Renderer(vector.Renderer):
             root.set("data-renderer", vector.VERSION)
             raw = ET.tostring(root, encoding="unicode")
         result = super().clean_phase(raw, index)
-        return result.replace(f'data-renderer="{vector.VERSION}"', f'data-renderer="{VERSION}"', 1)
+        # Each PNG group is self-contained. Embed only those used by this scene,
+        # so a multi-scene player does not decode every full-resolution PNG nine times.
+        root = ET.fromstring(result)
+        used = {(e.get('href') or e.get('{http://www.w3.org/1999/xlink}href', ''))[1:]
+                for e in root.findall(f'.//{{{NS}}}use')}
+        defs = root.find(f'{{{NS}}}defs[@id="program-assets"]')
+        for group in list(defs):
+            if group.get('id') not in used:
+                defs.remove(group)
+        root.set('data-renderer', VERSION)
+        return ET.tostring(root, encoding='unicode')
 
     def render(self, index, previous=None):
         prompt = phase_prompt(self.script, index, prompt_library(self.script), previous, style_context=self.style_context)

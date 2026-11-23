@@ -41,9 +41,10 @@ PHASE_HTML = """<!doctype html>
 <style>html,body{margin:0;height:100%;background:<<BACKGROUND>>;overflow:hidden}svg{width:100%;height:100%;display:block}svg text{font-family:"Be Vietnam Pro",system-ui,sans-serif}</style>
 </head><body><<SVG>>
 <script>
-var D=<<DURATION>>,manual=false;
-function seek(t){t=Number.isFinite(t)?Math.max(0,Math.min(D,t)):0;document.getAnimations().forEach(function(a){a.pause();a.currentTime=t*1000})}
+var D=<<DURATION>>,manual=false,requestedTime=0;
+function seek(t){t=Number.isFinite(t)?Math.max(0,Math.min(D,t)):0;requestedTime=t;document.getAnimations().forEach(function(a){a.pause();a.currentTime=t*1000})}
 window.renderAt=function(t){manual=true;seek(t)};
+window.previewReady=Promise.all([document.fonts.ready].concat(Array.from(document.querySelectorAll('svg image')).map(function(node){return new Promise(function(resolve,reject){var img=new Image();img.onload=resolve;img.onerror=function(){reject(new Error('Không tải được asset PNG'))};img.src=node.getAttribute('href')})}))).then(function(){seek(requestedTime);return true});
 addEventListener("message",function(e){if(e.source===parent&&e.data&&Number.isFinite(e.data.t))seek(e.data.t)});
 if(parent===window){var s=performance.now();(function f(n){if(!manual)seek(((n-s)/1000)%D);requestAnimationFrame(f)})(s)}else{seek(0)}
 </script></body></html>
