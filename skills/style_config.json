@@ -26,7 +26,8 @@
     "education": {
       "label": "Giáo dục",
       "allowed_styles": [
-        "3d-technical-illustration"
+        "3d-technical-illustration",
+        "2d-educational-illustration"
       ]
     },
     "transportation": {
@@ -56,7 +57,8 @@
         "two-colour-brush",
         "vintage-emblem",
         "3d-motion-infographic",
-        "3d-technical-illustration"
+        "3d-technical-illustration",
+        "2d-educational-illustration"
       ]
     }
   },

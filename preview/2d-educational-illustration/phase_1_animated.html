@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Phase 1 · Quy trình xử lý khi xảy ra cháy</title>
+  <style>
+    :root{color-scheme:light;font-family:Arial,"Be Vietnam Pro",sans-serif;color:#201b20;background:#181922}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center}
+    main{width:min(100vw,1600px);background:#fff3cb;box-shadow:0 16px 55px #0008}
+    svg{display:block;width:100%;aspect-ratio:16/9;background:#fff3cb}
+    .controls{display:flex;align-items:center;gap:12px;padding:11px 18px;background:#fffaf0;border-top:3px solid #201b20}
+    button{border:2px solid #201b20;border-radius:6px;background:#e94a39;color:white;font-weight:800;font-size:15px;padding:8px 16px;cursor:pointer}
+    button:focus-visible,input:focus-visible{outline:3px solid #536cce;outline-offset:2px}
+    input[type=range]{flex:1;accent-color:#e94a39;min-width:80px}output{font-variant-numeric:tabular-nums;min-width:95px;text-align:right;font-weight:700}
+    #audioStatus{font-size:13px;color:#8e2020;margin:0 16px 12px;display:none}
+    body.embedded{background:transparent;min-height:0;display:block}body.embedded main{width:100%;box-shadow:none}
+    body.embedded .controls,body.embedded #audioStatus{display:none!important}
+    .ink{fill:#201b20}.outline{stroke:#201b20;stroke-width:7;stroke-linejoin:round;stroke-linecap:round}
+    .title{font-size:66px;letter-spacing:1px;font-weight:800;fill:#e94a39}
+    .step-title{font-size:60px;font-weight:900;fill:#201b20}
+    .body-text{font-size:36px;font-weight:800;fill:#201b20}
+    .small-text{font-size:29px;font-weight:700;fill:#201b20}
+    .number{font-size:112px;font-weight:800;fill:white;text-anchor:middle}
+    .scene{opacity:0}
+  </style>
+  <script src="assets/audio-timing.js"></script>
+</head>
+<body>
+<main>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" role="img" aria-label="Hoạt ảnh Phase 1: báo động, ngắt điện an toàn, chữa cháy ban đầu và gọi 114">
+  <defs>
+    <clipPath id="roundFrame"><rect x="64" y="170" width="1792" height="790" rx="20"/></clipPath>
+    <symbol id="bell" viewBox="0 0 350 420">
+      <circle cx="153" cy="165" r="111" fill="#f46f4a" stroke="#201b20" stroke-width="7"/>
+      <circle cx="153" cy="165" r="94" fill="#e64037"/>
+      <path d="M151 72a94 94 0 0 1 0 186" fill="#cf302f" opacity=".55"/>
+      <circle cx="153" cy="165" r="16" fill="#28242b" stroke="#101014" stroke-width="4"/>
+      <path d="M136 276h34v33h-34z" fill="#342932" stroke="#201b20" stroke-width="5"/>
+      <rect x="108" y="307" width="90" height="65" rx="7" fill="#e64037" stroke="#201b20" stroke-width="7"/>
+      <path d="M115 317h77" stroke="#f46f4a" stroke-width="8"/>
+      <path d="M199 337q65-8 93-78" fill="none" stroke="#201b20" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="296" cy="250" r="17" fill="#242329" stroke="#201b20" stroke-width="4"/>
+    </symbol>
+    <symbol id="phone" viewBox="0 0 420 700">
+      <rect x="28" y="16" width="364" height="664" rx="48" fill="#282536" stroke="#201b20" stroke-width="15"/>
+      <rect x="57" y="91" width="306" height="493" rx="8" fill="#667eb2" stroke="#201b20" stroke-width="6"/>
+      <rect x="162" y="50" width="96" height="10" rx="5" fill="#f7eee5"/>
+      <text x="210" y="337" text-anchor="middle" font-size="148" font-weight="900" fill="#fff">114</text>
+      <text x="210" y="395" text-anchor="middle" font-size="27" font-weight="700" fill="#fff">ĐANG GỌI...</text>
+      <circle cx="210" cy="494" r="51" fill="#e94a39" stroke="#201b20" stroke-width="6"/>
+      <path d="M178 489q32 31 64 0" fill="none" stroke="#fff" stroke-width="17" stroke-linecap="round"/>
+      <circle cx="210" cy="629" r="15" fill="#fff"/>
+    </symbol>
+  </defs>
+
+  <!-- Opening inside the house -->
+  <g id="scene-intro" class="scene">
+    <g id="introCamera"><image href="assets/living-room.png" width="1920" height="1080" preserveAspectRatio="xMidYMid slice"/>
+      <image href="assets/alarm-man.png" x="1110" y="270" width="600" height="656" preserveAspectRatio="xMidYMid meet"/>
+      <g id="introSmoke" fill="#554e54" stroke="#201b20" stroke-width="4"><circle cx="138" cy="405" r="38"/><circle cx="118" cy="337" r="25"/><circle cx="165" cy="279" r="21"/></g>
+    </g>
+    <rect y="0" width="1920" height="155" fill="#fffaf0" opacity=".96"/>
+    <text x="960" y="106" text-anchor="middle" class="title">QUY TRÌNH XỬ LÝ KHI XẢY RA CHÁY</text>
+    <rect x="555" y="893" width="810" height="117" rx="21" fill="#e94a39" stroke="#201b20" stroke-width="7"/>
+    <text x="960" y="967" text-anchor="middle" font-size="60" font-weight="900" fill="#fff">PHÁT HIỆN CHÁY!</text>
+  </g>
+
+  <!-- Step 1: shout and alarm -->
+  <g id="scene-alarm" class="scene">
+    <rect width="1920" height="1080" fill="#e8a6a7"/>
+    <rect x="63" y="170" width="1794" height="760" rx="18" fill="#ffe34d" stroke="#201b20" stroke-width="7"/>
+    <rect x="63" y="170" width="240" height="760" rx="18" fill="#5a4d78"/>
+    <text x="183" y="577" class="number">1</text>
+    <image href="assets/alarm-man.png" x="335" y="223" width="590" height="646" preserveAspectRatio="xMidYMid meet"/>
+    <text x="963" y="351" font-size="72" font-weight="900" fill="#201b20" transform="rotate(-7 963 351)">CHÁY! CHÁY! CHÁY!</text>
+    <g id="bellSwing"><use href="#bell" x="1170" y="401" width="450" height="470"/></g>
+    <g id="bellWaves" fill="none" stroke="#201b20" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m1249 475-26-29 19 5-22-26"/><path d="m1198 525-27-12 17-6-28-14"/>
+      <path d="m1548 468 26-29-19 5 22-26"/><path d="m1596 524 28-12-17-6 28-14"/>
+    </g>
+    <rect x="80" y="955" width="1760" height="94" rx="13" fill="#fff6d5"/>
+    <text x="135" y="1018" class="body-text">BÁO ĐỘNG · HÔ HOÁN · ẤN CHUÔNG BÁO CHÁY</text>
+  </g>
+
+  <!-- Step 2: power off, safe distance -->
+  <g id="scene-power" class="scene">
+    <rect width="1920" height="1080" fill="#e8a6a7"/>
+    <rect x="63" y="170" width="1794" height="760" rx="18" fill="#fdec01" stroke="#201b20" stroke-width="7"/>
+    <rect x="63" y="170" width="240" height="760" rx="18" fill="#5a4d78"/>
+    <text x="183" y="577" class="number">2</text>
+    <text x="390" y="289" class="step-title">NGẮT ĐIỆN</text>
+    <text x="395" y="350" class="small-text">Chỉ thực hiện khi có thể tiếp cận an toàn</text>
+    <image id="powerOn" href="assets/power-on.png" x="340" y="380" width="1460" height="540" preserveAspectRatio="xMidYMid meet"/>
+    <image id="powerOff" href="assets/power-off.png" x="340" y="380" width="1460" height="540" preserveAspectRatio="xMidYMid meet" opacity="0"/>
+    <text x="903" y="510" font-size="42" font-weight="800" fill="#39a843" text-anchor="middle">MỞ</text>
+    <text x="903" y="798" font-size="42" font-weight="800" fill="#d72e2e" text-anchor="middle">TẮT</text>
+    <g id="powerArrow" fill="none" stroke="#e94a39" stroke-width="23" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1676 599v173"/><path d="m1629 732 47 51 47-51"/>
+    </g>
+    <rect x="80" y="955" width="1760" height="94" rx="13" fill="#fff6d5"/>
+    <text x="135" y="1018" class="body-text">GẠT CẦU DAO TỪ MỞ XUỐNG TẮT</text>
+  </g>
+
+  <!-- Step 3: extinguisher and open escape -->
+  <g id="scene-fight" class="scene">
+    <g id="fightCamera"><image href="assets/extinguisher-panel.png" width="1920" height="1080" preserveAspectRatio="xMidYMid slice"/></g>
+    <rect x="0" y="0" width="1920" height="162" fill="#fffaf0" opacity=".97"/>
+    <rect x="55" y="15" width="135" height="130" rx="18" fill="#5a4d78"/>
+    <text x="122" y="117" class="number" font-size="98">3</text>
+    <text x="227" y="109" class="step-title">CHỮA CHÁY BAN ĐẦU</text>
+    <path id="exitArrow" d="M1772 483v133m-44-45 44 53 44-53" fill="none" stroke="#4ba949" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="57" y="949" width="1806" height="105" rx="15" fill="#fff9df" stroke="#201b20" stroke-width="5"/>
+    <text x="100" y="1017" class="body-text">ĐÁM CHÁY NHỎ · HƯỚNG VÒI VÀO GỐC LỬA · GIỮ LỐI THOÁT</text>
+  </g>
+
+  <!-- Step 4: emergency call -->
+  <g id="scene-phone" class="scene">
+    <rect width="1920" height="1080" fill="#e8a6a7"/>
+    <rect x="63" y="170" width="1794" height="760" rx="18" fill="#ffe34d" stroke="#201b20" stroke-width="7"/>
+    <rect x="63" y="170" width="240" height="760" rx="18" fill="#5a4d78"/>
+    <text x="183" y="577" class="number">4</text>
+    <text x="409" y="302" class="step-title">GỌI BÁO CHÁY 114</text>
+    <text x="411" y="369" class="small-text">Gọi ngay khi phát hiện cháy</text>
+    <g id="phoneZoom"><use href="#phone" x="996" y="252" width="510" height="660"/></g>
+    <g id="callWaves" fill="none" stroke="#201b20" stroke-width="11" stroke-linecap="round">
+      <path d="M930 440q-95 140 0 280"/><path d="M866 399q-147 185 0 368"/>
+      <path d="M1560 440q95 140 0 280"/><path d="M1624 399q147 185 0 368"/>
+    </g>
+    <rect x="80" y="955" width="1760" height="94" rx="13" fill="#fff6d5"/>
+    <text x="135" y="1018" class="body-text">CHÁY LAN MẠNH? NHANH CHÓNG THOÁT NẠN</text>
+  </g>
+
+  <!-- Final 2x2 recap: same four original illustrations, no scanned page -->
+  <g id="scene-recap" class="scene">
+    <rect width="1920" height="1080" fill="#e8a6a7"/>
+    <rect x="0" y="0" width="1920" height="169" fill="#fffaf0"/>
+    <text x="960" y="111" text-anchor="middle" class="title">QUY TRÌNH XỬ LÝ KHI XẢY RA CHÁY</text>
+    <g id="card1"><rect x="66" y="202" width="872" height="344" rx="16" fill="#ffe34d" stroke="#201b20" stroke-width="6"/>
+      <rect x="66" y="202" width="114" height="344" rx="15" fill="#5a4d78"/><text x="123" y="403" text-anchor="middle" font-size="94" font-weight="900" fill="#fff">1</text>
+      <image href="assets/alarm-man.png" x="193" y="215" width="280" height="306" preserveAspectRatio="xMidYMid meet"/><use href="#bell" x="577" y="246" width="252" height="264"/>
+      <text x="501" y="528" text-anchor="middle" font-size="36" font-weight="900" fill="#201b20">BÁO ĐỘNG</text></g>
+    <g id="card2"><rect x="982" y="202" width="872" height="344" rx="16" fill="#fdec01" stroke="#201b20" stroke-width="6"/>
+      <rect x="982" y="202" width="114" height="344" rx="15" fill="#5a4d78"/><text x="1039" y="403" text-anchor="middle" font-size="94" font-weight="900" fill="#fff">2</text>
+      <image href="assets/power-off.png" x="1120" y="208" width="675" height="282" preserveAspectRatio="xMidYMid meet"/><text x="1391" y="528" text-anchor="middle" font-size="36" font-weight="900" fill="#201b20">NGẮT ĐIỆN AN TOÀN</text></g>
+    <g id="card3"><rect x="66" y="579" width="872" height="344" rx="16" fill="#ffe34d" stroke="#201b20" stroke-width="6"/>
+      <rect x="66" y="579" width="114" height="344" rx="15" fill="#5a4d78"/><text x="123" y="777" text-anchor="middle" font-size="94" font-weight="900" fill="#fff">3</text>
+      <image href="assets/extinguisher-panel.png" x="190" y="594" width="718" height="260" preserveAspectRatio="xMidYMid slice"/>
+      <text x="508" y="904" text-anchor="middle" font-size="35" font-weight="900" fill="#201b20">CHỮA CHÁY BAN ĐẦU</text></g>
+    <g id="card4"><rect x="982" y="579" width="872" height="344" rx="16" fill="#ffe34d" stroke="#201b20" stroke-width="6"/>
+      <rect x="982" y="579" width="114" height="344" rx="15" fill="#5a4d78"/><text x="1039" y="777" text-anchor="middle" font-size="94" font-weight="900" fill="#fff">4</text>
+      <use href="#phone" x="1335" y="590" width="199" height="270"/><text x="1391" y="904" text-anchor="middle" font-size="39" font-weight="900" fill="#201b20">GỌI 114 NGAY</text></g>
+    <rect x="263" y="953" width="1394" height="87" rx="14" fill="#fffaf0" stroke="#201b20" stroke-width="5"/>
+    <text x="960" y="1012" text-anchor="middle" font-size="42" font-weight="900" fill="#d92e30">BÁO CHÁY NGAY · KHÔNG CHỜ CHỮA CHÁY XONG</text>
+  </g>
+
+  <!-- Immediate call reminder stays visible from the matching narration cue. -->
+  <g id="early114" opacity="0"><rect x="1416" y="16" width="464" height="117" rx="18" fill="#d92e30" stroke="#201b20" stroke-width="6"/>
+    <text x="1648" y="91" text-anchor="middle" font-size="53" font-weight="900" fill="#fff">GỌI NGAY 114</text></g>
+</svg>
+<div class="controls"><button id="play" type="button">Phát</button><input id="timeline" type="range" min="0" max="27.57" step="0.01" value="0" aria-label="Tua preview Phase 1"><output id="time">0:00 / 0:28</output></div>
+<p id="audioStatus" role="status"></p>
+<audio id="voice" src="assets/phase-1-vi.mp3" preload="auto"></audio>
+</main>
+<script>window.renderAt = function(t) { window.phaseSeek(t); };</script>
+<script src="assets/scene.js"></script>
+</body>
+</html>

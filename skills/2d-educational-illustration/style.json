@@ -1,0 +1,16 @@
+{
+  "name": "2D Educational Illustration",
+  "background": "#f2edf5",
+  "palette": [
+    {"name": "ink", "hex": "#242024", "role": "thin to medium contours and restrained facial detail"},
+    {"name": "paper", "hex": "#f2edf5", "role": "pale lavender background"},
+    {"name": "white", "hex": "#f8f6f2", "role": "open fields and simple equipment"},
+    {"name": "skin", "hex": "#f5cb57", "role": "warm yellow skin fill"},
+    {"name": "plum", "hex": "#9d557f", "role": "muted clothing contrast"},
+    {"name": "ochre", "hex": "#bd9a59", "role": "trousers and neutral objects"},
+    {"name": "coral", "hex": "#dc5345", "role": "small action accents"},
+    {"name": "gray", "hex": "#aaa6a7", "role": "simple equipment"}
+  ],
+  "line": "Thin to medium, slightly uneven near-black contours; minimal interior marks and small facial features.",
+  "technique": "Old printed handbook cartoon: simple silhouettes, flat opaque fills, sparse background and no gradients or decorative texture."
+}
