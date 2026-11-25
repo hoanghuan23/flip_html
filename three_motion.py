@@ -224,6 +224,15 @@ def build_preview(script, output, request, *, style_context, references=None, on
                 text = ''.join(alignment['characters'])
                 speech = [{'text': word[0], 't': alignment['character_start_times_seconds'][word.start()]}
                           for word in re.finditer(r'\S+', text)]
+            timing_instructions = (
+                'Later keys may have cue: an EXACT short phrase from the voiceover. '
+                'A cue REPLACES t (or overlay start) with the FIRST occurrence of that phrase in the audio; '
+                'the resolved time must still be strictly after the preceding key and before the next. '
+                'Do not reuse a cue in one key sequence or add a cue to its initial key. '
+                'Use the speech word times below to check ordering before returning JSON. '
+                'Give overlays a cue to reveal them during the related sentence; end must be after the resolved start. '
+                if alignment else
+                'No speech timestamps are available. Omit every cue field and use numeric t/start/end times. ')
             prompt = ('Return ONLY JSON for a real Three.js editorial infographic scene. Do not output code.\n'
                       + style_context['skill'] + '\nSTYLE PRESET:\n' + json.dumps(style_context.get('preset', {}), ensure_ascii=False)
                       + '\nJSON SCHEMA:\n' + json.dumps(schema)
@@ -234,13 +243,8 @@ def build_preview(script, output, request, *, style_context, references=None, on
                       'Nodes support only texture earth; do not invent any other texture. '
                       'Camera and every track must begin at t=0 with no cue. '
                       'Each key sequence must be strictly increasing, with no duplicate times. '
-                      'Later keys may have cue: an EXACT short phrase from the voiceover. '
-                      'A cue REPLACES t (or overlay start) with the FIRST occurrence of that phrase in the audio; '
-                      'the resolved time must still be strictly after the preceding key and before the next. '
-                      'Do not reuse a cue in one key sequence or add a cue to its initial key. '
-                      'Use the speech word times below to check ordering before returning JSON. '
-                      'Give overlays a cue to reveal them during the related sentence; end must be after the resolved start. '
-                      f"Times are absolute seconds LOCAL to this phase, between 0 and {phase['duration']} inclusive. "
+                      + timing_instructions
+                      + f"Times are absolute seconds LOCAL to this phase, between 0 and {phase['duration']} inclusive. "
                       'Use this exact measured duration for final keys; do not round it up or use the full video duration. '
                       'Overlays x/y are normalized top-left screen coordinates. A target label anchors to a mesh. '
                       'Connector target/anchor and endTarget/endAnchor are mesh-local 3D endpoints BEFORE scale; '

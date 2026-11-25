@@ -1,13 +1,12 @@
-import base64
 import copy
 import io
+from importlib.metadata import PackageNotFoundError
 import json
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
-from urllib.error import HTTPError, URLError
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -15,7 +14,7 @@ from PIL import Image
 from backend.app import create_app
 from backend.inputs import attach_voiceover, split_input
 from backend.models import GraphicsRequest
-from backend.narration import prepare_narration, synthesize
+from backend.narration import get_tts, prepare_narration, synthesize, tts_config
 from backend.graphics import completed_snapshot
 from backend.test_scripts import ACCEPTED, screenplay
 from backend.script_worker import run as script_worker
@@ -55,15 +54,23 @@ class NarratedTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         result = subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1.7',
-                                 '-f', 'mp3', 'pipe:1'], check=True, capture_output=True)
-        cls.mp3 = result.stdout
+                                 '-f', 'wav', 'pipe:1'], check=True, capture_output=True)
+        cls.wav = result.stdout
 
-    def response(self, text='Độ cao 550 km.'):
-        return io.BytesIO(json.dumps({'audio_base64': base64.b64encode(self.mp3).decode(),
-                                     'alignment': alignment(text)}).encode())
+    def setUp(self):
+        get_tts.cache_clear()
+        self.addCleanup(get_tts.cache_clear)
+        self.version = patch('backend.narration.version', return_value='3.8.5')
+        self.version.start()
+        self.addCleanup(self.version.stop)
+
+    def engine(self):
+        tts = Mock()
+        tts.save.side_effect = lambda audio, path: Path(path).write_bytes(self.wav)
+        return patch('backend.narration.get_tts', return_value=tts)
 
     def config(self):
-        return patch.dict('os.environ', {'ELEVENLABS_API_KEY': 'private-test-secret', 'ELEVENLABS_VOICE_ID': 'test-voice'})
+        return patch.dict('os.environ', {'VIENEU_VOICE': ''})
 
     def test_sections_and_consecutive_voice_segments_are_lossless(self):
         source = 'Vệ tinh\nMô tả:\nCamera tiến gần.\nThuyết minh:\n“Câu một.\nCâu hai.”'
@@ -96,65 +103,96 @@ class NarratedTests(unittest.TestCase):
             self.assertNotIn('assets/references', api.call_args.args[0])
 
     def test_tts_cache_and_invalid_cache_regeneration(self):
-        with tempfile.TemporaryDirectory() as temporary, self.config(), patch('backend.narration.urlopen', side_effect=lambda *a, **k: self.response()) as api:
+        with tempfile.TemporaryDirectory() as temporary, self.config(), self.engine() as factory:
             directory = Path(temporary)
             path, metadata = synthesize('Độ cao 550 km.', directory)
-            synthesize('Độ cao 550 km.', directory)
-            self.assertEqual(api.call_count, 1)
-            self.assertGreater(metadata['duration'], 1.7)
-            request = api.call_args.args[0]
-            self.assertEqual(json.loads(request.data)['model_id'], 'eleven_flash_v2_5')
-            self.assertNotIn('private-test-secret', path.name + path.with_suffix('.json').read_text())
+            synthesize('Độ cao 550 km.', directory, previous_text='Cảnh trước.', next_text='Cảnh sau.')
+            tts = factory.return_value
+            tts.infer.assert_called_once_with(text='Độ cao 550 km.', voice='Hải Đăng')
+            self.assertEqual(factory.call_count, 1)
+            self.assertEqual(path.suffix, '.wav')
+            self.assertAlmostEqual(metadata['duration'], 1.7, places=2)
+            self.assertEqual(metadata['provider'], 'vieneu')
+            self.assertIsNone(metadata['alignment'])
             path.write_bytes(b'broken')
             synthesize('Độ cao 550 km.', directory)
-            self.assertEqual(api.call_count, 2)
+            self.assertEqual(tts.infer.call_count, 2)
+            metadata_path = path.with_suffix('.json')
+            saved = json.loads(metadata_path.read_text())
+            saved['duration'] += 1
+            metadata_path.write_text(json.dumps(saved))
+            synthesize('Độ cao 550 km.', directory)
+            self.assertEqual(tts.infer.call_count, 3)
+            with patch.dict('os.environ', {'VIENEU_VOICE': 'Minh Quân'}):
+                other, _ = synthesize('Độ cao 550 km.', directory)
+            self.assertNotEqual(path, other)
+            tts.infer.assert_called_with(text='Độ cao 550 km.', voice='Minh Quân')
+            with patch('backend.narration.version', return_value='3.8.6'):
+                upgraded, _ = synthesize('Độ cao 550 km.', directory)
+            self.assertNotEqual(path, upgraded)
 
-    def test_tts_errors_are_specific_and_never_expose_key(self):
-        with tempfile.TemporaryDirectory() as temporary, self.config():
-            errors = [HTTPError('test', code, 'private-test-secret', {}, None) for code in (401, 403, 429, 500)]
-            errors += [URLError('private-test-secret'), TimeoutError()]
-            for error in errors:
-                with self.subTest(error=type(error).__name__), patch('backend.narration.urlopen', side_effect=error):
-                    with self.assertRaises(ValueError) as caught:
-                        synthesize('text', Path(temporary))
-                    self.assertNotIn('private-test-secret', str(caught.exception))
-            with patch('backend.narration.urlopen', return_value=io.BytesIO(b'{"audio_base64":"Yg=="}')):
-                with self.assertRaises(ValueError):
-                    synthesize('text', Path(temporary))
-            quota = HTTPError('test', 401, 'unauthorized', {}, io.BytesIO(b'{"detail":{"status":"quota_exceeded"}}'))
-            with patch('backend.narration.urlopen', side_effect=quota):
-                with self.assertRaisesRegex(ValueError, 'hạn mức'):
-                    synthesize('text', Path(temporary))
-            with patch('backend.narration.urlopen', return_value=io.BytesIO(b'not json')):
-                with self.assertRaisesRegex(ValueError, 'JSON'):
-                    synthesize('text', Path(temporary))
+    def test_tts_model_is_loaded_once_and_initialization_errors_are_clear(self):
+        module = Mock()
+        with patch.dict('sys.modules', {'vieneu': module}):
+            self.assertIs(get_tts(), get_tts())
+            module.Vieneu.assert_called_once_with()
+            get_tts.cache_clear()
+            module.Vieneu.side_effect = RuntimeError('model unavailable')
+            with self.assertRaisesRegex(ValueError, 'khởi tạo được VieNeu'):
+                get_tts()
+        with patch('backend.narration.version', side_effect=PackageNotFoundError):
+            with self.assertRaisesRegex(ValueError, 'pip install'):
+                tts_config()
+
+    def test_tts_errors_do_not_publish_broken_audio_or_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary, self.config(), self.engine() as factory:
+            directory = Path(temporary)
+            tts = factory.return_value
+            tts.infer.side_effect = RuntimeError('internal model error')
+            with self.assertRaisesRegex(ValueError, 'VIENEU_VOICE'):
+                synthesize('text', directory)
+            tts.infer.side_effect = None
+            tts.save.side_effect = lambda audio, path: Path(path).write_bytes(b'broken wav')
+            with self.assertRaisesRegex(ValueError, 'ffprobe'):
+                synthesize('text', directory)
+            self.assertEqual(list(directory.iterdir()), [])
+            tts.save.side_effect = OSError('disk full')
+            with self.assertRaisesRegex(ValueError, 'cache'):
+                synthesize('text', directory)
+            self.assertEqual(list(directory.iterdir()), [])
 
     def test_measured_audio_flows_to_3d_snapshot_and_export(self):
         text = 'Độ cao 550 km.'
-        with tempfile.TemporaryDirectory() as temporary, self.config(), patch('backend.narration.urlopen', side_effect=lambda *a, **k: self.response(text)):
+        with tempfile.TemporaryDirectory() as temporary, self.config(), self.engine():
             storage = Path(temporary)
             output = storage / 'previews' / ('b'*32)
             output.mkdir(parents=True)
             script = screenplay()
             script['phases'][0]['voiceover'] = text
             script['phases'][0]['actions'][0]['cue'] = '550'
+            original = copy.deepcopy(script['phases'][0])
             refs = reference(output)
             prepare_narration(script, output, storage / 'cache')
             phase = script['phases'][0]
             self.assertLess(phase['duration'], 2)
             self.assertAlmostEqual(phase['duration'] * 30, round(phase['duration'] * 30))
-            self.assertGreater(phase['actions'][0]['start'], 0)
+            self.assertAlmostEqual(phase['actions'][0]['start'],
+                                   original['actions'][0]['start'] / original['duration'] * phase['duration'])
             (output / 'kich_ban.json').write_text(json.dumps(script))
             context = load_render_style('3d-motion-infographic')
             (output / 'render_config.json').write_text(json.dumps(context))
             def generate(_):
-                return json.dumps(mesh_plan(phase['duration']))
+                self.assertIn('Omit every cue field', _)
+                plan = mesh_plan(phase['duration'])
+                plan['overlays'][1].pop('cue')
+                return json.dumps(plan)
             revision = build_preview(script, output, generate, style_context=context, references=refs)
             config = {'projectId': 'test', 'scriptId': 'a'*32, 'categoryId': '3D', 'styleId': context['id']}
             snapshot = completed_snapshot(storage, {'id': output.name, 'config': config}, revision)
             self.assertEqual(snapshot['renderer'], 'three-motion-v1')
             self.assertEqual(snapshot['phases'][0]['duration'], phase['duration'])
             self.assertIn('/assets/audio/', snapshot['phases'][0]['audio']['url'])
+            self.assertTrue(snapshot['phases'][0]['audio']['url'].endswith('.wav'))
             scenes = collect_scenes([output])
             self.assertEqual(scenes[0].kind, 'three')
             manifest = prepare_project(scenes, storage / 'export', 30)

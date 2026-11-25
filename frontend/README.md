@@ -105,25 +105,32 @@ backend không nhận hoặc xử lý ảnh input, cũng không yêu cầu ảnh
 nhắc đến số hình. Bấm **Tạo kịch bản**, chọn **3D Motion Infographic**, rồi **Tạo đồ họa**.
 Duyệt đủ ảnh tĩnh rồi bấm **Xác nhận và tạo hoàn chỉnh** để dựng cảnh 3D và audio.
 
-Backend giữ nguyên lời thuyết minh khi chia cảnh. ElevenLabs tạo audio trước
+Backend giữ nguyên lời thuyết minh khi chia cảnh. VieNeu tạo audio WAV trước
 khi dựng đồ họa; `ffprobe` đo thời lượng, làm tròn lên ở 30 FPS. Thời lượng
 trong kịch bản là ước tính cho đến khi có snapshot; sau đó cả bảng cảnh, player
 và MP4 dùng thời lượng thực tế. Player chờ WebGL và audio sẵn sàng, đồng bộ
 phát/dừng/tua theo audio. Lỗi audio không tạo ra snapshot thiếu giọng đọc.
 
-Cấu hình trong `.env` ở gốc, chỉ đọc ở backend:
+VieNeu dùng `Vieneu()`, `infer(text=..., voice=...)` và `save(...)` như
+`test_tts.py`. Cài bằng `python3 -m pip install -r requirements.txt`; lần chạy
+đầu cần tải model nếu chưa có trong cache. Model được khởi tạo một lần cho
+mỗi worker và dùng chung cho các cảnh. Không cần khóa API TTS.
+
+Tùy chọn giọng trong `.env` ở gốc, chỉ đọc ở backend:
 
 ```dotenv
-ELEVENLABS_API_KEY=your-key
-ELEVENLABS_VOICE_ID=your-voice-id
-# Tùy chọn; mặc định này hỗ trợ tiếng Việt:
-ELEVENLABS_MODEL_ID=eleven_flash_v2_5
+# Mặc định giống test_tts.py:
+VIENEU_VOICE=Hải Đăng
 ```
 
-Audio và alignment được cache trong `storage/audio_cache/` theo nội dung,
-voice, model và ngữ cảnh lời đọc. Đổi style/ảnh hoặc thử lại tác vụ không gọi
-lại TTS cho audio đã hoàn tất. Tác vụ báo riêng lỗi khóa, quyền truy cập,
-hạn mức, timeout và dữ liệu audio hỏng; không trả khóa cho frontend.
+Audio và metadata được cache trong `storage/audio_cache/` theo nội dung,
+giọng và phiên bản VieNeu. Đổi style/ảnh hoặc thử lại tác vụ không gọi lại TTS
+cho audio đã hoàn tất. Cache WAV tách biệt với audio MP3 cũ; preview MP3 đã
+lưu vẫn phát được. Tác vụ báo lỗi thiếu thư viện, tải model, tạo hoặc lưu audio.
+
+API waveform của VieNeu không trả mốc thời gian từng ký tự/từ;
+`alignment` trong metadata là `null`. Mốc action được co giãn theo thời lượng
+audio thực tế; kế hoạch 3D dùng giây cụ thể thay cho cue theo lời đọc.
 
 Style mới dùng Three.js với kế hoạch JSON được kiểm tra: mesh, vật liệu,
 camera, track chuyển động và lớp ảnh/chữ. Mỗi frame được dựng từ `renderAt(t)`;

@@ -1,6 +1,7 @@
-"""Server-only ElevenLabs TTS, immutable audio cache and measured scene timing."""
-import base64
+"""Local VieNeu TTS, immutable WAV cache and measured scene timing."""
+from functools import lru_cache
 import hashlib
+from importlib.metadata import PackageNotFoundError, version
 import json
 import math
 import os
@@ -8,8 +9,6 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 
 def probe_audio(path):
@@ -30,36 +29,34 @@ def probe_audio(path):
 def tts_config():
     from plant_kurzge import load_env
     load_env()
-    key, voice = os.getenv('ELEVENLABS_API_KEY'), os.getenv('ELEVENLABS_VOICE_ID')
-    if not key or not voice:
-        raise ValueError('Thiếu ELEVENLABS_API_KEY hoặc ELEVENLABS_VOICE_ID trên máy chủ.')
-    return {'key': key, 'voice': voice, 'model': os.getenv('ELEVENLABS_MODEL_ID', 'eleven_flash_v2_5'),
-            'language': 'vi', 'format': 'mp3_44100_128'}
+    try:
+        engine_version = version('vieneu')
+    except PackageNotFoundError:
+        raise ValueError('Chưa cài VieNeu trên máy chủ. Chạy python3 -m pip install -r requirements.txt.') from None
+    return {'provider': 'vieneu', 'version': engine_version,
+            'voice': os.getenv('VIENEU_VOICE', '').strip() or 'Hải Đăng', 'format': 'wav'}
 
 
-def validate_alignment(value, duration):
-    if not isinstance(value, dict):
-        raise ValueError('ElevenLabs không trả mốc thời gian lời đọc.')
-    chars, starts, ends = (value.get(k) for k in
-                          ('characters', 'character_start_times_seconds', 'character_end_times_seconds'))
-    if not isinstance(chars, list) or not chars or not isinstance(starts, list) or not isinstance(ends, list) or not len(chars) == len(starts) == len(ends):
-        raise ValueError('Mốc thời gian thuyết minh không hợp lệ.')
-    previous = 0
-    for char, start, end in zip(chars, starts, ends):
-        if (not isinstance(char, str) or not all(isinstance(t, (int, float)) and math.isfinite(t) for t in (start, end))
-                or not 0 <= start <= end <= duration + .25 or start < previous):
-            raise ValueError('Mốc thời gian thuyết minh nằm ngoài audio.')
-        previous = start
-    return value
+@lru_cache(maxsize=1)
+def get_tts():
+    """Load the default model once per graphics worker, shared by all its scenes."""
+    try:
+        from vieneu import Vieneu
+        return Vieneu()
+    except ImportError as error:
+        raise ValueError('Thiếu thư viện VieNeu. Chạy python3 -m pip install -r requirements.txt.') from error
+    except Exception as error:
+        raise ValueError('Không khởi tạo được VieNeu. Hãy kiểm tra model và cấu hình máy chủ.') from error
 
 
 def synthesize(text, cache, *, previous_text='', next_text=''):
     config = tts_config()
-    identity = {'text': text, 'previous_text': previous_text, 'next_text': next_text,
-                **{k: v for k, v in config.items() if k != 'key'}}
+    # VieNeu infer() takes only this scene's text; neighboring scenes do not
+    # affect the audio and therefore do not belong in the cache identity.
+    identity = {'text': text, **config}
     digest = hashlib.sha256(json.dumps(identity, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     cache.mkdir(parents=True, exist_ok=True)
-    audio, metadata = cache / f'{digest}.mp3', cache / f'{digest}.json'
+    audio, metadata = cache / f'{digest}.wav', cache / f'{digest}.json'
     if audio.exists() and metadata.exists():
         try:
             saved = json.loads(metadata.read_text())
@@ -69,60 +66,36 @@ def synthesize(text, cache, *, previous_text='', next_text=''):
             if (not isinstance(saved.get('duration'), (int, float)) or not math.isfinite(saved['duration'])
                     or abs(saved['duration'] - duration) > .01):
                 raise ValueError('Thời lượng audio cache không khớp.')
-            validate_alignment(saved['alignment'], duration)
+            if saved['alignment'] is not None:
+                raise ValueError('Cache VieNeu không có alignment từng ký tự.')
             return audio, saved
         except (ValueError, KeyError, TypeError, AttributeError, OSError):
             pass
-    from urllib.parse import quote
-    url = ('https://api.elevenlabs.io/v1/text-to-speech/' + quote(config['voice'], safe='')
-           + '/with-timestamps?output_format=' + config['format'])
-    body = {'text': text, 'model_id': config['model'], 'language_code': config['language'],
-            'previous_text': previous_text[-1000:] or None, 'next_text': next_text[:1000] or None}
-    request = Request(url, data=json.dumps(body).encode(), method='POST',
-                      headers={'xi-api-key': config['key'], 'Content-Type': 'application/json'})
+    tts = get_tts()
     try:
-        with urlopen(request, timeout=180) as response:
-            data = json.load(response)
-    except HTTPError as error:
-        messages = {401: 'Khóa ElevenLabs không hợp lệ.', 403: 'ElevenLabs từ chối quyền truy cập giọng đọc.',
-                    429: 'ElevenLabs hết hạn mức hoặc đang giới hạn yêu cầu. Hãy thử lại sau.'}
-        try:
-            detail = json.loads(error.read(4096)).get('detail', {})
-            status = detail.get('status') if isinstance(detail, dict) else None
-            if not isinstance(status, str):
-                status = None
-        except (ValueError, OSError, AttributeError):
-            status = None
-        statuses = {'quota_exceeded': 'ElevenLabs không còn đủ hạn mức để tạo thuyết minh.',
-                    'invalid_api_key': messages[401],
-                    'voice_not_found': 'Không tìm thấy ELEVENLABS_VOICE_ID đã cấu hình.',
-                    'max_character_limit_exceeded': 'Lời đọc vượt giới hạn ký tự của model ElevenLabs.'}
-        raise ValueError(statuses.get(status, messages.get(error.code,
-                         f'ElevenLabs trả HTTP {error.code}. Hãy thử tạo lại đồ họa.'))) from None
-    except (URLError, TimeoutError):
-        raise ValueError('Không kết nối được ElevenLabs hoặc quá thời gian chờ. Hãy thử lại.') from None
-    except (ValueError, UnicodeError):
-        raise ValueError('ElevenLabs trả phản hồi JSON không hợp lệ.') from None
+        generated = tts.infer(text=text, voice=config['voice'])
+    except Exception as error:
+        raise ValueError('VieNeu không tạo được thuyết minh. Hãy kiểm tra VIENEU_VOICE và model trên máy chủ.') from error
     try:
-        raw = base64.b64decode(data['audio_base64'], validate=True)
         with tempfile.TemporaryDirectory(dir=cache) as temporary:
-            path = Path(temporary) / 'audio.mp3'
-            path.write_bytes(raw)
+            path = Path(temporary) / 'audio.wav'
+            tts.save(generated, str(path))
             duration = probe_audio(path)
-            alignment = validate_alignment(data.get('alignment'), duration)
-            saved = {'duration': duration, 'alignment': alignment, 'sha256': hashlib.sha256(raw).hexdigest(),
-                     'model': config['model']}
+            # VieNeu's waveform API has no word/character timestamps. Preserve
+            # that absence so consumers use numeric scene timing.
+            saved = {'duration': duration, 'alignment': None,
+                     'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), **config}
             meta = Path(temporary) / 'audio.json'
             meta.write_text(json.dumps(saved, ensure_ascii=False), encoding='utf-8')
             path.replace(audio)
             meta.replace(metadata)
         return audio, saved
-    except (KeyError, TypeError, ValueError) as error:
-        raise ValueError('ElevenLabs trả audio hoặc mốc thời gian không hợp lệ.') from error
+    except Exception as error:
+        raise ValueError('Không lưu được audio VieNeu hợp lệ. Hãy kiểm tra model, thư mục cache và ffprobe.') from error
 
 
 def cue_time(alignment, phrase):
-    if not phrase:
+    if not alignment or not phrase:
         return None
     text = ''.join(alignment['characters'])
     index = text.lower().find(phrase.lower())

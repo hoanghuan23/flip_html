@@ -6,7 +6,7 @@ PNG/HTML animation thật để xem, phát/dừng và tua. Mục 3 xuất toàn 
 thành MP4, theo dõi tiến trình, xem video và tải file. Các nút sửa/xóa/chat/tạo lại
 phase hiện chưa cho thao tác. Xem [hướng dẫn cài đặt, chạy và kiểm thử](frontend/README.md).
 
-Đầu vào có phần **“Mô tả:” / “Thuyết minh:”** hỗ trợ giọng đọc ElevenLabs,
+Đầu vào có phần **“Mô tả:” / “Thuyết minh:”** hỗ trợ giọng đọc VieNeu,
 giữ nguyên lời người dùng và đồng bộ thời lượng cảnh theo audio thực tế.
 Phong cách **3D Motion Infographic** dùng mesh Three.js, camera và ảnh tham
 chiếu đánh số trong khung thông tin; preview và MP4 có cùng giọng đọc.

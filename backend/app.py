@@ -182,7 +182,7 @@ def create_app(storage_root: Path | None = None):
         root = snapshot_path(snapshot_id) / 'assets'
         path = (root / asset_path).resolve()
         if (not path.is_relative_to(root.resolve()) or not path.is_file()
-                or path.suffix.lower() not in {'.js', '.woff2', '.mp3', '.png', '.jpeg', '.jpg', '.webp'}):
+                or path.suffix.lower() not in {'.js', '.woff2', '.mp3', '.wav', '.png', '.jpeg', '.jpg', '.webp'}):
             raise HTTPException(404, 'Không tìm thấy tài nguyên preview.')
         return FileResponse(path, headers={'Cache-Control': 'public, max-age=31536000, immutable'})
 
