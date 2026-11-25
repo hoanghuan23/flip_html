@@ -3,6 +3,7 @@ export interface ReferenceImage {
   name: string;
   dataUrl: string;
   number?: number;
+  kind?: "reference" | "illustration";
 }
 
 export const MAX_IMAGE_FILE_BYTES = 5 * 1024 * 1024;
@@ -12,7 +13,10 @@ const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export function numberReferenceImages(images: ReferenceImage[]) {
   let lastNumber = Math.max(0, ...images.map((image) => image.number ?? 0));
-  return images.map((image) => ({ ...image, number: image.number ?? ++lastNumber }));
+  return images.map((image) => {
+    const number = image.number ?? ++lastNumber;
+    return { ...image, number, name: `image_${number}` };
+  });
 }
 
 export function validReferenceImages(value: unknown): value is ReferenceImage[] {
@@ -21,6 +25,7 @@ export function validReferenceImages(value: unknown): value is ReferenceImage[] 
       image.id.length > 0 && image.id.length <= 100 &&
       typeof image.name === "string" && image.name.length > 0 && image.name.length <= 255 &&
       (image.number === undefined || (Number.isSafeInteger(image.number) && image.number > 0)) &&
+      (image.kind === undefined || image.kind === "reference" || image.kind === "illustration") &&
       typeof image.dataUrl === "string" && image.dataUrl.length <= MAX_PREVIEW_BYTES * 4 / 3 + 100 &&
       /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image.dataUrl)) &&
     new Set(value.map((image) => image.id)).size === value.length &&

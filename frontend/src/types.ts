@@ -235,7 +235,9 @@ export function parseDraft(value: unknown): ProjectDraft {
     id: p.id,
     title: p.title,
     sourceContent: p.sourceContent,
-    referenceImages: referenceImages?.map(({ id, name, dataUrl, number }) => ({ id, name, dataUrl, number })),
+    referenceImages: referenceImages?.map(({ id, name, dataUrl, number, kind }) => ({
+      id, name, dataUrl, number, ...(kind ? { kind } : {}),
+    })),
     lastReferenceImageNumber: Math.max(p.lastReferenceImageNumber ?? 0,
       ...(referenceImages ?? []).map((image) => image.number)),
     scriptId:

@@ -10,6 +10,7 @@ import {
 import { SectionHeading, errorText } from "./components";
 import type { ProjectDraft } from "./types";
 import ReferenceImages from "./ReferenceImagesPanel";
+import SourceTextInput from "./SourceTextInput";
 import s from "./Studio.module.css";
 
 export default function InputPanel({
@@ -185,12 +186,12 @@ export default function InputPanel({
           <label htmlFor="source-text" className={s.fieldLabel}>
             VĂN BẢN ĐẦU VÀO
           </label>
-          <textarea
-            id="source-text"
+          <SourceTextInput
+            key={project.id}
             disabled={busy || reading}
             value={project.sourceContent}
-            onChange={(e) => patch({ sourceContent: e.target.value })}
-            placeholder={'Mưa đá hình thành như thế nào?\n\nHoặc nhập kịch bản chi tiết:\nPhase 1: Giới thiệu\nHoạt ảnh: Bối cảnh, đối tượng và chuyển động…\nAudio: Lời đọc nguyên văn cho phase này.'}
+            images={project.referenceImages || []}
+            onChange={(sourceContent) => patch({ sourceContent })}
           />
           <div className={s.inputMeta}>
             <span>
