@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { ImagePlus, Plus, X } from "lucide-react";
 import { numberReferenceImages, readReferenceImage, type ReferenceImage } from "./referenceImages";
+import { uploadImage } from "./services";
 import s from "./Studio.module.css";
 
 const imageTabs = [
@@ -8,7 +9,8 @@ const imageTabs = [
   { id: "illustration", label: "Ảnh minh họa" },
 ] as const;
 
-export default function ReferenceImages({ images, lastNumber, onChange, notify, disabled }: {
+export default function ReferenceImages({ projectId, images, lastNumber, onChange, notify, disabled }: {
+  projectId: string;
   images: ReferenceImage[];
   lastNumber: number;
   onChange: (images: ReferenceImage[], lastNumber: number) => void;
@@ -41,7 +43,16 @@ export default function ReferenceImages({ images, lastNumber, onChange, notify, 
     try {
       for (const file of files) {
         try {
-          added.push({ ...await readReferenceImage(file), kind: tab });
+          const preview = { ...await readReferenceImage(file), kind: tab,
+            number: latestNumber + added.length + 1 };
+          const original = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(new Error(`Không thể đọc ${file.name}.`));
+            reader.readAsDataURL(file);
+          });
+          const stored = await uploadImage(projectId, preview, original);
+          added.push({ ...preview, serverId: stored.id });
         } catch (error) {
           errors.push(error instanceof Error ? error.message : "Không thể đọc ảnh.");
         }
@@ -49,7 +60,7 @@ export default function ReferenceImages({ images, lastNumber, onChange, notify, 
       }
       if (added.length) onChange([
         ...numberedImages,
-        ...numberReferenceImages(added.map((image, index) => ({ ...image, number: latestNumber + index + 1 }))),
+        ...numberReferenceImages(added),
       ], latestNumber + added.length);
       if (errors.length) notify(errors.join(" "), true);
     } finally {

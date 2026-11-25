@@ -202,6 +202,7 @@ export default function InputPanel({
         </div>
         <ReferenceImages
           key={project.id}
+          projectId={project.id}
           images={project.referenceImages || []}
           lastNumber={project.lastReferenceImageNumber ?? 0}
           onChange={(referenceImages, lastReferenceImageNumber) => patch({ referenceImages, lastReferenceImageNumber })}

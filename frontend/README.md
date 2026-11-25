@@ -78,9 +78,9 @@ theo dấu câu; cấu hình qua `SCRIPT_SPEECH_UNITS_PER_MINUTE` (số dương 
 Sau TTS, pipeline hiện tại tiếp tục dùng thời lượng audio thực tế. CLI chỉ xuất JSON,
 không tự tạo audio. Lỗi JSON/nội dung sinh được yêu cầu sửa tối đa hai lần.
 
-Ảnh cục bộ không gửi qua API, không xuất hiện trong prompt hoặc schema mới.
-Văn bản nhắc “Ảnh N”/“Hình N” không bị báo thiếu ảnh, nhưng có cảnh báo chỉ dẫn
-ảnh chưa được thực hiện. Nội dung phụ thuộc hoàn toàn vào ảnh cần mô tả bằng chữ.
+Ảnh tải lên được lưu nguyên bản trên backend và truyền mã ảnh cùng loại ảnh khi
+tạo kịch bản. Mã `@image_N` trong Hoạt ảnh yêu cầu ảnh tương ứng đã tải lên;
+ảnh minh họa được hiện hoặc thay theo cụm lời đọc chỉ định.
 
 Kiểm thử phân tích: `python3 -m unittest backend.test_analysis -v`.
 Kiểm thử giao diện độc lập với AI: sau `npm run build`, chạy `npm run test:analysis`
@@ -100,9 +100,8 @@ Thuyết minh:
 Đây là một vệ tinh Starlink đang hoạt động ngoài không gian...
 ```
 
-Ảnh tham khảo hiện chỉ lưu trong bản nháp trên trình duyệt để xem lại giao diện;
-backend không nhận hoặc xử lý ảnh input, cũng không yêu cầu ảnh khi văn bản
-nhắc đến số hình. Bấm **Tạo kịch bản**, chọn **3D Motion Infographic**, rồi **Tạo đồ họa**.
+Ảnh tham chiếu và ảnh minh họa được tải lên backend; bản nháp chỉ giữ ảnh thu nhỏ
+để xem lại giao diện. Bấm **Tạo kịch bản**, chọn phong cách, rồi **Tạo đồ họa**.
 Duyệt đủ ảnh tĩnh rồi bấm **Xác nhận và tạo hoàn chỉnh** để dựng cảnh 3D và audio.
 
 Backend giữ nguyên lời thuyết minh khi chia cảnh. VieNeu tạo audio WAV trước
@@ -155,7 +154,8 @@ cho phép thử lại. Khi kịch bản/phong cách thay đổi, cập nhật đ
 
 ## Chạy ứng dụng
 
-Cần Python 3.10+, Node.js 22+, Chrome/Chromium và FFmpeg (bao gồm ffprobe).
+Cần Python 3.12 để cài VieNeu 3.8.5 trên Windows, Node.js 22+,
+Chrome/Chromium và FFmpeg (bao gồm ffprobe) nếu xuất MP4.
 Từ thư mục gốc dự án:
 
 ```bash
@@ -380,9 +380,9 @@ Schema tương tác ở **http://127.0.0.1:8000/docs**. Không dùng JSON bản 
 frontend trực tiếp làm `kich_ban.json` của pipeline AI: bản nháp chỉ chứa dữ liệu
 giao diện. Dùng file `storage/scripts/<id>/kich_ban.json` cho pipeline AI chi tiết.
 
-Giao diện ảnh tham khảo chỉ lưu ảnh trong bản nháp trên trình duyệt; không gửi ảnh
-qua API và không dùng ảnh để tạo kịch bản hoặc đồ họa. Backend chỉ xử lý nội dung
-văn bản và cấu hình. Snapshot có renderer
+Ảnh tham chiếu và ảnh minh họa được gửi qua `POST /api/images`, rồi liên kết bằng
+`imageId` trong `POST /api/scripts`. Ảnh gốc được sao vào tác vụ kịch bản và
+preview khi cần. Snapshot có renderer
 `three-motion-v1` hoặc renderer ảnh hiện có; phase có thể có
 `audio: {url, duration}`. `voiceover` là lời đọc, tách khỏi `narration` cũ.
 

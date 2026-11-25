@@ -124,7 +124,7 @@ def read_scene(path: Path, entry=None) -> Scene:
     data = meta.data("scene-data")
     has_metadata = isinstance(data, dict) and isinstance(data.get("phase"), dict)
     kind = ('three' if has_metadata and data.get('renderer', '').startswith('three-motion-')
-            else 'svg' if has_metadata and data.get('renderer', '').startswith('image-motion-')
+            else 'svg' if has_metadata and data.get('renderer', '').startswith(('image-motion-', 'map-motion-'))
             else 'png' if has_metadata else 'svg')
     is_png = kind == 'png'
     root = path.parent.parent if is_png else path.parent

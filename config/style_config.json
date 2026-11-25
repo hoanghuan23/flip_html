@@ -40,9 +40,7 @@
       "templates": {
         "map": {
           "allowed_styles": [
-            "map-2d",
-            "map-3d",
-            "map-satellite"
+            "map-2d"
           ]
         }
       }

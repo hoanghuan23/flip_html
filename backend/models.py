@@ -2,6 +2,7 @@ from typing import Annotated, Literal
 import math
 from pathlib import Path
 from pydantic import BaseModel, Field, field_validator, model_validator
+from .image_store import ImageBinding
 
 STYLE_CONFIG_PATH = Path(__file__).resolve().parent.parent / 'config' / 'style_config.json'
 ConfigStyleId = Annotated[str, Field(pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')]
@@ -66,8 +67,9 @@ class Scene(BaseModel):
 
 
 class ScriptRequest(BaseModel):
-    projectId: str = Field(min_length=1, max_length=100)
+    projectId: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,100}$')
     content: str = Field(min_length=1, max_length=5 * 1024 * 1024)
+    images: list[ImageBinding] = Field(default_factory=list, max_length=100)
 
     @field_validator('content')
     @classmethod

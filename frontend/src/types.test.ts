@@ -90,9 +90,9 @@ describe("category style configuration", () => {
     ]);
     expect(categories.find((c) => c.id === "science")?.allowedStyles).toEqual(["3d-motion-infographic", "3d-technical-illustration"]);
     expect(categories.find((c) => c.id === "education")?.allowedStyles).toEqual(["3d-technical-illustration", "2d-educational-illustration"]);
-    expect(categories.find((c) => c.id === "map_chart")?.allowedStyles).toEqual(["map-2d", "map-3d", "map-satellite"]);
+    expect(categories.find((c) => c.id === "map_chart")?.allowedStyles).toEqual(["map-2d"]);
     expect(styleForCategory("map_chart", "flat")).toBe("map-2d");
-    expect(restoreStyle("map-satellite")).toBe("map-satellite");
+    expect(restoreStyle("map-satellite")).toBeUndefined();
     expect(categories.filter((c) => !["science", "education", "map_chart", "all_styles"].includes(c.id)).every((c) => !c.allowedStyles.length)).toBe(true);
     expect(categories.find((c) => c.id === "all_styles")?.allowedStyles).toHaveLength(18);
     expect(styleForCategory("education", "flat")).toBe("3d-technical-illustration");

@@ -16,6 +16,7 @@ from .models import ExportRequest, GraphicsRequest, PreviewRequest, ScriptReques
 from .previews import create_preview
 from .scripts import ScriptJobManager
 from .graphics import GraphicsInputError, GraphicsJobManager
+from .image_store import ImageUpload, save_image
 
 
 def create_app(storage_root: Path | None = None):
@@ -74,6 +75,15 @@ def create_app(storage_root: Path | None = None):
             raise HTTPException(422, str(error))
         except (OSError, RuntimeError):
             raise HTTPException(503, 'Không thể tạo tác vụ kịch bản. Hãy kiểm tra máy chủ và thử lại.')
+
+    @app.post('/api/images', status_code=201)
+    def upload_image(request: ImageUpload):
+        try:
+            return save_image(storage, request)
+        except ValueError as error:
+            raise HTTPException(422, str(error))
+        except OSError:
+            raise HTTPException(503, 'Không thể lưu ảnh trên máy chủ.')
 
     @app.post('/api/graphics', status_code=202)
     def graphics(request: GraphicsRequest):
@@ -170,6 +180,13 @@ def create_app(storage_root: Path | None = None):
     def get_preview(snapshot_id: str):
         return json.loads((snapshot_path(snapshot_id) / 'snapshot.json').read_text())
 
+    @app.get('/api/previews/{snapshot_id}/index.html')
+    def preview_playlist(snapshot_id: str):
+        path = snapshot_path(snapshot_id) / 'index.html'
+        if not path.is_file():
+            raise HTTPException(404, 'Không tìm thấy trình phát preview.')
+        return FileResponse(path, media_type='text/html', headers={'Cache-Control': 'no-store'})
+
     @app.get('/api/previews/{snapshot_id}/{filename}')
     def phase(snapshot_id: str, filename: str):
         path = snapshot_path(snapshot_id)
@@ -182,7 +199,7 @@ def create_app(storage_root: Path | None = None):
         root = snapshot_path(snapshot_id) / 'assets'
         path = (root / asset_path).resolve()
         if (not path.is_relative_to(root.resolve()) or not path.is_file()
-                or path.suffix.lower() not in {'.js', '.woff2', '.mp3', '.wav', '.png', '.jpeg', '.jpg', '.webp'}):
+                or path.suffix.lower() not in {'.js', '.css', '.woff2', '.mp3', '.wav', '.png', '.jpeg', '.jpg', '.webp'}):
             raise HTTPException(404, 'Không tìm thấy tài nguyên preview.')
         return FileResponse(path, headers={'Cache-Control': 'public, max-age=31536000, immutable'})
 

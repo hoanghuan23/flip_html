@@ -20,7 +20,7 @@ import {
   type PreviewSnapshot,
   type ScriptJob,
 } from "./types";
-import { api, ApiError, createScriptJob, getScriptJob, scriptStages } from "./services";
+import { api, ApiError, createScriptJob, getScriptJob, scriptStages, uploadImage } from "./services";
 import { Modal, errorText } from "./components";
 import InputPanel from "./InputPanel";
 import { StylePicker } from "./components";
@@ -161,7 +161,11 @@ export default function App() {
     setStartingScripts((ids) => [...ids, id]);
     setScriptErrors((errors) => ({ ...errors, [id]: "" }));
     try {
-      const job = await createScriptJob(id, project.sourceContent);
+      const images = await Promise.all((project.referenceImages || []).map(async (image) =>
+        image.serverId ? image : { ...image, serverId: (await uploadImage(id, image, image.dataUrl)).id }));
+      if (images.some((image, index) => image.serverId !== project.referenceImages?.[index].serverId))
+        dispatch({ type: "patch", id, patch: { referenceImages: images } });
+      const job = await createScriptJob(id, project.sourceContent, images);
       setScriptJobs((jobs) => ({ ...jobs, [job.id]: job }));
       dispatch({ type: "patch", id, patch: { scriptJobId: job.id } });
     } catch (error) {
@@ -187,6 +191,7 @@ export default function App() {
         project: {
           ...imported,
           id: crypto.randomUUID(),
+          referenceImages: imported.referenceImages?.map(({ serverId: _serverId, ...image }) => image),
           snapshot: undefined,
           jobId: undefined,
         },

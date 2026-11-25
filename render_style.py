@@ -4,6 +4,18 @@ from pathlib import Path
 import re
 
 STYLES_ROOT = Path(__file__).resolve().parent / 'skills' / 'styles'
+TEMPLATES_ROOT = Path(__file__).resolve().parent / 'skills' / 'templates'
+
+
+def load_render_template(template_id):
+    if not isinstance(template_id, str) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', template_id):
+        raise ValueError('ID template không hợp lệ.')
+    directory = TEMPLATES_ROOT / template_id
+    skill = (directory / 'SKILL.md').read_text(encoding='utf-8')
+    preset = json.loads((directory / 'template.json').read_text(encoding='utf-8'))
+    if not skill.strip() or preset.get('id') != template_id:
+        raise ValueError('Template không hợp lệ.')
+    return {'id': template_id, 'skill': skill, 'preset': preset}
 
 
 def load_render_style(style_id):
@@ -22,7 +34,8 @@ def load_render_style(style_id):
 
 
 def style_prompt(context):
-    return ('SELECTED ILLUSTRATION STYLE: ' + context['id'] + '\n'
+    return ('SELECTED TEMPLATE:\n' + context.get('template', {}).get('skill', '') + '\n'
+            + 'SELECTED ILLUSTRATION STYLE: ' + context['id'] + '\n'
             + context['skill'] + '\nSTYLE PRESET:\n'
             + json.dumps(context['preset'], ensure_ascii=False)
             + '\nPRIORITY: The selected style controls illustration technique and palette, '

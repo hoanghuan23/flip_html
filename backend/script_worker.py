@@ -5,6 +5,8 @@ import sys
 from urllib.error import HTTPError, URLError
 
 import plant_kurzge as planner
+from script_analysis import parse_detailed
+from .illustrations import attach_events, validate_events
 from .scripts import project_script, validate_for_ui
 
 
@@ -21,6 +23,10 @@ def run(directory):
             content, on_stage=lambda stage: emit(stage=stage),
             extra_validate=validate_for_ui,
         )
+        references_path = directory / 'references.json'
+        references = json.loads(references_path.read_text(encoding='utf-8')) if references_path.exists() else []
+        attach_events(script, parse_detailed(content), references)
+        validate_events(script, references)
         project_script(script)
         emit(stage='saving')
         temporary = directory / 'kich_ban.tmp'

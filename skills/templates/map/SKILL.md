@@ -37,6 +37,19 @@ phù hợp với nội dung.
 
 Không giới hạn khả năng diễn họa vào các ví dụ
 hoặc tình huống đã được định nghĩa trước.
+- Tự xác định phạm vi bản đồ từ toàn cầu,
+  quốc gia, khu vực, thành phố đến đường phố
+  dựa trên nội dung kịch bản.
+- Tự điều chỉnh mức độ chi tiết của bản đồ
+  tương ứng với phạm vi đang diễn họa.
+- Khi kịch bản có hình ảnh tham chiếu, sử dụng
+  đúng hình ảnh theo đối tượng, địa điểm và
+  thời điểm được chỉ định.
+- Phân biệt ảnh tham chiếu dùng để định hướng tạo hình với ảnh minh họa
+  được chỉ định hiển thị. Ảnh minh họa phải lấy đúng tệp đã tải lên;
+  thao tác hiện, thay và thu theo hoạt ảnh cùng mốc lời đọc, không vẽ lại.
+- Giữ thẻ ảnh và nhãn trong vùng còn trống của bản đồ; khi thay ảnh,
+  chỉ thay nội dung được chỉ định và giữ sự liên tục của vị trí địa lý.
 
 ## 4. Chuyển động
 
@@ -44,9 +57,20 @@ hoặc tình huống đã được định nghĩa trước.
 - Camera có thể zoom, pan hoặc theo dõi đối tượng.
 - Đối tượng, nhãn và tuyến đường phải đồng bộ
   với hệ tọa độ bản đồ khi camera thay đổi.
+- Nếu tuyến được vẽ dần theo đối tượng di chuyển, đầu nét vẽ phải trùng
+  vị trí hiện tại của đối tượng ở mọi thời điểm; phần đường phía trước chưa hiện.
 - Duy trì tính liên tục giữa các phase và scene.
 - Chuyển động đồng bộ với timeline và lời đọc
   nếu có.
+- Mặc định sử dụng tuyến đường minh họa khi
+  kịch bản không yêu cầu định tuyến chính xác.
+- Tuyến đường minh họa phải phù hợp với đặc tính
+  phương tiện và điều kiện địa lý.
+- Chỉ sử dụng tuyến đường thực tế khi nội dung
+  yêu cầu độ chính xác về đường đi.
+- Khi yêu cầu tuyến thật, lấy hình học từ dịch vụ định tuyến phù hợp phương tiện,
+  lưu nguồn cùng preview và dừng dựng nếu thiếu tuyến. Đi qua một địa điểm
+  trên đường không đồng nghĩa với việc dừng hoặc đổi thứ tự hành trình.
 
 ## 5. Tính nhất quán
 

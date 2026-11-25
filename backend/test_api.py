@@ -70,7 +70,7 @@ class ApiTests(unittest.TestCase):
         config = load_style_config()
         self.assertEqual(len(config['categories']), 10)
         self.assertEqual(category_styles(config['categories']['map_chart']),
-                         ['map-2d', 'map-3d', 'map-satellite'])
+                         ['map-2d'])
         data = dict(draft(), categoryId='all_styles', styleId='outlined-cartoon')
         response = self.client.post('/api/previews', json=data)
         self.assertEqual(response.status_code, 201, response.text)

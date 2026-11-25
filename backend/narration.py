@@ -9,9 +9,18 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import wave
 
 
 def probe_audio(path):
+    if Path(path).suffix.lower() == '.wav':
+        try:
+            with wave.open(str(path), 'rb') as source:
+                if source.getnchannels() < 1 or source.getframerate() < 1 or source.getnframes() < 1:
+                    raise ValueError()
+                return source.getnframes() / source.getframerate()
+        except (OSError, wave.Error, ValueError):
+            pass
     try:
         result = subprocess.run(['ffprobe', '-v', 'error', '-show_entries',
                                  'format=duration:stream=codec_type', '-of', 'json', str(path)],
@@ -102,6 +111,41 @@ def cue_time(alignment, phrase):
     return alignment['character_start_times_seconds'][index] if index >= 0 else None
 
 
+def synthesize_at_cues(text, cues, cache):
+    """Synthesize at exact visual cue boundaries; the stitched WAV has exact cue times."""
+    boundaries = sorted({text.index(cue) for cue in cues})
+    starts = [0, *(index for index in boundaries if index > 0)]
+    pieces = [text[start:end] for start, end in zip(starts, [*starts[1:], len(text)])]
+    files = [synthesize(piece, cache)[0] for piece in pieces]
+    digest = hashlib.sha256(json.dumps({'text': text, 'starts': starts, 'tts': tts_config()},
+                                     ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+    target = cache / f'{digest}.wav'
+    if not target.exists():
+        temporary = cache / f'{digest}.tmp.wav'
+        with wave.open(str(temporary), 'wb') as result:
+            parameters = None
+            for source in files:
+                with wave.open(str(source), 'rb') as part:
+                    if parameters is None:
+                        parameters = part.getparams()
+                        result.setparams(parameters)
+                    elif (part.getnchannels(), part.getsampwidth(), part.getframerate(), part.getcomptype()) != (
+                            parameters.nchannels, parameters.sampwidth, parameters.framerate, parameters.comptype):
+                        raise ValueError('Các đoạn thuyết minh không cùng định dạng WAV.')
+                    result.writeframes(part.readframes(part.getnframes()))
+        temporary.replace(target)
+    elapsed = 0.0
+    positions = {}
+    for start, source in zip(starts, files):
+        positions[start] = elapsed
+        with wave.open(str(source), 'rb') as part:
+            elapsed += part.getnframes() / part.getframerate()
+    duration = probe_audio(target)
+    saved = {'duration': duration, 'alignment': None, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest(),
+             'cue_times': {cue: positions[text.index(cue)] for cue in cues}, **tts_config()}
+    return target, saved
+
+
 def prepare_narration(script, output, cache, on_progress=None):
     phases = script['phases']
     for index, phase in enumerate(phases):
@@ -109,9 +153,12 @@ def prepare_narration(script, output, cache, on_progress=None):
             continue
         if on_progress:
             on_progress('narration', index, len(phases))
-        audio, saved = synthesize(phase['voiceover'], cache,
-                                 previous_text=phases[index - 1].get('voiceover', '') if index else '',
-                                 next_text=phases[index + 1].get('voiceover', '') if index + 1 < len(phases) else '')
+        events = phase.get('illustration_events', [])
+        cues = [event['cue'] for event in events if event['operation'] != 'hide']
+        audio, saved = (synthesize_at_cues(phase['voiceover'], cues, cache) if cues else
+                        synthesize(phase['voiceover'], cache,
+                                   previous_text=phases[index - 1].get('voiceover', '') if index else '',
+                                   next_text=phases[index + 1].get('voiceover', '') if index + 1 < len(phases) else ''))
         duration = math.ceil(saved['duration'] * 30) / 30
         if duration > 120:
             raise ValueError(f"Lời đọc cảnh {index + 1} dài hơn 120 giây. Hãy chia thành các cảnh ngắn hơn.")
@@ -126,6 +173,12 @@ def prepare_narration(script, output, cache, on_progress=None):
             start = cue_time(saved['alignment'], action.get('cue'))
             action['start'] = start if start is not None else action['start'] / old * duration
             action['end'] = min(duration, max(action['start'] + 1 / 30, action['end'] / old * duration))
+        for event in events:
+            if event['operation'] == 'hide':
+                event['time'] = event.pop('fraction', 0) * duration
+            else:
+                event['time'] = saved['cue_times'][event['cue']]
+        events.sort(key=lambda event: event['time'])
         phase['duration'] = duration
         phase['audio'] = {'src': target.relative_to(output).as_posix(), 'duration': saved['duration'],
                           'alignment': metadata.relative_to(output).as_posix(), 'sha256': saved['sha256']}

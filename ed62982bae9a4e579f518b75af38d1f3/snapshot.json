@@ -1,0 +1,91 @@
+{
+  "id": "ed62982bae9a4e579f518b75af38d1f3",
+  "revision": "80529316c1648ab34c306a31340357e15fd25ed872ea278fb39c3ad41162a41b",
+  "renderer": "map-motion-v1",
+  "demoNoAudio": false,
+  "duration": 127.56666666666666,
+  "width": 1920,
+  "height": 1080,
+  "phases": [
+    {
+      "id": "1",
+      "name": "Khởi hành từ Hà Nội",
+      "duration": 21.6,
+      "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/phase_1.html",
+      "audio": {
+        "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/assets/audio/f70b2dbd032d73d805361c146fda140718b5452eee588061eaf5f160978f3a32.wav",
+        "duration": 21.6
+      }
+    },
+    {
+      "id": "2",
+      "name": "Hà Nội tới Huế",
+      "duration": 13.166666666666666,
+      "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/phase_2.html",
+      "audio": {
+        "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/assets/audio/bdc3b651c82d672248e238cc6ee0bc7fd8d79980987c435194c7731a882a4dea.wav",
+        "duration": 13.15
+      }
+    },
+    {
+      "id": "3",
+      "name": "Huế",
+      "duration": 20.966666666666665,
+      "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/phase_3.html",
+      "audio": {
+        "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/assets/audio/99b43c7899495d0bd3869a82dd2ef047365d1cdc9eb14579412511442b467903.wav",
+        "duration": 20.96
+      }
+    },
+    {
+      "id": "4",
+      "name": "Huế tới Đà Nẵng",
+      "duration": 10.4,
+      "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/phase_4.html",
+      "audio": {
+        "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/assets/audio/8542e798d0292cbead1b574dfa06d1ee1a254d8fdc5530058989b0b7a0bb816e.wav",
+        "duration": 10.4
+      }
+    },
+    {
+      "id": "5",
+      "name": "Đà Nẵng",
+      "duration": 18.566666666666666,
+      "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/phase_5.html",
+      "audio": {
+        "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/assets/audio/77ce468ff1ae3df93924a8bd8804ecc5efb85aeb14d609145d62974f4f29e808.wav",
+        "duration": 18.56
+      }
+    },
+    {
+      "id": "6",
+      "name": "Đà Nẵng tới Nha Trang",
+      "duration": 9.866666666666667,
+      "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/phase_6.html",
+      "audio": {
+        "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/assets/audio/250aa303d45e9206bc76e2fc7499ccde5114ff2a881809155b10e22e64e4cd61.wav",
+        "duration": 9.84
+      }
+    },
+    {
+      "id": "7",
+      "name": "Nha Trang",
+      "duration": 19.2,
+      "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/phase_7.html",
+      "audio": {
+        "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/assets/audio/8e6e9c0717b537a1802692d04d7ffc67c2606fa94fd9c3d06baa6fe46758fc54.wav",
+        "duration": 19.2
+      }
+    },
+    {
+      "id": "8",
+      "name": "Tổng kết",
+      "duration": 13.8,
+      "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/phase_8.html",
+      "audio": {
+        "url": "/api/previews/ed62982bae9a4e579f518b75af38d1f3/assets/audio/56937d1f158a632ef13915a790ade5ebc5ed73302c87d4e32f82172e2d507c6f.wav",
+        "duration": 13.8
+      }
+    }
+  ]
+}

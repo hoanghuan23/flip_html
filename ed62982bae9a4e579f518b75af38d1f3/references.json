@@ -1,0 +1,66 @@
+[
+  {
+    "number": 1,
+    "kind": "illustration",
+    "name": "image_1",
+    "filename": "image_1.jpg",
+    "src": "assets/illustrations/image_1.jpg",
+    "sha256": "f620ff951c932dedabaf961b154a551c6aa063cb977477507e0c40343cb388e8"
+  },
+  {
+    "number": 2,
+    "kind": "illustration",
+    "name": "image_2",
+    "filename": "image_2.jpg",
+    "src": "assets/illustrations/image_2.jpg",
+    "sha256": "131ee184312f6a331e38678f03fedca68b9eb79d736c3dc3d4d2b40c6c5318da"
+  },
+  {
+    "number": 3,
+    "kind": "illustration",
+    "name": "image_3",
+    "filename": "image_3.jpg",
+    "src": "assets/illustrations/image_3.jpg",
+    "sha256": "19ef1674e293925d3ed13f49345361d0eea69726061d046c8bfc90c062eb9634"
+  },
+  {
+    "number": 4,
+    "kind": "illustration",
+    "name": "image_4",
+    "filename": "image_4.jpg",
+    "src": "assets/illustrations/image_4.jpg",
+    "sha256": "26d485788bd2f93fce943626c31ce2fc04b45c91b7664db2508ba316be19b86c"
+  },
+  {
+    "number": 5,
+    "kind": "illustration",
+    "name": "image_5",
+    "filename": "image_5.jpg",
+    "src": "assets/illustrations/image_5.jpg",
+    "sha256": "274c0561441f54b3c80d51272ac42b376091792fe2b16a6513110c72061b96e2"
+  },
+  {
+    "number": 6,
+    "kind": "illustration",
+    "name": "image_6",
+    "filename": "image_6.jpg",
+    "src": "assets/illustrations/image_6.jpg",
+    "sha256": "35728daa3e60450120c55188dd5b9a5344385f3586fd5e50e5d97045d7657a54"
+  },
+  {
+    "number": 7,
+    "kind": "illustration",
+    "name": "image_7",
+    "filename": "image_7.jpg",
+    "src": "assets/illustrations/image_7.jpg",
+    "sha256": "eb1a666b460fc30d62c0845fdde73f18df21522562f2268dccf14040daf01ce8"
+  },
+  {
+    "number": 8,
+    "kind": "illustration",
+    "name": "image_8",
+    "filename": "image_8.jpg",
+    "src": "assets/illustrations/image_8.jpg",
+    "sha256": "9ed01c60da1ffbe8eccee653a2d205c4af21deeb93099962f1c77da0d795b4ff"
+  }
+]

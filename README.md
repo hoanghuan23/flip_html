@@ -18,7 +18,28 @@ AI tự chia cảnh, viết `voiceover` tiếng Việt cho mỗi cảnh và ư�
 theo lời đọc, hoạt ảnh, chú giải. `narration` chỉ là ghi chú ngắn, không thay lời đọc.
 Chủ đề được nghiên cứu rồi viết lời đọc và hoạt ảnh; kịch bản đã chia phase giữ
 nguyên số cảnh, thứ tự, tên và audio. JSON bổ sung chú giải riêng, nguồn/cảnh báo
-và thời lượng dự kiến. Chỉ nhận văn bản; ảnh trong bản nháp không gửi qua API.
+và thời lượng dự kiến. Ảnh tham chiếu và ảnh minh họa tải lên được lưu nguyên bản
+trên backend, gắn với mã `@image_N` trong nội dung.
+
+Với kịch bản bản đồ chi tiết, `skills/templates/map` xác định cách diễn họa địa lý,
+còn `skills/styles/map-2d` xác định diện mạo. Cụm “hiện ảnh minh họa @image_N”
+trong mục Hoạt ảnh tạo thẻ ảnh đúng tệp đã tải lên tại mốc lời đọc tương ứng.
+Preview gồm các `phase_N.html` và `index.html` có thanh tua trong `storage/previews/`.
+Có thể dựng bản demo từ `plan.md` và `travel_images/` mà không cần AI/TTS:
+
+```bash
+python3 -m backend.build_map_demo --script plan.md --images travel_images
+```
+
+Để thêm giọng đọc VieNeu vào demo đã dựng mà không tạo preview thứ hai, dùng
+Python 3.12 có cài `requirements.txt`:
+
+```bash
+python3 -m backend.build_map_demo --narrate-existing storage/previews/<id-preview>
+```
+
+Mốc ảnh khi đó được lấy từ ranh giới các đoạn audio VieNeu. Bản đồ nền và tuyến
+đường cần kết nối mạng khi dựng hoặc xem.
 Xem mẫu input và hợp đồng dữ liệu trong [phân tích văn bản](frontend/README.md#phân-tích-văn-bản-chủ-đề-kịch-bản-chi-tiết-và-input-cũ).
 
 Kịch bản và đồ họa chạy qua tác vụ nền riêng. Mục 2 hiển thị ảnh tĩnh từng phase

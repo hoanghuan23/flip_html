@@ -169,7 +169,8 @@ def json_script(data):
     return json.dumps(data, ensure_ascii=False, allow_nan=False).replace('<', '\\u003c').replace('\u2028', '\\u2028').replace('\u2029', '\\u2029')
 
 
-def phase_page(phase, plan, reference_data, fingerprint):
+def phase_page(phase, plan, reference_data, fingerprint, illustrations=None):
+    from backend.illustrations import overlay_fragment
     metadata = {'phase': phase, 'renderer': VERSION, 'fingerprint': fingerprint, 'width': 1920, 'height': 1080}
     return ('<!doctype html><html lang="vi" data-renderer="' + VERSION + '" data-fingerprint="' + fingerprint + '"><head><meta charset="utf-8"><title>' + escape(phase['name'])
             + '</title><style>' + (STYLE / 'runtime' / 'scene.css').read_text() + '</style></head><body>'
@@ -177,11 +178,16 @@ def phase_page(phase, plan, reference_data, fingerprint):
             + '<script type="application/json" id="scene-data">' + json_script(metadata) + '</script>'
             + '<script type="application/json" id="mesh-data">' + json_script({'plan': plan, 'references': reference_data}) + '</script>'
             + '<script>window.renderAt=function(t){window.pendingTime=t};</script>'
-            + '<script src="assets/runtime/three-scene.js"></script></body></html>')
+            + '<script src="assets/runtime/three-scene.js"></script>'
+            + overlay_fragment(phase, illustrations or {})
+            + '</body></html>')
 
 
 def build_preview(script, output, request, *, style_context, references=None, on_progress=None, **_):
-    references = references or []
+    from backend.illustrations import reference_data as load_illustrations
+    manifest = references or []
+    illustrations = load_illustrations(output, manifest)
+    references = [item for item in manifest if item.get('kind') != 'illustration']
     runtime = STYLE / 'runtime' / 'three-scene.js'
     if not runtime.is_file():
         raise ValueError('Chưa có runtime 3D. Chạy npm run build trong frontend/.')
@@ -280,7 +286,8 @@ def build_preview(script, output, request, *, style_context, references=None, on
             if source_manifest.exists():
                 shutil.copy2(source_manifest, output / 'assets' / 'sources.json')
         render_plan = {**plan, 'textures': textures}
-        (output / f'phase_{index}.html').write_text(phase_page(phase, render_plan, reference_data, fingerprint), encoding='utf-8')
+        (output / f'phase_{index}.html').write_text(phase_page(phase, render_plan, reference_data, fingerprint,
+                                                               illustrations), encoding='utf-8')
         if on_progress:
             on_progress('phases', index, len(script['phases']))
     from generate_kurzge import write_index
@@ -291,7 +298,8 @@ def build_preview(script, output, request, *, style_context, references=None, on
 def verify_phases(output, script, fingerprint):
     from render_hyperframes import MetadataParser
     rows = []
-    references = json.loads((output / 'references.json').read_text()) if (output / 'references.json').exists() else []
+    references = [item for item in json.loads((output / 'references.json').read_text())
+                  if item.get('kind') != 'illustration'] if (output / 'references.json').exists() else []
     for index, phase in enumerate(script['phases'], 1):
         page = (output / f'phase_{index}.html').read_text()
         metadata = MetadataParser(page)

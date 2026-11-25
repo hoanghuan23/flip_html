@@ -1,0 +1,424 @@
+{
+  "title": "plan",
+  "input_type": "detailed_script",
+  "research": {
+    "status": "not_required",
+    "sources": []
+  },
+  "warnings": [],
+  "style": {
+    "palette": {},
+    "font": "",
+    "notes": ""
+  },
+  "assets": [
+    {
+      "id": "CAR",
+      "category": "object",
+      "name": "Phương tiện",
+      "description": "Nhận diện lấy từ kịch bản."
+    }
+  ],
+  "phases": [
+    {
+      "id": 1,
+      "name": "Khởi hành từ Hà Nội",
+      "description": "Hiện bản đồ Việt Nam có đủ bốn điểm hành trình. Camera tiến tới Hà Nội; chấm đỏ xuất hiện, xe đứng bên điểm xuất phát. Khi nói Hồ Hoàn Kiếm, hiện ảnh minh họa @image_1 với chú thích “Hồ Hoàn Kiếm – Tháp Rùa”. Khi nói phở bò, hiện ảnh minh họa @image_2 với chú thích “Phở bò Hà Nội” thay cho ảnh trước. Thu ảnh, chuẩn bị di chuyển.",
+      "voiceover": "Hôm nay, chúng ta sẽ cùng lên xe và bắt đầu một chuyến du lịch qua những miền đất đầy màu sắc của Việt Nam. Điểm khởi hành là Hà Nội, thủ đô với những nét đẹp vừa cổ kính vừa hiện đại. Giữa lòng thành phố, Hồ Hoàn Kiếm hiện lên yên bình với Tháp Rùa soi bóng xuống mặt nước. Trước khi lên đường, hãy thưởng thức một bát phở bò nóng hổi, với bánh phở mềm, thịt bò và nước dùng thơm dịu. Vali đã sẵn sàng, chúng ta cùng khởi hành nhé!",
+      "duration": 21.6,
+      "narration": "",
+      "caption": "",
+      "annotations": [],
+      "duration_status": "estimated",
+      "initial_state": "Tiếp tục từ cảnh trước trên cùng bản đồ.",
+      "final_state": "Chuyển tiếp tự nhiên sang cảnh sau.",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "pan",
+        "detail": "Hiện bản đồ Việt Nam có đủ bốn điểm hành trình. Camera tiến tới Hà Nội; chấm đỏ xuất hiện, xe đứng bên điểm xuất phát. Khi nói Hồ Hoàn Kiếm, hiện ảnh minh họa @image_1 với chú thích “Hồ Hoàn Kiếm – Tháp Rùa”. Khi nói phở bò, hiện ảnh minh họa @image_2 với chú thích “Phở bò Hà Nội” thay cho ảnh trước. Thu ảnh, chuẩn bị di chuyển."
+      },
+      "actions": [
+        {
+          "target": "CAR",
+          "type": "move",
+          "from": {},
+          "to": {},
+          "start": 0.0,
+          "end": 21.6,
+          "easing": "linear",
+          "note": "Hiện bản đồ Việt Nam có đủ bốn điểm hành trình. Camera tiến tới Hà Nội; chấm đỏ xuất hiện, xe đứng bên điểm xuất phát. Khi nói Hồ Hoàn Kiếm, hiện ảnh minh họa @image_1 với chú thích “Hồ Hoàn Kiếm – Tháp Rùa”. Khi nói phở bò, hiện ảnh minh họa @image_2 với chú thích “Phở bò Hà Nội” thay cho ảnh trước. Thu ảnh, chuẩn bị di chuyển."
+        }
+      ],
+      "sound": "",
+      "branch_from": null,
+      "illustration_events": [
+        {
+          "operation": "show",
+          "number": 1,
+          "cue": "Hồ Hoàn Kiếm",
+          "caption": "Hồ Hoàn Kiếm – Tháp Rùa",
+          "time": 10.16
+        },
+        {
+          "operation": "replace",
+          "number": 2,
+          "cue": "phở bò",
+          "caption": "Phở bò Hà Nội",
+          "time": 15.120000000000001
+        },
+        {
+          "operation": "hide",
+          "time": 20.736
+        }
+      ],
+      "audio": {
+        "src": "assets/audio/f70b2dbd032d73d805361c146fda140718b5452eee588061eaf5f160978f3a32.wav",
+        "duration": 21.6,
+        "alignment": "assets/audio/f70b2dbd032d73d805361c146fda140718b5452eee588061eaf5f160978f3a32.json",
+        "sha256": "5c03f6cf037a08060575c5ae174b7ec3ca02c9fbd2dd3d535e9354c0a97638b5"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Hà Nội tới Huế",
+      "description": "Camera mở rộng theo chặng đường. Xe xoay hướng theo tuyến đường bộ thực tế, chạy từ Hà Nội về phía Nam tới Huế; nét đỏ kéo dài sau xe. Kết thúc tại chấm Huế trước lời giới thiệu cảnh 3.",
+      "voiceover": "Rời Hà Nội, chiếc xe đưa chúng ta xuôi về phương Nam. Qua những vùng đồng bằng và những dải núi miền Trung, cảnh sắc dần thay đổi. Chặng đường đầu tiên đưa chúng ta tới Huế, vùng đất cố đô với nhịp sống trầm lắng và những dấu ấn lịch sử còn hiện diện khắp nơi.",
+      "duration": 13.166666666666666,
+      "narration": "",
+      "caption": "",
+      "annotations": [],
+      "duration_status": "estimated",
+      "initial_state": "Tiếp tục từ cảnh trước trên cùng bản đồ.",
+      "final_state": "Chuyển tiếp tự nhiên sang cảnh sau.",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "pan",
+        "detail": "Camera mở rộng theo chặng đường. Xe xoay hướng theo tuyến đường bộ thực tế, chạy từ Hà Nội về phía Nam tới Huế; nét đỏ kéo dài sau xe. Kết thúc tại chấm Huế trước lời giới thiệu cảnh 3."
+      },
+      "actions": [
+        {
+          "target": "CAR",
+          "type": "move",
+          "from": {},
+          "to": {},
+          "start": 0.0,
+          "end": 13.166666666666666,
+          "easing": "linear",
+          "note": "Camera mở rộng theo chặng đường. Xe xoay hướng theo tuyến đường bộ thực tế, chạy từ Hà Nội về phía Nam tới Huế; nét đỏ kéo dài sau xe. Kết thúc tại chấm Huế trước lời giới thiệu cảnh 3."
+        }
+      ],
+      "sound": "",
+      "branch_from": null,
+      "illustration_events": [],
+      "audio": {
+        "src": "assets/audio/bdc3b651c82d672248e238cc6ee0bc7fd8d79980987c435194c7731a882a4dea.wav",
+        "duration": 13.15,
+        "alignment": "assets/audio/bdc3b651c82d672248e238cc6ee0bc7fd8d79980987c435194c7731a882a4dea.json",
+        "sha256": "1620dcc248886048e560f916b7207f7857d5ca26fb840b30f16c7479d97e657f"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Huế",
+      "description": "Xe dừng, chấm đỏ nhấn nhẹ. Khi nhắc Đại Nội Huế, hiện ảnh minh họa @image_7 với chú thích “Đại Nội Huế – Ngọ Môn”; khi nhắc bún bò Huế, hiện ảnh minh họa @image_8 với chú thích “Bún bò Huế” thay cho ảnh trước. Giữ bản đồ và xe nhìn thấy được.",
+      "voiceover": "Tại Huế, hãy dành thời gian khám phá Đại Nội, nơi lưu giữ những dấu ấn của triều Nguyễn. Bước qua Ngọ Môn, ta có thể cảm nhận vẻ uy nghi của kiến trúc cung đình và không gian lịch sử của kinh đô xưa. Và chuyến đi sẽ chưa trọn vẹn nếu thiếu một tô bún bò Huế. Hương sả, vị mắm ruốc và chút cay nồng làm nên nét đặc trưng của nước dùng, kết hợp cùng thịt bò và rau thơm, để lại một dư vị khó quên.",
+      "duration": 20.966666666666665,
+      "narration": "",
+      "caption": "",
+      "annotations": [],
+      "duration_status": "estimated",
+      "initial_state": "Tiếp tục từ cảnh trước trên cùng bản đồ.",
+      "final_state": "Chuyển tiếp tự nhiên sang cảnh sau.",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "pan",
+        "detail": "Xe dừng, chấm đỏ nhấn nhẹ. Khi nhắc Đại Nội Huế, hiện ảnh minh họa @image_7 với chú thích “Đại Nội Huế – Ngọ Môn”; khi nhắc bún bò Huế, hiện ảnh minh họa @image_8 với chú thích “Bún bò Huế” thay cho ảnh trước. Giữ bản đồ và xe nhìn thấy được."
+      },
+      "actions": [
+        {
+          "target": "CAR",
+          "type": "move",
+          "from": {},
+          "to": {},
+          "start": 0.0,
+          "end": 20.966666666666665,
+          "easing": "linear",
+          "note": "Xe dừng, chấm đỏ nhấn nhẹ. Khi nhắc Đại Nội Huế, hiện ảnh minh họa @image_7 với chú thích “Đại Nội Huế – Ngọ Môn”; khi nhắc bún bò Huế, hiện ảnh minh họa @image_8 với chú thích “Bún bò Huế” thay cho ảnh trước. Giữ bản đồ và xe nhìn thấy được."
+        }
+      ],
+      "sound": "",
+      "branch_from": null,
+      "illustration_events": [
+        {
+          "operation": "show",
+          "number": 7,
+          "cue": "Đại Nội",
+          "caption": "Đại Nội Huế – Ngọ Môn",
+          "time": 2.0
+        },
+        {
+          "operation": "replace",
+          "number": 8,
+          "cue": "bún bò Huế",
+          "caption": "Bún bò Huế",
+          "time": 12.4
+        }
+      ],
+      "audio": {
+        "src": "assets/audio/99b43c7899495d0bd3869a82dd2ef047365d1cdc9eb14579412511442b467903.wav",
+        "duration": 20.96,
+        "alignment": "assets/audio/99b43c7899495d0bd3869a82dd2ef047365d1cdc9eb14579412511442b467903.json",
+        "sha256": "c08cef27344366f62ff2d37448d75405e5c688b22bbfc15e879844e6a4af8893"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Huế tới Đà Nẵng",
+      "description": "Thu thẻ, xe tiếp tục về phía Nam theo tuyến đường bộ đã xác minh; nét đỏ chỉ hiện trên đoạn đường phía sau xe. Duy trì các chấm đã đến; camera theo xe rồi dừng tại Đà Nẵng. Không khẳng định đi qua đèo hay hầm cụ thể nếu chưa chọn tuyến đó.",
+      "voiceover": "Tạm biệt Huế, chúng ta tiếp tục hành trình về phía Nam để đến Đà Nẵng. Từ không gian trầm mặc của cố đô, chuyến xe đưa ta tới một thành phố nơi núi non, biển cả và nhịp sống hiện đại cùng hội tụ.",
+      "duration": 10.4,
+      "narration": "",
+      "caption": "",
+      "annotations": [],
+      "duration_status": "estimated",
+      "initial_state": "Tiếp tục từ cảnh trước trên cùng bản đồ.",
+      "final_state": "Chuyển tiếp tự nhiên sang cảnh sau.",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "pan",
+        "detail": "Thu thẻ, xe tiếp tục về phía Nam theo tuyến đường bộ đã xác minh; nét đỏ chỉ hiện trên đoạn đường phía sau xe. Duy trì các chấm đã đến; camera theo xe rồi dừng tại Đà Nẵng. Không khẳng định đi qua đèo hay hầm cụ thể nếu chưa chọn tuyến đó."
+      },
+      "actions": [
+        {
+          "target": "CAR",
+          "type": "move",
+          "from": {},
+          "to": {},
+          "start": 0.0,
+          "end": 10.4,
+          "easing": "linear",
+          "note": "Thu thẻ, xe tiếp tục về phía Nam theo tuyến đường bộ đã xác minh; nét đỏ chỉ hiện trên đoạn đường phía sau xe. Duy trì các chấm đã đến; camera theo xe rồi dừng tại Đà Nẵng. Không khẳng định đi qua đèo hay hầm cụ thể nếu chưa chọn tuyến đó."
+        }
+      ],
+      "sound": "",
+      "branch_from": null,
+      "illustration_events": [
+        {
+          "operation": "hide",
+          "time": 0.0
+        }
+      ],
+      "audio": {
+        "src": "assets/audio/8542e798d0292cbead1b574dfa06d1ee1a254d8fdc5530058989b0b7a0bb816e.wav",
+        "duration": 10.4,
+        "alignment": "assets/audio/8542e798d0292cbead1b574dfa06d1ee1a254d8fdc5530058989b0b7a0bb816e.json",
+        "sha256": "88d41b7a45affed6d00dbd49ead386b32119bc6d4c9759f30f67c1b1223337a1"
+      }
+    },
+    {
+      "id": 5,
+      "name": "Đà Nẵng",
+      "description": "Xe đứng yên. Khi nhắc Ngũ Hành Sơn, hiện ảnh minh họa @image_5; khi nhắc mì Quảng, hiện ảnh minh họa @image_6 thay cho ảnh trước.",
+      "voiceover": "Điểm tham quan hôm nay tại Đà Nẵng là Ngũ Hành Sơn, cụm núi đá nổi bật giữa không gian đô thị. Những hang động, ngôi chùa và lối đi giữa cây xanh tạo nên một vẻ đẹp riêng, vừa hùng vĩ vừa thanh tĩnh. Nhắc đến ẩm thực nơi đây, mì Quảng là món rất đáng thử. Sợi mì bản rộng, tôm hoặc thịt, đậu phộng rang, rau sống và bánh tráng giòn hòa quyện trong phần nước dùng đậm đà.",
+      "duration": 18.566666666666666,
+      "narration": "",
+      "caption": "",
+      "annotations": [],
+      "duration_status": "estimated",
+      "initial_state": "Tiếp tục từ cảnh trước trên cùng bản đồ.",
+      "final_state": "Chuyển tiếp tự nhiên sang cảnh sau.",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "pan",
+        "detail": "Xe đứng yên. Khi nhắc Ngũ Hành Sơn, hiện ảnh minh họa @image_5; khi nhắc mì Quảng, hiện ảnh minh họa @image_6 thay cho ảnh trước."
+      },
+      "actions": [
+        {
+          "target": "CAR",
+          "type": "move",
+          "from": {},
+          "to": {},
+          "start": 0.0,
+          "end": 18.566666666666666,
+          "easing": "linear",
+          "note": "Xe đứng yên. Khi nhắc Ngũ Hành Sơn, hiện ảnh minh họa @image_5; khi nhắc mì Quảng, hiện ảnh minh họa @image_6 thay cho ảnh trước."
+        }
+      ],
+      "sound": "",
+      "branch_from": null,
+      "illustration_events": [
+        {
+          "operation": "show",
+          "number": 5,
+          "cue": "Ngũ Hành Sơn",
+          "caption": "Ngũ Hành Sơn",
+          "time": 1.84
+        },
+        {
+          "operation": "replace",
+          "number": 6,
+          "cue": "mì Quảng",
+          "caption": "mì Quảng",
+          "time": 11.12
+        }
+      ],
+      "audio": {
+        "src": "assets/audio/77ce468ff1ae3df93924a8bd8804ecc5efb85aeb14d609145d62974f4f29e808.wav",
+        "duration": 18.56,
+        "alignment": "assets/audio/77ce468ff1ae3df93924a8bd8804ecc5efb85aeb14d609145d62974f4f29e808.json",
+        "sha256": "1eebe81018bd0ff1940bbf69f86516d9e86ab1ad8e9140be1703d7935eefd430"
+      }
+    },
+    {
+      "id": 6,
+      "name": "Đà Nẵng tới Nha Trang",
+      "description": "Thu thẻ, xe tiếp tục về phía Nam theo tuyến đường bộ thực tế; nét đỏ chỉ kéo dài phía sau xe từ Đà Nẵng tới Nha Trang. Duy trì các chấm đã đến; camera theo xe rồi dừng tại Nha Trang.",
+      "voiceover": "Rời Đà Nẵng, chúng ta tiếp tục xuôi Nam dọc miền duyên hải. Qua những vùng đất ngập nắng và những khung cảnh ven biển, chuyến xe đưa chúng ta tới Nha Trang, nơi biển xanh chào đón những người yêu du lịch.",
+      "duration": 9.866666666666667,
+      "narration": "",
+      "caption": "",
+      "annotations": [],
+      "duration_status": "estimated",
+      "initial_state": "Tiếp tục từ cảnh trước trên cùng bản đồ.",
+      "final_state": "Chuyển tiếp tự nhiên sang cảnh sau.",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "pan",
+        "detail": "Thu thẻ, xe tiếp tục về phía Nam theo tuyến đường bộ thực tế; nét đỏ chỉ kéo dài phía sau xe từ Đà Nẵng tới Nha Trang. Duy trì các chấm đã đến; camera theo xe rồi dừng tại Nha Trang."
+      },
+      "actions": [
+        {
+          "target": "CAR",
+          "type": "move",
+          "from": {},
+          "to": {},
+          "start": 0.0,
+          "end": 9.866666666666667,
+          "easing": "linear",
+          "note": "Thu thẻ, xe tiếp tục về phía Nam theo tuyến đường bộ thực tế; nét đỏ chỉ kéo dài phía sau xe từ Đà Nẵng tới Nha Trang. Duy trì các chấm đã đến; camera theo xe rồi dừng tại Nha Trang."
+        }
+      ],
+      "sound": "",
+      "branch_from": null,
+      "illustration_events": [
+        {
+          "operation": "hide",
+          "time": 0.0
+        }
+      ],
+      "audio": {
+        "src": "assets/audio/250aa303d45e9206bc76e2fc7499ccde5114ff2a881809155b10e22e64e4cd61.wav",
+        "duration": 9.84,
+        "alignment": "assets/audio/250aa303d45e9206bc76e2fc7499ccde5114ff2a881809155b10e22e64e4cd61.json",
+        "sha256": "7c89297eed75157d15a598d12a6e55b87215a8926225eda6db2126e8e8f1c033"
+      }
+    },
+    {
+      "id": 7,
+      "name": "Nha Trang",
+      "description": "Xe dừng, chấm đỏ nhấn nhẹ. Khi nhắc Tháp Bà Ponagar, hiện ảnh minh họa @image_3; khi nhắc bún chả cá, hiện ảnh minh họa @image_4 thay cho ảnh trước. Giữ bản đồ và xe nhìn thấy được.",
+      "voiceover": "Đến Nha Trang, ngoài những bãi biển tuyệt đẹp, chúng ta không thể bỏ qua Tháp Bà Ponagar. Những công trình gạch đỏ trên đồi là dấu ấn đặc sắc của văn hóa Chăm, tạo nên một điểm nhấn giữa thành phố biển. Sau chuyến tham quan, hãy tìm một tô bún chả cá Nha Trang. Vị ngọt của nước dùng, những miếng chả cá dai thơm cùng rau xanh tạo nên một bữa ăn đậm hương vị miền biển.",
+      "duration": 19.2,
+      "narration": "",
+      "caption": "",
+      "annotations": [],
+      "duration_status": "estimated",
+      "initial_state": "Tiếp tục từ cảnh trước trên cùng bản đồ.",
+      "final_state": "Chuyển tiếp tự nhiên sang cảnh sau.",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "pan",
+        "detail": "Xe dừng, chấm đỏ nhấn nhẹ. Khi nhắc Tháp Bà Ponagar, hiện ảnh minh họa @image_3; khi nhắc bún chả cá, hiện ảnh minh họa @image_4 thay cho ảnh trước. Giữ bản đồ và xe nhìn thấy được."
+      },
+      "actions": [
+        {
+          "target": "CAR",
+          "type": "move",
+          "from": {},
+          "to": {},
+          "start": 0.0,
+          "end": 19.2,
+          "easing": "linear",
+          "note": "Xe dừng, chấm đỏ nhấn nhẹ. Khi nhắc Tháp Bà Ponagar, hiện ảnh minh họa @image_3; khi nhắc bún chả cá, hiện ảnh minh họa @image_4 thay cho ảnh trước. Giữ bản đồ và xe nhìn thấy được."
+        }
+      ],
+      "sound": "",
+      "branch_from": null,
+      "illustration_events": [
+        {
+          "operation": "show",
+          "number": 3,
+          "cue": "Tháp Bà Ponagar",
+          "caption": "Tháp Bà Ponagar",
+          "time": 3.28
+        },
+        {
+          "operation": "replace",
+          "number": 4,
+          "cue": "bún chả cá",
+          "caption": "bún chả cá",
+          "time": 12.16
+        }
+      ],
+      "audio": {
+        "src": "assets/audio/8e6e9c0717b537a1802692d04d7ffc67c2606fa94fd9c3d06baa6fe46758fc54.wav",
+        "duration": 19.2,
+        "alignment": "assets/audio/8e6e9c0717b537a1802692d04d7ffc67c2606fa94fd9c3d06baa6fe46758fc54.json",
+        "sha256": "332790a11aaeb56a9652ea14319786eda1fc03e7baa6e4f6fa4f243ee6b6eda1"
+      }
+    },
+    {
+      "id": 8,
+      "name": "Tổng kết",
+      "description": "Thu thẻ, zoom ra toàn hành trình. Giữ bốn chấm đỏ, tuyến đã đi và xe tại Nha Trang. Hiển thị thứ tự Hà Nội → Huế → Đà Nẵng → Nha Trang; kết thúc theo audio.",
+      "voiceover": "Từ vẻ đẹp cổ kính của Hà Nội, qua không gian di sản ở Huế, những ngọn núi của Đà Nẵng, rồi tới nắng biển Nha Trang, mỗi điểm dừng đều mang một câu chuyện và hương vị riêng. Hành trình hôm nay khép lại, nhưng vẫn còn rất nhiều miền đất Việt Nam đang chờ chúng ta khám phá.",
+      "duration": 13.8,
+      "narration": "",
+      "caption": "",
+      "annotations": [],
+      "duration_status": "estimated",
+      "initial_state": "Tiếp tục từ cảnh trước trên cùng bản đồ.",
+      "final_state": "Chuyển tiếp tự nhiên sang cảnh sau.",
+      "added": false,
+      "camera": {
+        "view": "top-down",
+        "motion": "pan",
+        "detail": "Thu thẻ, zoom ra toàn hành trình. Giữ bốn chấm đỏ, tuyến đã đi và xe tại Nha Trang. Hiển thị thứ tự Hà Nội → Huế → Đà Nẵng → Nha Trang; kết thúc theo audio."
+      },
+      "actions": [
+        {
+          "target": "CAR",
+          "type": "move",
+          "from": {},
+          "to": {},
+          "start": 0.0,
+          "end": 13.8,
+          "easing": "linear",
+          "note": "Thu thẻ, zoom ra toàn hành trình. Giữ bốn chấm đỏ, tuyến đã đi và xe tại Nha Trang. Hiển thị thứ tự Hà Nội → Huế → Đà Nẵng → Nha Trang; kết thúc theo audio."
+        }
+      ],
+      "sound": "",
+      "branch_from": null,
+      "illustration_events": [
+        {
+          "operation": "hide",
+          "time": 0.0
+        }
+      ],
+      "audio": {
+        "src": "assets/audio/56937d1f158a632ef13915a790ade5ebc5ed73302c87d4e32f82172e2d507c6f.wav",
+        "duration": 13.8,
+        "alignment": "assets/audio/56937d1f158a632ef13915a790ade5ebc5ed73302c87d4e32f82172e2d507c6f.json",
+        "sha256": "56b5dd7606197781ff7308cde9264ef6fc16e0f3857e66a9827a91913db880f9"
+      }
+    }
+  ],
+  "total_duration": 127.56666666666666
+}

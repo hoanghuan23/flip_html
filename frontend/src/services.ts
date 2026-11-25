@@ -6,6 +6,7 @@ import type {
   RenderJob,
 } from "./types";
 import { previewInput } from "./types";
+import type { ReferenceImage } from "./referenceImages";
 
 export class ApiError extends Error {
   constructor(
@@ -48,8 +49,16 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   return data as T;
 }
 
-export const createScriptJob = (projectId: string, content: string) =>
-  api<ScriptJob>("/api/scripts", { projectId, content });
+export const uploadImage = (projectId: string, image: ReferenceImage, dataUrl: string) =>
+  api<{ id: string; number: number; kind: string; sha256: string }>("/api/images", {
+    projectId, number: image.number, kind: image.kind || "reference", filename: image.name, dataUrl,
+  });
+export const createScriptJob = (projectId: string, content: string, images: ReferenceImage[] = []) =>
+  api<ScriptJob>("/api/scripts", { projectId, content,
+    ...(images.length ? { images: images.map((image) => ({
+      number: image.number, kind: image.kind || "reference", imageId: image.serverId,
+    })) } : {}),
+  });
 export const getScriptJob = (id: string) => api<ScriptJob>(`/api/scripts/${id}`);
 export const scriptStages: Record<string, string> = {
   queued: "Đang chờ tạo kịch bản…",

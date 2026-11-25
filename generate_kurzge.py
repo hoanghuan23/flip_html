@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 from urllib.error import HTTPError, URLError
 import xml.etree.ElementTree as ET
+from backend.illustrations import overlay_fragment, reference_data
 
 from plant_kurzge import ROOT, generate_script, request_text, validate
 import image_motion_ai as general
@@ -38,7 +39,7 @@ PHASE_HTML = """<!doctype html>
 <html lang="vi"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
 <title><<TITLE>></title>
-<style>html,body{margin:0;height:100%;background:<<BACKGROUND>>;overflow:hidden}svg{width:100%;height:100%;display:block}svg text{font-family:"Be Vietnam Pro",system-ui,sans-serif}</style>
+<style>html,body{margin:0;height:100%;background:<<BACKGROUND>>;overflow:hidden}body{position:relative}svg{width:100%;height:100%;display:block}svg text{font-family:"Be Vietnam Pro",system-ui,sans-serif}</style>
 </head><body><<SVG>>
 <script>
 var D=<<DURATION>>,manual=false,requestedTime=0;
@@ -78,7 +79,7 @@ var phases=JSON.parse(document.getElementById("data").textContent);
 var total=phases.reduce(function(s,p){return s+p.duration},0);
 var stage=document.getElementById("stage"),btn=document.getElementById("play"),seek=document.getElementById("seek"),
 clock=document.getElementById("clock");
-var frames=phases.map(function(p){var f=document.createElement("iframe");f.setAttribute("sandbox","allow-scripts");f.src=p.src;f.title=p.title;stage.appendChild(f);return f});
+var frames=phases.map(function(p){var f=document.createElement("iframe");f.setAttribute("sandbox","allow-scripts allow-same-origin");f.title=p.title;stage.appendChild(f);return f});
 var t=0,playing=!phases.some(function(p){return p.audio}),last=performance.now(),shown=-1,shownStart=0;
 var audios=phases.map(function(p){if(!p.audio)return null;var a=new Audio(p.audio.src);a.preload="auto";return a});
 btn.textContent=playing?"Tạm dừng":"Phát";
@@ -86,7 +87,7 @@ function playAudio(){var a=audios[shown];if(a&&playing)a.play().catch(function()
 function render(){
   var acc=0,i=0;
   while(i<phases.length-1&&t>=acc+phases[i].duration){acc+=phases[i].duration;i++}
-  if(i!==shown){audios.forEach(function(a){if(a)a.pause()});frames.forEach(function(f,k){f.style.visibility=k===i?"visible":"hidden"});shown=i;shownStart=acc;if(audios[i])audios[i].currentTime=Math.min(t-acc,phases[i].audio.duration);playAudio()}
+  if(i!==shown){audios.forEach(function(a){if(a)a.pause()});frames.forEach(function(f,k){f.style.visibility=k===i?"visible":"hidden";if(k!==i&&f.dataset.loaded&&Math.abs(k-i)>1){f.src="about:blank";delete f.dataset.loaded}});shown=i;shownStart=acc;if(!frames[i].dataset.loaded){frames[i].dataset.loaded="1";frames[i].src=phases[i].src}if(audios[i])audios[i].currentTime=Math.min(t-acc,phases[i].audio.duration);playAudio()}
   var w=frames[i].contentWindow;if(w)w.postMessage({t:Math.min(t-acc,phases[i].duration)},"*");
   seek.value=t;clock.textContent=t.toFixed(1)+" / "+total.toFixed(1)+" s";
 }
@@ -137,7 +138,7 @@ def select_renderer(script, requested="auto"):
     return "image"
 
 
-def write_phase(output, index, phase, svg, script, *, background=BACKGROUND):
+def write_phase(output, index, phase, svg, script, *, background=BACKGROUND, references=None):
     (output / f"phase_{index}.svg").write_text(svg + "\n", encoding="utf-8")
     title = html.escape(f"Phase {index} - {phase.get('name', '')}")
     page = (PHASE_HTML.replace("<<TITLE>>", title).replace("<<SVG>>", svg)
@@ -146,6 +147,8 @@ def write_phase(output, index, phase, svg, script, *, background=BACKGROUND):
     if phase.get('audio'):
         data = json.dumps({'phase': phase, 'renderer': general.VERSION}, ensure_ascii=False).replace('<', '\\u003c')
         page = page.replace('</head>', '<script type="application/json" id="scene-data">' + data + '</script></head>')
+    if references and phase.get('illustration_events'):
+        page = page.replace('</body>', overlay_fragment(phase, references) + '</body>')
     (output / f"phase_{index}.html").write_text(page, encoding="utf-8")
 
 
@@ -197,6 +200,9 @@ def build_preview(script, output, request, *, style_context=None, on_progress=No
         return build_three(script, output, request, style_context=style_context, references=references,
                            on_progress=on_progress, redo=redo or not resume)
     phases = script['phases']
+    manifest_path = output / 'references.json'
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else []
+    illustrations = reference_data(output, manifest)
     background = BACKGROUND
     if style_context is not None:
         from render_style import caption_colors
@@ -230,7 +236,7 @@ def build_preview(script, output, request, *, style_context=None, on_progress=No
                 if f'data-fingerprint="{ai.fingerprint}"' not in cached:
                     raise ValueError("Cache khác kịch bản/thư viện/phiên bản đồ họa.")
                 svg = ai.clean_phase(cached, index)
-                write_phase(output, index, phase, svg, script, background=background)
+                write_phase(output, index, phase, svg, script, background=background, references=illustrations)
                 print(f"  Phase {index}: dùng bản đã vẽ.", flush=True)
                 if on_progress:
                     on_progress('phases', done, len(selected))
@@ -240,7 +246,7 @@ def build_preview(script, output, request, *, style_context=None, on_progress=No
         print(f"  Phase {index}: {phase.get('name', '')} ({phase['duration']:g}s) - đang vẽ…", flush=True)
         if previous_svg and f'data-fingerprint="{ai.fingerprint}"' not in previous_svg:
             previous_svg = None
-        write_phase(output, index, phase, ai.render(index, previous_svg), script, background=background)
+        write_phase(output, index, phase, ai.render(index, previous_svg), script, background=background, references=illustrations)
         if on_progress:
             on_progress('phases', done, len(selected))
 

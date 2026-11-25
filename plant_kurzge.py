@@ -525,6 +525,8 @@ QUY TẮC CHO NHÁNH MỚI (thay thế quy tắc video không giọng đọc ph�
 - Tối đa 100 phase, 120 giây/phase, tổng 1800 giây. voiceover tối đa 10.000 ký tự.
 - Chỉ nhận văn bản. Không có image_refs, references, referenceImages, ID ảnh hoặc
   danh mục ảnh. Không khẳng định đã xem ảnh. Không tự thực hiện chỉ dẫn ảnh input.
+- Các mã @image_N được trình hiển thị ảnh minh họa xử lý riêng theo hoạt ảnh.
+  Không tạo lại ảnh đó trong assets hoặc actions; giữ chỗ trống hợp lý trong bố cục.
 - warnings là danh sách chuỗi, ghi rõ phase và mâu thuẫn/thông tin đáng nghi nếu có.
 - Không thêm HTML/CSS/SVG. Giữ nguyên schema assets, camera và actions hiện có.
 """

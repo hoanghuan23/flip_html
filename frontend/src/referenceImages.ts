@@ -4,6 +4,7 @@ export interface ReferenceImage {
   dataUrl: string;
   number?: number;
   kind?: "reference" | "illustration";
+  serverId?: string;
 }
 
 export const MAX_IMAGE_FILE_BYTES = 5 * 1024 * 1024;
@@ -26,6 +27,7 @@ export function validReferenceImages(value: unknown): value is ReferenceImage[] 
       typeof image.name === "string" && image.name.length > 0 && image.name.length <= 255 &&
       (image.number === undefined || (Number.isSafeInteger(image.number) && image.number > 0)) &&
       (image.kind === undefined || image.kind === "reference" || image.kind === "illustration") &&
+      (image.serverId === undefined || /^[a-f0-9]{32}$/.test(image.serverId)) &&
       typeof image.dataUrl === "string" && image.dataUrl.length <= MAX_PREVIEW_BYTES * 4 / 3 + 100 &&
       /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image.dataUrl)) &&
     new Set(value.map((image) => image.id)).size === value.length &&

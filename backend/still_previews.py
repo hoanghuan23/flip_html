@@ -4,6 +4,7 @@ import json
 
 from image_asset_generator import ImageAssetGenerator, validate_png
 from render_style import style_prompt
+from .illustrations import still_with_illustration
 
 
 def load_stills(output, *, complete=False):
@@ -30,6 +31,8 @@ def build_stills(script, output, context, on_progress):
     prompts = output / 'prompts'
     prompts.mkdir(exist_ok=True)
     rows = []
+    manifest_path = output / 'references.json'
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.is_file() else []
     total = len(script['phases'])
     on_progress('stills', 0, total)
     for index, phase in enumerate(script['phases'], 1):
@@ -54,7 +57,7 @@ def build_stills(script, output, context, on_progress):
         )
         (prompts / f'phase_{index}_still.txt').write_text(prompt, encoding='utf-8')
         source, info = generator.generate(prompt, transparent=False, requested_size=[1920, 1080])
-        data = source.read_bytes()
+        data = still_with_illustration(source.read_bytes(), phase, output, manifest)
         target = output / f'phase_{index}.preview.png'
         temporary = target.with_suffix('.tmp')
         temporary.write_bytes(data)

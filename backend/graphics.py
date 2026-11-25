@@ -7,6 +7,7 @@ import subprocess
 import sys
 import traceback
 import uuid
+import shutil
 import xml.etree.ElementTree as ET
 
 from .jobs import JobManager, ROOT, now
@@ -37,7 +38,8 @@ def completed_snapshot(storage, job, fingerprint):
     project_script(script)
     context = json.loads((output / 'render_config.json').read_text(encoding='utf-8'))
     is_three = context['id'] == '3d-motion-infographic'
-    if not is_three:
+    is_map = context['id'] == 'map-2d' and context.get('template', {}).get('id') == 'map'
+    if not is_three and not is_map:
         verifier = Renderer(script, output, None, clean_svg, style_context=context)
         verifier.library = (output / 'assets.svg').read_text(encoding='utf-8')
         verifier.fingerprint = fingerprint
@@ -48,7 +50,7 @@ def completed_snapshot(storage, job, fingerprint):
     if [(p.get('src'), p.get('title'), p.get('duration')) for p in entries] != expected:
         raise ValueError('Playlist không khớp đầy đủ các phase của kịch bản.')
     rows = []
-    for index, phase in enumerate(script['phases'] if not is_three else [], 1):
+    for index, phase in enumerate(script['phases'] if not is_three and not is_map else [], 1):
         filename = f'phase_{index}.html'
         svg = (output / f'phase_{index}.svg').read_text(encoding='utf-8')
         root = ET.fromstring(svg)
@@ -63,6 +65,9 @@ def completed_snapshot(storage, job, fingerprint):
     if is_three:
         from three_motion import verify_phases, VERSION
         rows = verify_phases(output, script, fingerprint)
+    if is_map:
+        from map_renderer import verify_map_phases, VERSION
+        rows = verify_map_phases(output, script, fingerprint)
     from .narration import probe_audio
     for phase, row in zip(script['phases'], rows):
         if phase.get('voiceover') and not phase.get('audio'):
@@ -108,6 +113,9 @@ class GraphicsJobManager(ScriptJobManager):
         except (OSError, json.JSONDecodeError, KeyError) as error:
             raise GraphicsInputError('Không tìm thấy JSON đầy đủ. Hãy tạo lại kịch bản ở bước 1.') from error
         context = load_render_style(request.styleId)
+        if request.categoryId == 'map_chart':
+            from render_style import load_render_template
+            context['template'] = load_render_template('map')
         from image_motion_ai import VERSION
         legacy_renderer = VERSION
         if request.styleId == '3d-motion-infographic':
@@ -163,6 +171,14 @@ class GraphicsJobManager(ScriptJobManager):
             output = self.storage / 'previews' / job_id
             output.mkdir(parents=True, exist_ok=True)
             (output / 'kich_ban.json').write_bytes(raw)
+            references = source / 'references.json'
+            if references.is_file():
+                manifest = json.loads(references.read_text(encoding='utf-8'))
+                (output / 'references.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
+                for item in manifest:
+                    target = output / item['src']
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source / item['src'], target)
             (output / 'render_config.json').write_text(
                 json.dumps(context, ensure_ascii=False, indent=2), encoding='utf-8')
             # An incomplete attempt is never served, including after a failed publication.

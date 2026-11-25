@@ -11,6 +11,8 @@ from pydantic import ValidationError
 
 from .jobs import ROOT, JobManager, now
 from .models import Scene, ScriptRequest
+from .image_store import resolve_images
+import shutil
 
 ACTIVE = ('queued', 'running')
 
@@ -96,10 +98,22 @@ class ScriptJobManager:
                 job = json.loads(path.read_text(encoding='utf-8'))
                 if job['projectId'] == request.projectId and job['status'] in ACTIVE:
                     return job
+            images = resolve_images(self.root.parent, request.projectId, request.images, request.content)
             job_id = uuid.uuid4().hex
             directory = self.root / job_id
             directory.mkdir()
             (directory / 'input.txt').write_text(request.content, encoding='utf-8')
+            if images:
+                assets = directory / 'assets' / 'illustrations'
+                assets.mkdir(parents=True)
+                manifest = []
+                for item in images:
+                    filename = f"image_{item['number']}.{item['extension']}"
+                    shutil.copy2(item['path'], assets / filename)
+                    manifest.append({key: item[key] for key in ('number', 'kind', 'filename', 'sha256')})
+                    manifest[-1]['name'] = f"image_{item['number']}"
+                    manifest[-1]['src'] = f'assets/illustrations/{filename}'
+                (directory / 'references.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
             job = {'id': job_id, 'projectId': request.projectId, 'status': 'queued',
                    'stage': 'queued', 'createdAt': now(), 'updatedAt': now(),
                    'error': None, 'result': None}
