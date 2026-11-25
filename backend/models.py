@@ -3,14 +3,18 @@ import math
 from pathlib import Path
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-STYLE_CONFIG_PATH = Path(__file__).resolve().parent.parent / 'skills' / 'style_config.json'
+STYLE_CONFIG_PATH = Path(__file__).resolve().parent.parent / 'config' / 'style_config.json'
 ConfigStyleId = Annotated[str, Field(pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')]
 LEGACY_STYLE_IDS = {'detailed-vector', 'outlined-cartoon', 'cartoon', 'dark', 'watercolor', 'pixel', 'sketch', 'flat'}
 
 
+class StyleTemplate(BaseModel):
+    allowed_styles: list[ConfigStyleId]
+
+
 class StyleCategory(BaseModel):
     label: str = Field(min_length=1)
-    allowed_styles: list[ConfigStyleId]
+    templates: dict[str, StyleTemplate]
 
 
 class StyleConfiguration(BaseModel):
@@ -22,6 +26,11 @@ def load_style_config():
     return StyleConfiguration.model_validate_json(
         STYLE_CONFIG_PATH.read_text(encoding='utf-8')
     ).model_dump()
+
+
+def category_styles(category):
+    return list(dict.fromkeys(style for template in category['templates'].values()
+                              for style in template['allowed_styles']))
 
 
 class Annotation(BaseModel):
@@ -82,7 +91,7 @@ class GraphicsRequest(BaseModel):
         except (OSError, ValueError) as error:
             raise ValueError('Không đọc được cấu hình danh mục phong cách.') from error
         category = config['categories'].get(self.categoryId)
-        if category is None or self.styleId not in category['allowed_styles']:
+        if category is None or self.styleId not in category_styles(category):
             raise ValueError('Phong cách không được phép trong danh mục đã chọn.')
         return self
 
@@ -99,15 +108,15 @@ class PreviewRequest(BaseModel):
         try:
             config = load_style_config()
         except (OSError, ValueError):
-            raise ValueError('Không đọc được cấu hình danh mục. Hãy kiểm tra skills/style_config.json.')
+            raise ValueError('Không đọc được cấu hình danh mục. Hãy kiểm tra config/style_config.json.')
         if self.categoryId is not None:
             category = config['categories'].get(self.categoryId)
             if category is None:
                 raise ValueError('Danh mục kịch bản không hợp lệ.')
-            if self.styleId not in category['allowed_styles']:
+            if self.styleId not in category_styles(category):
                 raise ValueError(f"Phong cách không được phép cho danh mục {category['label']}.")
         elif self.styleId not in LEGACY_STYLE_IDS and not any(
-            self.styleId in category['allowed_styles'] for category in config['categories'].values()
+            self.styleId in category_styles(category) for category in config['categories'].values()
         ):
             raise ValueError('Phong cách không tồn tại trong cấu hình.')
         if len({scene.id for scene in self.scenes}) != len(self.scenes):

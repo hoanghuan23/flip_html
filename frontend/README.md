@@ -138,7 +138,7 @@ runtime, font và texture được đóng gói cục bộ, chạy trong iframe s
 Chỉ các nhãn ngắn xuất hiện trên hình; không tự tạo phụ đề từ lời đọc.
 
 `npm run build` cũng dựng bundle Three.js. Sau khi sửa nguồn runtime hoặc
-style, tạo lại mẫu bằng `python3 skills/3d-motion-infographic/scripts/build_demo.py`
+style, tạo lại mẫu bằng `python3 skills/styles/3d-motion-infographic/scripts/build_demo.py`
 từ thư mục gốc. Texture Trái Đất có thông tin nguồn trong `assets/sources.json`
 của style. Scene hỗ trợ group/box/sphere/plane/cylinder/cone/torus/stars;
 chủ thể phức tạp được ghép từ nhiều mesh, không có bước sinh mô hình GLB tự động.
@@ -231,7 +231,7 @@ IMAGE_QUALITY=medium
 API ảnh nhận `{prompt, model}` với `x-api-key`, trả PNG base64 trong
 `{success: true, data: [{b64_json: "..."}]}`. Không tự chuyển sang đồ họa mẫu
 khi thiếu cấu hình hoặc API ảnh lỗi. Khởi động lại backend sau khi đổi cấu hình.
-Lưu file React/CSS hoặc `skills/style_config.json` để Vite tự cập nhật giao
+Lưu file React/CSS hoặc `config/style_config.json` để Vite tự cập nhật giao
 diện. Không cần build lại khi phát triển. Cổng 8000 phục vụ bản build trong
 `frontend/dist`, nên cần `npm run build` sau khi sửa giao diện ở chế độ đó.
 
@@ -265,29 +265,30 @@ dùng thư mục/cache đã kiểm tra; bấm tạo sau khi thành công tạo m
 Các API xuất MP4 hiện có vẫn được giữ cho giai đoạn sau, chưa được gọi từ giao diện.
 
 Mục 2 hiển thị “Nhóm chủ đề”, lấy tên trực tiếp từ `categories.*.label` trong
-`skills/style_config.json`. Tám nhóm chủ đề hiện để trống `allowed_styles`;
-“Tất cả phong cách” giữ đầy đủ danh sách phong cách hiện có. Nhóm trống không
+`config/style_config.json`. Mỗi nhóm khai báo các template trong `templates`,
+mỗi template có danh sách `allowed_styles`. “Tất cả phong cách” giữ đầy đủ
+danh sách phong cách hiện có. Nhóm trống không
 hiển thị mẫu và không cho tạo đồ họa; chọn “Tất cả phong cách” để tiếp tục.
-Mỗi nhóm chỉ hiển thị các phong cách thuộc
-`allowed_styles`; nếu phong cách đang chọn không còn được phép, ứng dụng tự
+Mỗi nhóm hiển thị hợp các danh sách `templates.*.allowed_styles`, theo thứ tự
+khai báo và bỏ ID trùng lặp; nếu phong cách đang chọn không còn được phép, ứng dụng tự
 chuyển sang phong cách hợp lệ (ưu tiên `default_style`). Nhóm trống giữ lại
 phong cách đã chọn để dùng khi chuyển nhóm. Lựa chọn nhóm chủ đề
 được lưu cùng bản nháp. Các preset cũ vẫn được đọc và chuyển đổi khi mở lại.
 Cấu hình được frontend import trực tiếp từ file JSON. Khi chạy `npm run dev`,
 Vite tự cập nhật sau khi lưu file; bản production cần build lại. Giữ nguyên
 ID danh mục khi đổi tên để các bản nháp tiếp tục sử dụng danh mục đó.
-Danh sách phong cách lấy đầy đủ, theo thứ tự trong `allowed_styles`. Thêm ID
-mới sẽ tự hiện lựa chọn và đọc `skills/<styleId>/demo/index.html`; không cần
+Thêm ID vào `templates.<templateId>.allowed_styles` sẽ tự hiện lựa chọn và đọc
+`skills/styles/<styleId>/demo/index.html`; không cần
 thêm ID vào danh sách cố định trong frontend. Flat with black và Halftone line
 có tên, chú thích và bảng màu riêng. ID khác dùng tên suy ra từ ID và chú thích
-mặc định. Renderer đọc `skills/<styleId>/SKILL.md` và `style.json` nếu có.
+mặc định. Renderer đọc `skills/styles/<styleId>/SKILL.md` và `style.json` nếu có.
 Thiếu hướng dẫn hoặc cấu hình không hợp lệ sẽ báo lỗi, không dùng Flat thay thế.
 Phong cách quyết định cách vẽ và palette; đối tượng/camera/actions/thời lượng
 lấy từ kịch bản. Không đưa chủ đề, số vật thể hoặc trang trí trong demo vào video.
 Bản demo là tài liệu xem phong cách, không được chuyển trực tiếp thành animation.
 
 Thẻ chọn phong cách chỉ hiển thị tên và chú thích. Khung mẫu lớn hiển thị
-`skills/<styleId>/demo/index.html`, ví dụ `skills/flat/demo/index.html`,
+`skills/styles/<styleId>/demo/index.html`, ví dụ `skills/styles/flat/demo/index.html`,
 trong iframe có thể cuộn để xem toàn bộ nội dung dài. Các demo hiện tại dùng
 CSS và SVG nhúng trực tiếp trong HTML. Nếu chưa có file, khung để trống.
 HTML được backend đọc trực tiếp; sau khi thêm hoặc thay demo, tải lại trang

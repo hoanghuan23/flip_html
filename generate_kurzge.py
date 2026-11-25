@@ -261,7 +261,7 @@ def main(argv=None):
                          help="File nội dung: gọi AI sinh kịch bản và tự chọn thời lượng, sau đó dựng preview.")
     parser.add_argument("--renderer", choices=("auto", "ai"), default="auto",
                         help="auto/ai: sinh PNG qua generate_image và diễn hoạt toàn bộ phase.")
-    parser.add_argument("--style", help="ID phong cách trong skills/; bỏ qua để giữ cách chạy hiện có.")
+    parser.add_argument("--style", help="ID phong cách trong skills/styles/; bỏ qua để giữ cách chạy hiện có.")
     parser.add_argument("--plan-only", action="store_true", help="Chỉ lưu prompt ảnh và dàn cảnh, chưa gọi API.")
     sources.add_argument("--resume", action="store_true", help="Tiếp tục: dùng kịch bản và các phase đã vẽ trong output.")
     parser.add_argument("--redo", action="store_true", help="Vẽ lại cả phase đã có (dùng với --phase).")

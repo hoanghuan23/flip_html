@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.app import create_app
 from backend.jobs import JobManager
-from backend.models import ExportConfig, ExportRequest, GraphicsRequest, load_style_config
+from backend.models import ExportConfig, ExportRequest, GraphicsRequest, category_styles, load_style_config
 from render_hyperframes import PreviewError, verify_video
 
 
@@ -68,7 +68,9 @@ class ApiTests(unittest.TestCase):
 
     def test_category_style_pair_uses_shared_configuration(self):
         config = load_style_config()
-        self.assertEqual(len(config['categories']), 9)
+        self.assertEqual(len(config['categories']), 10)
+        self.assertEqual(category_styles(config['categories']['map_chart']),
+                         ['map-2d', 'map-3d', 'map-satellite'])
         data = dict(draft(), categoryId='all_styles', styleId='outlined-cartoon')
         response = self.client.post('/api/previews', json=data)
         self.assertEqual(response.status_code, 201, response.text)
@@ -78,7 +80,7 @@ class ApiTests(unittest.TestCase):
         for category_id in config['categories']:
             request = dict(projectId='project-1', scriptId='a' * 32,
                            categoryId=category_id, styleId='flat')
-            if 'flat' in config['categories'][category_id]['allowed_styles']:
+            if 'flat' in category_styles(config['categories'][category_id]):
                 self.assertEqual(GraphicsRequest(**request).styleId, 'flat')
                 continue
             data['categoryId'] = category_id
@@ -90,15 +92,15 @@ class ApiTests(unittest.TestCase):
 
     def test_preview_validation_uses_current_style_config(self):
         path = self.root / 'style_config.json'
-        config = {'categories': {'science': {'label': 'Tên ban đầu',
-                  'allowed_styles': ['detailed-vector', 'flat']}},
+        config = {'categories': {'science': {'label': 'Tên ban đầu', 'templates': {
+                  'id_1': {'allowed_styles': ['detailed-vector']},
+                  'id_2': {'allowed_styles': ['flat']}}}},
                   'default_style': 'detailed-vector'}
         with patch('backend.models.STYLE_CONFIG_PATH', path):
             path.write_text(json.dumps(config), encoding='utf-8')
             data = dict(draft(), categoryId='science', styleId='flat')
             self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
-            config['categories']['science'] = {'label': 'Tên vừa đổi',
-                                             'allowed_styles': ['detailed-vector']}
+            config['categories']['science']['templates']['id_2']['allowed_styles'] = []
             path.write_text(json.dumps(config), encoding='utf-8')
             self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
             path.write_text('{invalid', encoding='utf-8')
@@ -108,10 +110,15 @@ class ApiTests(unittest.TestCase):
         path = self.root / 'style_config.json'
         styles = ['flat', 'flat-with-black', 'halftone-line', 'future-style']
         config = {'categories': {'news_current_affairs': {
-            'label': 'Thời sự - tin tức', 'allowed_styles': styles}}, 'default_style': 'flat'}
+            'label': 'Thời sự - tin tức', 'templates': {
+                'id_1': {'allowed_styles': styles[:2]},
+                'id_2': {'allowed_styles': ['flat', *styles[2:]]}}}}, 'default_style': 'flat'}
         path.write_text(json.dumps(config), encoding='utf-8')
         with patch('backend.models.STYLE_CONFIG_PATH', path):
+            self.assertEqual(category_styles(load_style_config()['categories']['news_current_affairs']), styles)
             for style in styles:
+                self.assertEqual(GraphicsRequest(projectId='project-1', scriptId='a' * 32,
+                                 categoryId='news_current_affairs', styleId=style).styleId, style)
                 data = dict(draft(), categoryId='news_current_affairs', styleId=style)
                 response = self.client.post('/api/previews', json=data)
                 self.assertEqual(response.status_code, 201, response.text)
@@ -132,7 +139,7 @@ class ApiTests(unittest.TestCase):
         with TestClient(app) as client:
             endpoint = '/api/styles/outlined-cartoon/preview'
             self.assertEqual(client.get(endpoint).json(), {'url': None})
-            demo = sample_root / 'skills' / 'outlined-cartoon' / 'demo' / 'index.html'
+            demo = sample_root / 'skills' / 'styles' / 'outlined-cartoon' / 'demo' / 'index.html'
             demo.parent.mkdir(parents=True)
             # An image alone no longer counts as a demo.
             (demo.parent / 'preview.png').write_bytes(b'png sample')

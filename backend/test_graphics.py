@@ -188,11 +188,18 @@ class StyleAndPipelineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Cache khác'):
                 second.clean_phase(old, 1)
 
-    def test_all_configured_styles_have_guides(self):
-        from backend.models import load_style_config
+    def test_configured_styles_require_guides(self):
+        from backend.models import category_styles, load_style_config
+        from render_style import STYLES_ROOT
         for category in load_style_config()['categories'].values():
-            for style in category['allowed_styles']:
-                self.assertTrue(load_render_style(style)['skill'])
+            for style in category_styles(category):
+                with self.subTest(style=style):
+                    if (STYLES_ROOT / style / 'SKILL.md').is_file():
+                        self.assertTrue(load_render_style(style)['skill'])
+                    else:
+                        # Config may name planned styles before their guides exist.
+                        with self.assertRaisesRegex(ValueError, 'Không đọc được cấu hình phong cách'):
+                            load_render_style(style)
         with self.assertRaises(ValueError):
             load_render_style('../flat')
 

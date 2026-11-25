@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT))
 from render_style import load_render_style
 from three_motion import build_preview
@@ -55,7 +55,7 @@ def starlink_plan(duration=28, reference_number=None):
 
 
 def main():
-    output = ROOT / 'skills/3d-motion-infographic/demo'
+    output = ROOT / 'skills/styles/3d-motion-infographic/demo'
     output.mkdir(exist_ok=True)
     phase = {'id': 1, 'name': 'Vệ tinh Starlink trong không gian', 'duration': 28, 'caption': '',
              'narration': '', 'description': 'Minh họa 3D cho phong cách.', 'actions': []}

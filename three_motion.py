@@ -14,7 +14,7 @@ from backend.narration import cue_time
 from backend.inputs import requested_labels
 
 ROOT = Path(__file__).resolve().parent
-STYLE = ROOT / 'skills' / '3d-motion-infographic'
+STYLE = ROOT / 'skills' / 'styles' / '3d-motion-infographic'
 VERSION = 'three-motion-v1'
 Scalar = Annotated[float, Field(allow_inf_nan=False, ge=-10000, le=10000)]
 Vec3 = tuple[Scalar, Scalar, Scalar]

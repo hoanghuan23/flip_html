@@ -1,0 +1,8 @@
+{
+    "id": "map",
+    "name": "Map",
+    "label": "Bản đồ",
+    "description": "Diễn họa nội dung trên không gian địa lý, vị trí, hành trình và sự kiện.",
+    "version": "1.0.0",
+    "enabled": true
+}

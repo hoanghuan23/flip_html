@@ -14,7 +14,7 @@ def load_style(style_context=None):
     if style_context is not None:
         from render_style import style_prompt
         return style_prompt(style_context)
-    path = Path(__file__).resolve().parent / "skills" / "flat" / "SKILL.md"
+    path = Path(__file__).resolve().parent / "skills" / "styles" / "flat" / "SKILL.md"
     return path.read_text(encoding="utf-8")
 
 

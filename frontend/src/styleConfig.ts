@@ -1,18 +1,25 @@
-import styleConfig from "../../skills/style_config.json";
+import styleConfig from "../../config/style_config.json";
 
 export type StyleId = string;
 export type CategoryId = string;
 interface StyleConfig {
-  categories: Record<CategoryId, { label: string; allowed_styles: StyleId[] }>;
+  categories: Record<CategoryId, {
+    label: string;
+    templates: Record<string, { allowed_styles: StyleId[] }>;
+  }>;
   default_style: StyleId;
 }
 
 const config: StyleConfig = styleConfig;
+function categoryStyles(category: StyleConfig["categories"][string]): StyleId[] {
+  return [...new Set(Object.values(category.templates).flatMap((template) => template.allowed_styles))];
+}
+
 export const categories = Object.entries(config.categories).map(
   ([id, value]) => ({
     id: id as CategoryId,
     label: value.label,
-    allowedStyles: value.allowed_styles as StyleId[],
+    allowedStyles: categoryStyles(value),
   }),
 );
 export const defaultCategoryId = categories[0].id;
@@ -45,7 +52,7 @@ export function styleForCategory(
   categoryId: CategoryId,
   styleId: StyleId,
 ): StyleId {
-  const allowed = config.categories[categoryId].allowed_styles as StyleId[];
+  const allowed = categoryStyles(config.categories[categoryId]);
   if (!allowed.length) return styleId;
   if (allowed.includes(styleId)) return styleId;
   return allowed.includes(defaultStyleId) ? defaultStyleId : allowed[0];

@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import re
 
-STYLES_ROOT = Path(__file__).resolve().parent / 'skills'
+STYLES_ROOT = Path(__file__).resolve().parent / 'skills' / 'styles'
 
 
 def load_render_style(style_id):

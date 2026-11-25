@@ -85,13 +85,16 @@ describe("category style configuration", () => {
   it("assigns 3D motion to science and keeps all styles available", () => {
     expect(categories.map((c) => c.label)).toEqual([
       "Khoa học – Công nghệ", "Kinh doanh – Tài chính", "Thời sự – Đời sống",
-      "Thế giới – Quân sự", "Sức khỏe – Y tế", "Giáo dục", "Xe – Giao thông",
+      "Thế giới – Quân sự", "Bản đồ - Biểu đồ", "Sức khỏe – Y tế", "Giáo dục", "Xe – Giao thông",
       "Bất động sản – Quy hoạch", "Tất cả phong cách",
     ]);
     expect(categories.find((c) => c.id === "science")?.allowedStyles).toEqual(["3d-motion-infographic", "3d-technical-illustration"]);
-    expect(categories.find((c) => c.id === "education")?.allowedStyles).toEqual(["3d-technical-illustration"]);
-    expect(categories.filter((c) => !["science", "education", "all_styles"].includes(c.id)).every((c) => !c.allowedStyles.length)).toBe(true);
-    expect(categories.find((c) => c.id === "all_styles")?.allowedStyles).toHaveLength(17);
+    expect(categories.find((c) => c.id === "education")?.allowedStyles).toEqual(["3d-technical-illustration", "2d-educational-illustration"]);
+    expect(categories.find((c) => c.id === "map_chart")?.allowedStyles).toEqual(["map-2d", "map-3d", "map-satellite"]);
+    expect(styleForCategory("map_chart", "flat")).toBe("map-2d");
+    expect(restoreStyle("map-satellite")).toBe("map-satellite");
+    expect(categories.filter((c) => !["science", "education", "map_chart", "all_styles"].includes(c.id)).every((c) => !c.allowedStyles.length)).toBe(true);
+    expect(categories.find((c) => c.id === "all_styles")?.allowedStyles).toHaveLength(18);
     expect(styleForCategory("education", "flat")).toBe("3d-technical-illustration");
     expect(restoreStyle("3d-technical-illustration")).toBe("3d-technical-illustration");
     expect(styleForCategory("science", "outlined-cartoon")).toBe("3d-motion-infographic");

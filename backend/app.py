@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from .jobs import JobManager, PreviewNotFoundError, ROOT
-from .models import ExportRequest, GraphicsRequest, PreviewRequest, ScriptRequest, load_style_config
+from .models import ExportRequest, GraphicsRequest, PreviewRequest, ScriptRequest, category_styles, load_style_config
 from .previews import create_preview
 from .scripts import ScriptJobManager
 from .graphics import GraphicsInputError, GraphicsJobManager
@@ -20,7 +20,7 @@ from .graphics import GraphicsInputError, GraphicsJobManager
 
 def create_app(storage_root: Path | None = None):
     storage = (storage_root or Path(os.environ.get('VIDEO_STORAGE_DIR', ROOT / 'storage'))).resolve()
-    styles_root = ROOT / 'skills'
+    styles_root = ROOT / 'skills' / 'styles'
 
     @asynccontextmanager
     async def lifespan(app):
@@ -133,11 +133,11 @@ def create_app(storage_root: Path | None = None):
         try:
             return load_style_config()
         except (OSError, ValidationError):
-            raise HTTPException(503, 'Không đọc được cấu hình danh mục. Hãy kiểm tra skills/style_config.json.')
+            raise HTTPException(503, 'Không đọc được cấu hình danh mục. Hãy kiểm tra config/style_config.json.')
 
     def sample_directory(style_id):
         allowed_styles = {style for category in current_style_config()['categories'].values()
-                          for style in category['allowed_styles']}
+                          for style in category_styles(category)}
         if style_id not in allowed_styles:
             raise HTTPException(404, 'Phong cách không tồn tại.')
         return styles_root / style_id / 'demo'

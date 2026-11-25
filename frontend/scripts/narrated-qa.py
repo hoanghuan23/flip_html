@@ -48,7 +48,7 @@ def main():
     script = {'title': 'Kiểm thử 3D và audio', 'total_duration': duration * 2,
               'assets': [{'id': 'SATELLITE', 'category': 'object', 'name': 'Vệ tinh', 'description': 'Thân và pin mặt trời.'}],
               'phases': [phase, second]}
-    image = ROOT / 'skills/3d-motion-infographic/assets/earth.jpg'
+    image = ROOT / 'skills/styles/3d-motion-infographic/assets/earth.jpg'
     target = output / 'assets/references/earth.jpg'
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(image, target)
@@ -58,7 +58,7 @@ def main():
     context = load_render_style('3d-motion-infographic')
     (output / 'kich_ban.json').write_text(json.dumps(script, ensure_ascii=False))
     (output / 'render_config.json').write_text(json.dumps(context, ensure_ascii=False))
-    plan = runpy.run_path(str(ROOT / 'skills/3d-motion-infographic/scripts/build_demo.py'))['starlink_plan'](duration, 7)
+    plan = runpy.run_path(str(ROOT / 'skills/styles/3d-motion-infographic/scripts/build_demo.py'))['starlink_plan'](duration, 7)
     plan['overlays'][-1]['text'] = 'Ảnh kiểm thử · Hình 7'
     fingerprint = build_preview(script, output, lambda _: json.dumps(plan), style_context=context, references=refs)
     config = {'projectId': 'narrated-qa', 'scriptId': 'a'*32, 'categoryId': 'all_styles', 'styleId': context['id']}
