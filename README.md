@@ -112,8 +112,9 @@ Script kiểm tra project, lưu ảnh các điểm giữa cảnh, render rồi x
 lượng MP4 bằng ffprobe. Mặc định 30 fps, chất lượng `delivery`; có thể dùng
 `--quality draft --fps 15` để thử nhanh. Dùng `--overwrite` nếu MP4 đã tồn tại.
 Phase thiếu hoặc không có `renderAt(time)` sẽ báo lỗi, không âm thầm bỏ cảnh.
-Video giữ animation và chữ đã có trong SVG, chỉ lấy vùng stage của PNG/sprite,
-không đưa nút điều khiển vào video, giữ audio đã có trong metadata và không sửa
+Video giữ animation và chữ đã có trong SVG; với preview có `#stage` hoặc `.stage`,
+vùng hình được mở đầy canvas, ẩn tiêu đề trang và nút điều khiển ngoài stage.
+Thanh audio luôn được ẩn trong hình; video giữ audio đã có trong metadata và không sửa
 preview gốc. Kích thước canvas lấy từ cảnh đầu tiên (PNG mặc định 1920×1080).
 Các cảnh được nối bằng cut; không sinh lại hình hoặc thay đổi kịch bản.
 

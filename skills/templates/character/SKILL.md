@@ -16,9 +16,9 @@ visual identity across different scenes and roles.
 
 ## Reference Directories
 
-- `design/`: Canonical character design and viewing angles.
-- `poses/`: Facial expressions, gestures, and actions.
-- `variants/`: Themed costumes, professions, and fictional roles.
+- `design/`: Original views and costume/identity variants, including new AI designs stored directly here.
+- `poses/`: Facial expressions, states, gestures, and actions, including new AI poses stored directly here.
+- `asset_catalog.json`: Canonical views, generated poses/costumes and extraction provenance.
 - `template.json`: Character identity and generation configuration.
 
 All reference paths are relative to this template directory.
@@ -79,13 +79,13 @@ Do not add an extra ear behind the head in profile views.
 Use references in the following order:
 
 1. Original character design from `design/`.
-2. Relevant themed costume from `variants/`.
-3. Relevant expression or action from `poses/`.
+2. Relevant themed costume from `design/`, selected through the asset catalog.
+3. Relevant expression, state or action from `poses/`, selected through the asset catalog.
 4. Scene-specific instructions.
 5. General style configuration.
 
-The original design is the highest-priority visual identity
-reference.
+The four original views listed below are the highest-priority visual identity
+references. Generated images in the same directory do not override them.
 
 Pose and variant references must not override the core identity.
 
@@ -97,10 +97,14 @@ Always select at least one original design reference.
 
 Choose the viewing angle that best matches the requested scene:
 
-- Front view.
-- Left profile.
-- Right profile.
-- Back view.
+- Front view: `design/01-front-view.png`.
+- Left profile (left side visible, facing right): `design/02-left-profile.png`.
+- Right profile (right side visible, facing left): `design/03-right-profile.png`.
+- Back view: `design/04-back-view.png`.
+
+Inspect the image content and `asset_catalog.json` tags before deciding a view
+is missing. Filenames are labels; their language is not evidence that an image
+cannot be reused. A background extraction reuses an existing view.
 
 ### Poses
 
@@ -237,3 +241,40 @@ Before accepting an illustration, verify:
 
 Reject or regenerate illustrations that significantly alter
 the character's core identity.
+
+## Production asset library
+
+Read `asset_catalog.json` before generating any pose. Exact matches are reused.
+Search the original views, all images in `design/`, and existing `poses/` first.
+Save new AI expressions, states, gestures and actions directly in `poses/`.
+Save original views and new costume/identity variants directly in `design/`.
+An image whose main purpose is an expression or action belongs in `poses/`;
+an image introducing a new outfit or character design belongs in `design/`.
+Do not create `transparent/`, generated-pose or costume subdirectories.
+
+For a missing action or variant:
+
+1. Inspect the nearest canonical design and matching pose/costume.
+2. Generate only the missing static character sprite. Keep moving props,
+   background, speech labels and scene effects as independent assets.
+3. Request genuine transparent alpha. Preserve white interior eyes, shoes and
+   play emblem. Do not remove all white pixels indiscriminately.
+4. Review hair silhouette, face, outfit, body proportions, ears and limbs.
+5. Save the PNG using a descriptive English filename directly in its category:
+   `poses/xeko-happy-seated.png` for a pose, or
+   `design/xeko-athlete-sweating.png` for an athletic outfit variant. Preserve
+   the original reference. Append its path, category, tags, reference and
+   generation provenance to `asset_catalog.json` and `generation_prompts.json`.
+6. Copy the accepted asset into the consuming preview and keep a local catalog.
+
+For a background extraction, keep the same category as the original and use a
+`-transparent` filename suffix, for example `design/xeko-left-profile-transparent.png`
+or `poses/xeko-surprised-transparent.png`. Record `derived_from` with the original
+image path. This is an alpha derivative of the existing view or pose, rather
+than a new pose or character identity. Preserve the original image.
+For placement, measure the visible alpha silhouette and retain the same
+character anchor during expression changes. Never shrink wider poses just
+to give them the same bitmap dimensions.
+
+The example `preview_xeko/tools/build.py` copies assets from this catalog on
+each build, then creates a standalone HTML player and HyperFrames scenes.

@@ -1,0 +1,189 @@
+{
+  "version": 3,
+  "character": "Xeko",
+  "assets": [
+    {
+      "id": "happy-seated",
+      "file": "poses/xeko-happy-seated.png",
+      "project_file": "assets/characters/happy-seated.png",
+      "source_design": "design/01-front-view.png",
+      "background": "transparent",
+      "tags": [
+        "happy",
+        "seated"
+      ],
+      "generator": "built-in imagegen",
+      "identity_review": "hair, eyes, peach skin, red outfit, bag and anatomy visually inspected",
+      "operation": "new_pose_or_variant",
+      "category": "pose"
+    },
+    {
+      "id": "panic-seated",
+      "file": "poses/xeko-panic-mosquito-seated.png",
+      "project_file": "assets/characters/panic-seated.png",
+      "source_design": "design/01-front-view.png",
+      "background": "transparent",
+      "tags": [
+        "panic",
+        "seated"
+      ],
+      "generator": "built-in imagegen",
+      "identity_review": "hair, eyes, peach skin, red outfit, bag and anatomy visually inspected",
+      "operation": "new_pose_or_variant",
+      "category": "pose"
+    },
+    {
+      "id": "buffet",
+      "file": "poses/xeko-buffet-curled.png",
+      "project_file": "assets/characters/buffet.png",
+      "source_design": "design/01-front-view.png",
+      "background": "transparent",
+      "tags": [
+        "buffet"
+      ],
+      "generator": "built-in imagegen",
+      "identity_review": "hair, eyes, peach skin, red outfit, bag and anatomy visually inspected",
+      "operation": "new_pose_or_variant",
+      "category": "pose"
+    },
+    {
+      "id": "sport",
+      "file": "design/xeko-athlete-sweating.png",
+      "project_file": "assets/characters/sport.png",
+      "source_design": "design/01-front-view.png",
+      "background": "transparent",
+      "tags": [
+        "sport"
+      ],
+      "generator": "built-in imagegen",
+      "identity_review": "hair, eyes, peach skin, red outfit, bag and anatomy visually inspected",
+      "operation": "new_pose_or_variant",
+      "category": "design_variant"
+    },
+    {
+      "id": "exhausted",
+      "file": "poses/xeko-exhausted-mosquito-bites.png",
+      "project_file": "assets/characters/exhausted.png",
+      "source_design": "design/01-front-view.png",
+      "background": "transparent",
+      "tags": [
+        "exhausted"
+      ],
+      "generator": "built-in imagegen",
+      "identity_review": "hair, eyes, peach skin, red outfit, bag and anatomy visually inspected",
+      "operation": "new_pose_or_variant",
+      "category": "pose"
+    },
+    {
+      "id": "profile",
+      "file": "design/xeko-left-profile-transparent.png",
+      "project_file": "assets/characters/profile.png",
+      "source_design": "design/02-left-profile.png",
+      "background": "transparent",
+      "tags": [
+        "profile",
+        "left-side",
+        "facing-right",
+        "full-body"
+      ],
+      "generator": "built-in imagegen",
+      "identity_review": "hair, eyes, peach skin, red outfit, bag and anatomy visually inspected",
+      "operation": "background_extraction",
+      "derived_from": "design/02-left-profile.png",
+      "category": "design_view"
+    },
+    {
+      "id": "cool",
+      "file": "poses/xeko-cool-transparent.png",
+      "project_file": "assets/characters/cool.png",
+      "source_design": "poses/07-cool.png",
+      "background": "transparent",
+      "tags": [
+        "cool"
+      ],
+      "generator": "built-in imagegen",
+      "identity_review": "hair, eyes, peach skin, red outfit, bag and anatomy visually inspected",
+      "operation": "background_extraction",
+      "derived_from": "poses/07-cool.png",
+      "category": "pose"
+    },
+    {
+      "id": "surprised",
+      "file": "poses/xeko-surprised-transparent.png",
+      "project_file": "assets/characters/surprised.png",
+      "source_design": "poses/06-surprised.png",
+      "background": "transparent",
+      "tags": [
+        "surprised",
+        "reaction",
+        "portrait"
+      ],
+      "generator": "built-in imagegen, background extraction",
+      "identity_review": "Preserved original hair, face, eyes, hoodie and surprise pose.",
+      "operation": "background_extraction",
+      "derived_from": "poses/06-surprised.png",
+      "category": "pose"
+    }
+  ],
+  "supporting_assets": [
+    {
+      "id": "mosquito",
+      "file": "support/mosquito.svg",
+      "type": "svg",
+      "parts": [
+        "wings",
+        "eyes",
+        "body",
+        "legs"
+      ]
+    },
+    {
+      "id": "heart",
+      "file": "support/heart.svg",
+      "type": "svg"
+    },
+    {
+      "id": "park-1920x1080",
+      "file": "support/park-1920x1080.svg",
+      "type": "svg"
+    }
+  ],
+  "canonical_views": {
+    "front": {
+      "file": "design/01-front-view.png",
+      "tags": [
+        "front",
+        "full-body",
+        "original"
+      ]
+    },
+    "left_profile": {
+      "file": "design/02-left-profile.png",
+      "facing": "right",
+      "tags": [
+        "profile",
+        "left-side",
+        "full-body",
+        "original"
+      ]
+    },
+    "right_profile": {
+      "file": "design/03-right-profile.png",
+      "facing": "left",
+      "tags": [
+        "profile",
+        "right-side",
+        "full-body",
+        "original"
+      ]
+    },
+    "back": {
+      "file": "design/04-back-view.png",
+      "tags": [
+        "back",
+        "full-body",
+        "original"
+      ]
+    }
+  }
+}

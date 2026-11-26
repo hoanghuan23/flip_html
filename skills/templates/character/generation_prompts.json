@@ -1,0 +1,61 @@
+{
+  "character": "Xeko",
+  "prompts": [
+    {
+      "asset_id": "happy-seated",
+      "reference": "design/01-front-view.png",
+      "prompt": "Use case: illustration-story. Create ONE isolated production animation character sprite PNG with genuine transparent background. Input is canonical identity reference for Xeko. Match this EXACT character, especially the long triangular angular black hair swept up toward the right with three pointed tips, oval white eyes, peach skin, pink cheeks, compact body and thick black outlines. Bright flat colors, minimal shading. Default outfit red hoodie with white play triangle, charcoal shorts, white socks, red white sneakers, dark crossbody bag. Full visible silhouette with generous transparent margin, no text, no watermark, no shadow on ground, no background, no extra characters. Pose: sitting upright on an invisible chair, knees forward, smiling open mouth, both hands open palm up in a casual animated conversation. View frontal slightly three quarter. No chair or table, character alone.",
+      "tool": "built-in image_gen",
+      "transparent_background": true
+    },
+    {
+      "asset_id": "panic-seated",
+      "reference": "design/01-front-view.png",
+      "prompt": "Use case: illustration-story. Create ONE isolated production animation character sprite PNG with genuine transparent background. Input is canonical identity reference for Xeko. Match this EXACT character, especially the long triangular angular black hair swept up toward the right with three pointed tips, oval white eyes, peach skin, pink cheeks, compact body and thick black outlines. Bright flat colors, minimal shading. Default outfit red hoodie with white play triangle, charcoal shorts, white socks, red white sneakers, dark crossbody bag. Full visible silhouette with generous transparent margin, no text, no watermark, no shadow on ground, no background, no extra characters. Pose: sitting on invisible chair, anxious huge white eyes and open worried mouth, shoulders hunched, left hand scratching right forearm, arms correctly attached. Several small red mosquito bite dots on cheek and forearms, two tiny blue sweat drops. No chair or table, character alone.",
+      "tool": "built-in image_gen",
+      "transparent_background": true
+    },
+    {
+      "asset_id": "buffet",
+      "reference": "design/01-front-view.png",
+      "prompt": "Use case: illustration-story. Create ONE isolated production animation character sprite PNG with genuine transparent background. Input is canonical identity reference for Xeko. Match this EXACT character, especially the long triangular angular black hair swept up toward the right with three pointed tips, oval white eyes, peach skin, pink cheeks, compact body and thick black outlines. Bright flat colors, minimal shading. Default outfit red hoodie with white play triangle, charcoal shorts, white socks, red white sneakers, dark crossbody bag. Full visible silhouette with generous transparent margin, no text, no watermark, no shadow on ground, no background, no extra characters. Pose: lying curled on his side horizontally, head toward left and feet toward right, clutching hoodie, terrified exhausted expression with tear, several small red mosquito bite dots on cheeks and bare shins. Entire horizontal body visible. No plate or lettuce or mosquitoes, character alone.",
+      "tool": "built-in image_gen",
+      "transparent_background": true
+    },
+    {
+      "asset_id": "sport",
+      "reference": "design/01-front-view.png",
+      "prompt": "Use case: illustration-story. Create ONE isolated production animation character sprite PNG with genuine transparent background. Input is canonical identity reference for Xeko. Match this EXACT character, especially the long triangular angular black hair swept up toward the right with three pointed tips, oval white eyes, peach skin, pink cheeks, compact body and thick black outlines. Bright flat colors, minimal shading. Default outfit red hoodie with white play triangle, charcoal shorts, white socks, red white sneakers, dark crossbody bag. Full visible silhouette with generous transparent margin, no text, no watermark, no shadow on ground, no background, no extra characters. Pose: full body standing with hands on hips, cheerful slightly tired face, wearing RED ATHLETIC SLEEVELESS TOP with white play triangle, red white headband, white towel draped around neck, same black shorts sneakers and crossbody bag. Some blue sweat drops on forehead and arms. No icons, character alone.",
+      "tool": "built-in image_gen",
+      "transparent_background": true
+    },
+    {
+      "asset_id": "exhausted",
+      "reference": "design/01-front-view.png",
+      "prompt": "Use case: illustration-story. Create ONE isolated production animation character sprite PNG with genuine transparent background. Input is canonical identity reference for Xeko. Match this EXACT character, especially the long triangular angular black hair swept up toward the right with three pointed tips, oval white eyes, peach skin, pink cheeks, compact body and thick black outlines. Bright flat colors, minimal shading. Default outfit red hoodie with white play triangle, charcoal shorts, white socks, red white sneakers, dark crossbody bag. Full visible silhouette with generous transparent margin, no text, no watermark, no shadow on ground, no background, no extra characters. Pose: full body standing slumped, arms dangling, half closed eyes with subtle violet under-eye shadows, open miserable mouth, many small red mosquito bite dots on cheeks forearms and shins, one blue sweat drop. Original default hoodie with sleeves rolled up. Character alone.",
+      "tool": "built-in image_gen",
+      "transparent_background": true
+    },
+    {
+      "asset_id": "profile",
+      "reference": "design/02-left-profile.png",
+      "prompt": "Use case: background-extraction. Remove ONLY the outer white background around the supplied Xeko cartoon character and deliver PNG with genuine transparent background. Preserve the character itself exactly including all black outlines, white eyes, white play button, white sneakers and interior white areas, red hoodie, angular hair and face. Do not redraw or change pose or expression. Keep whole supplied silhouette and original framing. No added elements.",
+      "tool": "built-in image_gen",
+      "transparent_background": true
+    },
+    {
+      "asset_id": "cool",
+      "reference": "poses/07-cool.png",
+      "prompt": "Use case: background-extraction. Remove ONLY the outer white background around the supplied Xeko cartoon character and deliver PNG with genuine transparent background. Preserve the character itself exactly including all black outlines, white eyes, white play button, white sneakers and interior white areas, red hoodie, angular hair and face. Do not redraw or change pose or expression. Keep whole supplied silhouette and original framing. No added elements.",
+      "tool": "built-in image_gen",
+      "transparent_background": true
+    },
+    {
+      "asset_id": "surprised",
+      "reference": "poses/06-surprised.png",
+      "prompt": "Use case: background-extraction. Remove ONLY the outside white background of the supplied Xeko surprised cartoon portrait. Produce PNG with genuine transparent background. Preserve original pose, hair, face and expression, white eyes and chest play button, thick black outlines and red hoodie exactly. Do not add body parts or redraw anything. Keep original complete portrait silhouette.",
+      "tool": "built-in image_gen",
+      "transparent_background": true
+    }
+  ]
+}

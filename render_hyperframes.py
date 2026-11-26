@@ -42,10 +42,15 @@ class MetadataParser(HTMLParser):
         self.blocks: dict[str, str] = {}
         self.block: str | None = None
         self.size: tuple[int, int] | None = None
+        self.stage_selector: str | None = None
         self.feed(source)
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if attrs.get("id") == "stage":
+            self.stage_selector = "#stage"
+        elif self.stage_selector is None and "stage" in attrs.get("class", "").split():
+            self.stage_selector = ".stage"
         if tag == "script" and attrs.get("type") == "application/json":
             self.block = attrs.get("id", "")
             self.blocks[self.block] = ""
@@ -198,8 +203,8 @@ def script_json(value) -> str:
 
 
 def scene_html(scene: Scene, scene_id: str, src: str, fps: int) -> str:
-    # Source iframe giữ nguyên runtime SVG/PNG; frame source chờ tải xong ảnh
-    # và gọi renderAt trực tiếp, đồng bộ, trước khi HyperFrames chụp mỗi frame.
+    # Giữ runtime preview; chờ bản đồ và ảnh của mỗi thời điểm sẵn sàng
+    # trước khi HyperFrames chụp frame tiếp theo.
     return f'''<template>
   <style>
     #root {{ position:absolute; inset:0; background:#000; overflow:hidden; }}
@@ -213,6 +218,36 @@ def scene_html(scene: Scene, scene_id: str, src: str, fps: int) -> str:
     (() => {{
       const iframe = document.getElementById("{scene_id}-preview");
       const duration = {number(scene.duration)};
+      async function renderFrame(time) {{
+        const win = iframe.contentWindow;
+        win.renderAt(time);
+        // MapLibre paints asynchronously and fetches tiles after camera changes.
+        // Serialize seeks until idle so the next seek cannot cancel those loads.
+        const map = win.mapInstance;
+        if (map) await new Promise((resolve, reject) => {{
+          const setTimer = window.__HF_VIRTUAL_TIME__?.originalSetTimeout || setTimeout;
+          const clearTimer = window.__HF_VIRTUAL_TIME__?.originalClearTimeout || clearTimeout;
+          const timer = setTimer(() => finish(new Error("Bản đồ chưa tải xong sau 60 giây")), 60000);
+          function finish(error) {{
+            clearTimer(timer);
+            map.off("idle", onIdle);
+            map.off("error", onError);
+            error ? reject(error) : resolve();
+          }}
+          function onIdle() {{ finish(); }}
+          function onError(event) {{ finish(event.error || new Error("Không tải được bản đồ")); }}
+          map.once("idle", onIdle);
+          map.on("error", onError);
+          map.triggerRepaint();
+        }});
+        for (const img of win.document.images) {{
+          // Timeline overlays may start with an empty image placeholder.
+          const source = img.currentSrc || img.getAttribute("src") || img.getAttribute("srcset");
+          if (!source || !source.trim()) continue;
+          if (!img.complete) await img.decode();
+          if (!img.naturalWidth) throw new Error("Ảnh bị thiếu: " + source);
+        }}
+      }}
       const ready = new Promise((resolve, reject) => {{
         iframe.addEventListener("error", () => reject(new Error("Không tải được preview")), {{once:true}});
         iframe.addEventListener("load", async () => {{
@@ -221,11 +256,7 @@ def scene_html(scene: Scene, scene_id: str, src: str, fps: int) -> str:
             if (typeof win.renderAt !== "function") throw new Error("Preview thiếu renderAt(time)");
             if (win.previewReady && await win.previewReady === false) throw new Error("Preview không tải được asset PNG");
             await win.document.fonts.ready;
-            for (const img of win.document.images) {{
-              if (!img.complete) await img.decode();
-              if (!img.naturalWidth) throw new Error("Ảnh bị thiếu: " + img.getAttribute("src"));
-            }}
-            win.renderAt(0);
+            await renderFrame(0);
             resolve();
           }} catch (error) {{ reject(error); }}
         }}, {{once:true}});
@@ -238,7 +269,7 @@ def scene_html(scene: Scene, scene_id: str, src: str, fps: int) -> str:
         element: iframe,
         ready,
         sourceRange: {{start:0, duration, fps:{fps}}},
-        render(time) {{ iframe.contentWindow.renderAt(time); }}
+        render: renderFrame
       }});
       const clock = {{time:0}};
       const tl = gsap.timeline({{paused:true}});
@@ -250,12 +281,50 @@ def scene_html(scene: Scene, scene_id: str, src: str, fps: int) -> str:
 '''
 
 
-PNG_EXPORT_STYLE = """<style id="hyperframes-export">
-html,body{margin:0!important;padding:0!important;width:100%;height:100%;overflow:hidden!important;background:#000!important}
-main{margin:0!important;padding:0!important;max-width:none!important;width:100%;height:100%}
-main>:not(#stage){display:none!important}
-#stage{position:absolute!important;left:50%;top:50%;transform:translate(-50%,-50%);width:min(100vw,177.77777778vh)!important;height:auto!important;aspect-ratio:16/9;border-radius:0!important}
-</style>"""
+def export_source(source: str) -> str:
+    """Chỉ thay bố cục bản sao xuất video, giữ runtime và preview gốc."""
+    metadata = MetadataParser(source)
+    stage = metadata.stage_selector
+    css = "audio{display:none!important}\n"
+    if stage:
+        # Giữ stage và toàn bộ lớp con (caption, artwork), ẩn các nhánh UI
+        # ở mọi cấp wrapper. Không phụ thuộc loại renderer hay cấu trúc main.
+        css += f"""
+html,body{{margin:0!important;padding:0!important;width:100%;height:100%;overflow:hidden!important;background:#000!important}}
+body :has({stage}){{position:static!important;margin:0!important;padding:0!important;width:100%!important;height:100%!important;min-height:0!important;max-width:none!important;border:0!important;box-shadow:none!important;transform:none!important}}
+body > :not({stage}):not(:has({stage})),body :has({stage}) > :not({stage}):not(:has({stage})){{display:none!important}}
+{stage}{{position:absolute!important;inset:0!important;margin:0!important;padding:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;border:0!important;border-radius:0!important;box-shadow:none!important;transform:none!important}}
+"""
+    style = '<style id="hyperframes-export">\n' + css + '</style>'
+    if metadata.data("map-data") is not None:
+        # MapLibre needs real scheduling to load tiles, even while HyperFrames
+        # freezes the composition clock. Camera/route state still uses renderAt.
+        style += '''<script id="hyperframes-map-scheduling">
+(() => {
+  const clock = window.__HF_VIRTUAL_TIME__;
+  if (!clock) return;
+  // MapLibre binds performance.now while loading. Its style transitions must
+  // settle during setup, before HyperFrames advances the composition clock.
+  delete window.performance.now;
+  for (const name of ["RequestAnimationFrame", "CancelAnimationFrame",
+      "SetTimeout", "ClearTimeout", "SetInterval", "ClearInterval"]) {
+    const original = clock["original" + name];
+    if (original) window[name[0].toLowerCase() + name.slice(1)] = original;
+  }
+})();
+</script>'''
+        # Tile/label fades require advancing wall time and delay idle. Disable
+        # them in the export copy so a seek lands on the fully drawn map.
+        source = re.sub(r"new\s+maplibregl\.Map\s*\(\s*\{",
+                        "new maplibregl.Map({fadeDuration:0,", source)
+        head = re.search(r"<head\b[^>]*>", source, re.IGNORECASE)
+        if head:
+            return source[:head.end()] + style + source[head.end():]
+        return style + source
+    if re.search(r"</head\s*>", source, re.IGNORECASE):
+        return re.sub(r"</head\s*>", lambda match: style + match[0], source,
+                      count=1, flags=re.IGNORECASE)
+    return style + source
 
 
 def prepare_project(scenes: list[Scene], project: Path, fps: int) -> dict:
@@ -295,8 +364,7 @@ def prepare_project(scenes: list[Scene], project: Path, fps: int) -> dict:
                 for item in scene.path.parent.glob(pattern):
                     shutil.copy2(item, target.parent / item.name)
         source = scene.path.read_text(encoding="utf-8")
-        if scene.kind == "png":
-            source = source.replace("</head>", PNG_EXPORT_STYLE + "</head>")
+        source = export_source(source)
         target.write_text(source, encoding="utf-8")
         src = quote(target.relative_to(project).as_posix(), safe="/")
         (project / "compositions" / f"{scene_id}.html").write_text(

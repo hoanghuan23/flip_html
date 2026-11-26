@@ -101,3 +101,14 @@ bright flat colors, minimal cel shading, exaggerated facial
 expressions, playful body language, simplified geometric shapes,
 clean silhouette, humorous educational cartoon aesthetic,
 consistent character identity, professional digital illustration.
+
+## HTML animation adaptation
+
+For Xeko previews, use transparent static sprites for the character and
+animate supporting objects independently. Use the requested canvas size;
+the example preview is 1920×1080 even when a source storyboard is vertical.
+Keep narration/player controls outside the animation canvas. Match timeline
+beats to measured voice segments; preserve backward seeking and replay.
+Use 5–8 px outlines for supporting SVG objects on a 1080 px canvas and
+96 px margins for important content. Intentional character close-ups and
+full-bleed scenery may extend beyond those margins.
