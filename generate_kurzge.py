@@ -80,15 +80,30 @@ var total=phases.reduce(function(s,p){return s+p.duration},0);
 var stage=document.getElementById("stage"),btn=document.getElementById("play"),seek=document.getElementById("seek"),
 clock=document.getElementById("clock");
 var frames=phases.map(function(p){var f=document.createElement("iframe");f.setAttribute("sandbox","allow-scripts allow-same-origin");f.title=p.title;stage.appendChild(f);return f});
-var t=0,playing=!phases.some(function(p){return p.audio}),last=performance.now(),shown=-1,shownStart=0;
+var t=0,playing=!phases.some(function(p){return p.audio}),last=performance.now(),shown=-1,shownStart=0,visible=-1;
 var audios=phases.map(function(p){if(!p.audio)return null;var a=new Audio(p.audio.src);a.preload="auto";return a});
 btn.textContent=playing?"Tạm dừng":"Phát";
 function playAudio(){var a=audios[shown];if(a&&playing)a.play().catch(function(){playing=false;btn.textContent="Phát"})}
+function loadFrame(i){
+  if(i<0||i>=frames.length||frames[i].dataset.loaded)return;
+  frames[i].dataset.loaded="1";delete frames[i].dataset.ready;frames[i].src=phases[i].src;
+}
 function render(){
   var acc=0,i=0;
   while(i<phases.length-1&&t>=acc+phases[i].duration){acc+=phases[i].duration;i++}
-  if(i!==shown){audios.forEach(function(a){if(a)a.pause()});frames.forEach(function(f,k){f.style.visibility=k===i?"visible":"hidden";if(k!==i&&f.dataset.loaded&&Math.abs(k-i)>1){f.src="about:blank";delete f.dataset.loaded}});shown=i;shownStart=acc;if(!frames[i].dataset.loaded){frames[i].dataset.loaded="1";frames[i].src=phases[i].src}if(audios[i])audios[i].currentTime=Math.min(t-acc,phases[i].audio.duration);playAudio()}
+  if(i!==shown){audios.forEach(function(a){if(a)a.pause()});shown=i;shownStart=acc;loadFrame(i);if(audios[i])audios[i].currentTime=Math.min(t-acc,phases[i].audio.duration);playAudio()}
   var w=frames[i].contentWindow;if(w)w.postMessage({t:Math.min(t-acc,phases[i].duration)},"*");
+  if(!phases[i].waitForReady||frames[i].dataset.ready){
+    visible=i;frames.forEach(function(f,k){f.style.visibility=k===i?"visible":"hidden"});
+  }else if(visible>=0&&visible===i-1){
+    // Hold the outgoing map at its endpoint until the incoming map has tiles.
+    frames[visible].contentWindow.postMessage({t:phases[visible].duration},"*");
+  }else if(visible!==i){
+    visible=-1;frames.forEach(function(f){f.style.visibility="hidden"});
+  }
+  frames.forEach(function(f,k){if(k!==visible&&f.dataset.loaded&&Math.abs(k-i)>1){f.src="about:blank";delete f.dataset.loaded;delete f.dataset.ready}});
+  // Warm the next scene at its initial camera, while the current scene plays.
+  loadFrame(i+1);
   seek.value=t;clock.textContent=t.toFixed(1)+" / "+total.toFixed(1)+" s";
 }
 function tick(now){var dt=(now-last)/1000;last=now;if(playing){var a=audios[shown];t=a&&!a.ended?shownStart+a.currentTime:t+dt;if(t>=total){t=total;playing=false;audios.forEach(function(a){if(a)a.pause()});btn.textContent="Phát"}}render();requestAnimationFrame(tick)}
@@ -96,6 +111,11 @@ btn.onclick=function(){if(t>=total)window.renderAt(0);playing=!playing;btn.textC
 window.renderAt=function(value){t=Math.max(0,Math.min(total,value));render();var a=audios[shown];if(a)a.currentTime=Math.min(t-shownStart,phases[shown].audio.duration)};
 seek.oninput=function(){window.renderAt(parseFloat(seek.value));last=performance.now()};
 frames.forEach(function(f){f.addEventListener("load",render)});
+addEventListener("message",function(e){
+  if(!e.data||e.data.type!=="preview-ready")return;
+  var i=frames.findIndex(function(f){return f.contentWindow===e.source});
+  if(i>=0&&frames[i].dataset.loaded){frames[i].dataset.ready="1";render()}
+});
 render();
 requestAnimationFrame(tick);
 </script></body></html>
@@ -162,6 +182,7 @@ def write_index(script, output, fingerprint=None):
                 continue
             entries.append({"src": f"phase_{index}.html", "title": phase.get("name", f"Phase {index}"),
                             "duration": phase["duration"],
+                            **({'waitForReady': True} if 'data-renderer="map-motion-v1"' in page_source else {}),
                             **({'audio': phase['audio']} if phase.get('audio') else {})})
     if not entries:
         return None

@@ -12,9 +12,20 @@ const puppeteer = require("puppeteer-core");
   const server = http.createServer((req, res) => {
     const target = path.resolve(root, decodeURIComponent(new URL(req.url, "http://localhost").pathname).replace(/^\/+/, ""));
     if (!target.startsWith(root + path.sep) || !fs.existsSync(target)) { res.writeHead(404); res.end(); return; }
-    const mime = { ".html": "text/html", ".js": "application/javascript", ".css": "text/css" };
+    const mime = { ".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".wav": "audio/wav" };
     res.setHeader("Content-Type", mime[path.extname(target)] || "application/octet-stream");
-    fs.createReadStream(target).pipe(res);
+    const size = fs.statSync(target).size;
+    const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (range) {
+      const start = Number(range[1]), end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+      if (start > end || start >= size) { res.writeHead(416); res.end(); return; }
+      res.writeHead(206, { 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+      fs.createReadStream(target, { start, end }).pipe(res);
+    } else {
+      res.setHeader('Content-Length', size);
+      fs.createReadStream(target).pipe(res);
+    }
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const browser = await puppeteer.launch({
@@ -23,6 +34,7 @@ const puppeteer = require("puppeteer-core");
   });
   try {
     const page = await browser.newPage();
+    await page.setViewport({ width: 1080, height: 720 });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("response", (response) => { if (response.status() >= 400 && !response.url().endsWith('/favicon.ico')) errors.push(`${response.status()} ${response.url()}`); });
@@ -40,6 +52,38 @@ const puppeteer = require("puppeteer-core");
     }
     const durations = snapshot.phases.map((phase) => phase.duration);
     const at = (index, fraction) => durations.slice(0, index).reduce((a, b) => a + b, 0) + durations[index] * fraction;
+    async function checkPlayback(startTime, endTime, index, label) {
+      await page.evaluate((time) => window.renderAt(time), startTime);
+      await page.waitForFunction((i) => document.querySelectorAll('iframe')[i].dataset.ready === '1', { timeout: 60000 }, index);
+      const frame = page.frames().find((item) => item.url().endsWith(`phase_${index + 1}.html`));
+      const local = startTime - at(index, 0);
+      await frame.waitForFunction((time) => Math.abs(appliedTime - time) < .001, {}, local);
+      await frame.waitForFunction(() => window.mapInstance.areTilesLoaded(), { timeout: 60000 });
+      await frame.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await page.waitForFunction(({ index, local }) => !audios[index] ||
+        (!audios[index].seeking && Math.abs(audios[index].currentTime - local) < .05), {}, { index, local });
+      const playback = await page.evaluate((end) => new Promise((resolve) => {
+        const start = performance.now(), samples = [];
+        document.querySelector('#play').click();
+        function sample() {
+          const visibleFrames = [...document.querySelectorAll('iframe')].filter((frame) => frame.style.visibility === 'visible');
+          samples.push({ count: visibleFrames.length, zoom: visibleFrames[0]?.contentWindow.mapInstance?.getZoom(), time: t, scene: shown });
+          if (t >= end || performance.now() - start > 12000) {
+            if (playing) document.querySelector('#play').click();
+            resolve({ time: t, samples });
+          } else requestAnimationFrame(sample);
+        }
+        requestAnimationFrame(sample);
+      }), endTime);
+      assert.ok(playback.time >= endTime, `${label}: narrated playback crosses the boundary`);
+      assert.ok(playback.samples.every((sample) => sample.count === 1 && Number.isFinite(sample.zoom)),
+        `${label}: one loaded map remains visible`);
+      const steps = playback.samples.slice(1).map((sample, i) => Math.abs(sample.zoom - playback.samples[i].zoom));
+      const largest = steps.indexOf(Math.max(...steps));
+      assert.ok(Math.max(...steps) < 1,
+        `${label}: no camera reset: ${JSON.stringify(playback.samples.slice(largest, largest + 2))}`);
+    }
+    await checkPlayback(durations[0] - .4, durations[0] + 4.8, 0, 'Hanoi departure');
     for (const [index, fraction, expected] of [[0, .55, "image_1"], [2, .55, "image_7"], [4, .55, "image_5"], [6, .55, "image_3"]]) {
       await page.evaluate((time) => window.renderAt(time), at(index, fraction));
       await page.waitForFunction((i) => document.querySelectorAll('iframe')[i].contentWindow.location.pathname.endsWith(`phase_${i + 1}.html`), {}, index);
@@ -60,14 +104,16 @@ const puppeteer = require("puppeteer-core");
           const duration = JSON.parse(document.querySelector('#map-data').textContent).duration;
           window.renderAt(duration * fraction);
           const rect = car.getBoundingClientRect(), point = map.project(marker.getLngLat());
+          const progress = map.getPaintProperty('active-route', 'line-gradient')[3];
           return { marker: [rect.x + rect.width / 2, rect.y + rect.height / 2],
             projected: [point.x, point.y], gradient: map.getPaintProperty('active-route', 'line-gradient'),
+            location: marker.getLngLat().toArray(), routeEnd: locate(paths[phase.legIndex], progress).coord,
             heading: car.style.getPropertyValue('--heading') };
         }, fraction);
         assert.ok(Math.hypot(motion.marker[0] - motion.projected[0], motion.marker[1] - motion.projected[1]) < 3,
           `phase ${index + 1}: car stays on its map position`);
-        assert.ok(Math.abs(motion.gradient[3] - fraction) < .001,
-          `phase ${index + 1}: drawn route ends at car progress`);
+        assert.ok(Math.hypot(...motion.location.map((value, i) => value - motion.routeEnd[i])) < 1e-8,
+          `phase ${index + 1}: drawn route ends at car after easing`);
         assert.ok(motion.heading.endsWith('deg'), `phase ${index + 1}: car follows route direction`);
       }
       const turnDeltas = await motionFrame.evaluate(() => {
@@ -100,8 +146,57 @@ const puppeteer = require("puppeteer-core");
         'car moves while narration plays');
       assert.ok(after.progress > before.progress, 'red route grows behind the moving car');
     }
+    // Verify camera and car continuity across the preloaded arrival handoff.
+    await page.evaluate((time) => window.renderAt(time), at(5, .65));
+    await page.waitForFunction(() => document.querySelectorAll('iframe')[5].dataset.ready === '1', { timeout: 60000 });
+    await page.waitForFunction(() => document.querySelectorAll('iframe')[6].dataset.ready === '1', { timeout: 60000 });
+    const boundary = at(6, 0);
+    const beforeFrame = page.frames().find((frame) => frame.url().endsWith('phase_6.html'));
+    const afterFrame = page.frames().find((frame) => frame.url().endsWith('phase_7.html'));
+    const state = (time) => {
+      window.renderAt(time);
+      return { center: map.getCenter().toArray(), zoom: map.getZoom(),
+        coord: marker.getLngLat().toArray(), heading: parseFloat(car.style.getPropertyValue('--heading')) };
+    };
+    const before = await beforeFrame.evaluate(state, durations[5]);
+    const after = await afterFrame.evaluate(state, 0);
+    assert.ok(Math.hypot(...before.center.map((value, i) => value - after.center[i])) < 1e-7, 'arrival camera center is continuous');
+    assert.ok(Math.abs(before.zoom - after.zoom) < 1e-7, 'arrival zoom is continuous');
+    assert.ok(Math.abs(((before.heading - after.heading + 540) % 360) - 180) < 1e-7, 'parked car keeps arrival heading');
+    await checkPlayback(boundary - 4.8, boundary + .3, 5, 'Nha Trang arrival');
+    const summaryStart = at(7, 0);
+    const summaryTime = at(7, .8);
+    await checkPlayback(summaryStart - .3, summaryStart + 4.8, 6, 'Full journey summary');
+    for (const viewport of [{ width: 1080, height: 720 }, { width: 640, height: 480 }]) {
+      await page.setViewport(viewport);
+      await page.evaluate((time) => window.renderAt(time), summaryTime);
+      await page.waitForFunction(() => document.querySelectorAll('iframe')[7].dataset.ready === '1', { timeout: 60000 });
+      const summary = page.frames().find((frame) => frame.url().endsWith('phase_8.html'));
+      await summary.waitForFunction((local) => Math.abs(appliedTime - local) < .001, {}, summaryTime - summaryStart);
+      await summary.waitForFunction(() => window.mapInstance.areTilesLoaded(), { timeout: 60000 });
+      await summary.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const overview = await summary.evaluate(() => {
+        const { width, height } = map.getContainer().getBoundingClientRect();
+        const inside = (coord) => {
+          const p = map.project(coord);
+          return p.x >= 12 && p.x <= width - 12 && p.y >= 12 && p.y <= height - 12;
+        };
+        const labels = [...document.querySelectorAll('.stop-label')].map((label) => label.getBoundingClientRect());
+        return { zoom: map.getZoom(), stops: D.stops.map((stop) => ({ name: stop.name, inside: inside(stop.coord) })),
+          routeInside: paths.every((path) => path.points.every(inside)),
+          labelsApart: labels.every((a, i) => labels.slice(i + 1).every((b) =>
+            a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)),
+          labelsInside: labels.every((r) => {
+            return r.left >= 4 && r.top >= 4 && r.right <= width - 4 && r.bottom <= height - 4;
+          }) };
+      });
+      assert.ok(overview.stops.every((stop) => stop.inside), `summary shows all stops: ${JSON.stringify(overview)}`);
+      assert.ok(overview.routeInside, 'summary shows the entire road route');
+      assert.ok(overview.labelsInside, 'summary labels stay inside the frame');
+      assert.ok(overview.labelsApart, 'all four summary labels are readable without overlap');
+    }
     assert.deepEqual(errors, []);
-    console.log(`PASS: ${snapshot.phases.length} phases, illustration cards and car/route synchronization.`);
+    console.log(`PASS: ${snapshot.phases.length} phases, illustration cards, car/route synchronization, camera continuity and full-journey summary.`);
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

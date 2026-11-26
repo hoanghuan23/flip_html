@@ -184,9 +184,10 @@ def _runtime(output):
     return hashlib.sha256((assets / 'maplibre-gl.js').read_bytes() + Path(__file__).read_bytes()).hexdigest()
 
 
-def _phase_html(index, phase, plan, fingerprint, images):
+def _phase_html(index, phase, plan, fingerprint, images, leg_durations=None):
     data = {'phase': plan['phases'][index - 1], 'stops': plan['stops'], 'legs': plan['legs'],
-            'duration': phase['duration'], 'styleUrl': plan['styleUrl'], 'attribution': plan['attribution']}
+            'duration': phase['duration'], 'legDurations': leg_durations or {},
+            'styleUrl': plan['styleUrl'], 'attribution': plan['attribution']}
     payload = json.dumps(data, ensure_ascii=False).replace('<', '\\u003c')
     scene = json.dumps({'phase': phase, 'renderer': VERSION}, ensure_ascii=False).replace('<', '\\u003c')
     card = overlay_fragment(phase, images)
@@ -206,52 +207,112 @@ def _phase_html(index, phase, plan, fingerprint, images):
 <script src="assets/map/maplibre-gl.js"></script>
 <script>
 const D=JSON.parse(document.getElementById('map-data').textContent),phase=D.phase;
-const map=new maplibregl.Map({{container:'map',style:D.styleUrl,center:D.stops[0].coord,zoom:5.7,
-  attributionControl:false,interactive:false,preserveDrawingBuffer:true}});
-window.mapInstance=map;
-let resolveReady,rejectReady;window.previewReady=new Promise((resolve,reject)=>{{resolveReady=resolve;rejectReady=reject}});
-const car=document.createElement('div');car.className='car';car.innerHTML='<svg viewBox="0 0 78 47" width="78" height="47" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="11" width="62" height="26" rx="10" fill="#b41118" stroke="#fff" stroke-width="2"/><rect x="18" y="15" width="42" height="18" rx="6" fill="#d71920"/><rect x="27" y="17" width="25" height="14" rx="3" fill="#405470"/><rect x="34" y="17" width="13" height="14" rx="2" fill="#8a43ba" stroke="#e5c7f2"/><path d="M13 9h8v3h-8zm0 26h8v3h-8zm43-26h8v3h-8zm0 26h8v3h-8z" fill="#222"/></svg>';
-const marker=new maplibregl.Marker({{element:car,anchor:'center'}}).setLngLat(D.stops[0].coord).addTo(map);
-window.carMarker=marker;
-for(const stop of D.stops){{const label=document.createElement('div');label.className='stop-label';label.textContent=stop.name;
-  new maplibregl.Marker({{element:label,anchor:'bottom-left',offset:[12,-10]}}).setLngLat(stop.coord).addTo(map)}}
-let ready=false,pending=0,appliedTime=NaN;
-function feature(coords){{return {{type:'Feature',geometry:{{type:'LineString',coordinates:coords}},properties:{{}}}}}}
-function mercatorY(lat){{return Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))}}
 const paths=D.legs.map(leg=>{{const points=leg.coordinates,lengths=[0];
   for(let i=1;i<points.length;i++){{const a=points[i-1],b=points[i];
     lengths.push(lengths[i-1]+Math.hypot((b[0]-a[0])*Math.PI/180,mercatorY(b[1])-mercatorY(a[1])));}}
   return {{points,lengths,total:lengths.at(-1)}}}});
+let overviewCamera=null;
+const initial=stateAt(0);
+const map=new maplibregl.Map({{container:'map',style:D.styleUrl,center:initial.center,zoom:initial.zoom,
+  attributionControl:false,interactive:false,preserveDrawingBuffer:true}});
+window.mapInstance=map;
+let resolveReady,rejectReady;window.previewReady=new Promise((resolve,reject)=>{{resolveReady=resolve;rejectReady=reject}});
+const car=document.createElement('div');car.className='car';car.innerHTML='<svg viewBox="0 0 78 47" width="78" height="47" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="11" width="62" height="26" rx="10" fill="#b41118" stroke="#fff" stroke-width="2"/><rect x="18" y="15" width="42" height="18" rx="6" fill="#d71920"/><rect x="27" y="17" width="25" height="14" rx="3" fill="#405470"/><rect x="34" y="17" width="13" height="14" rx="2" fill="#8a43ba" stroke="#e5c7f2"/><path d="M13 9h8v3h-8zm0 26h8v3h-8zm43-26h8v3h-8zm0 26h8v3h-8z" fill="#222"/></svg>';
+const marker=new maplibregl.Marker({{element:car,anchor:'center'}}).setLngLat(initial.coord).addTo(map);
+window.carMarker=marker;
+const stopLabels=[];
+for(const [i,stop] of D.stops.entries()){{const label=document.createElement('div');label.className='stop-label';label.textContent=stop.name;
+  const left=phase.mode==='summary'&&i%2===1,offset=phase.mode==='summary'?20:12;
+  new maplibregl.Marker({{element:label,anchor:left?'bottom-right':'bottom-left',offset:[left?-offset:offset,-10]}}).setLngLat(stop.coord).addTo(map);stopLabels.push(label)}}
+let ready=false,pending=0,appliedTime=NaN;
+function feature(coords){{return {{type:'Feature',geometry:{{type:'LineString',coordinates:coords}},properties:{{}}}}}}
+function mercatorY(lat){{return Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))}}
+function clamp(p){{return Math.max(0,Math.min(1,p))}}
+function smooth(p){{const u=clamp(p);return u*u*u*(10+u*(-15+6*u))}}
+function arrivalDuration(duration){{return Math.min(4.5,duration*.48)}}
+function launchDuration(duration){{return Math.min(4.5,duration*.4)}}
+function motionTiming(duration){{
+  const launch=launchDuration(duration),delay=launch*.55,acceleration=launch-delay,arrival=arrivalDuration(duration);
+  return {{launch,delay,acceleration,arrival,start:duration-arrival,total:duration-delay-acceleration/2-arrival*.8}};
+}}
+function travelProgress(time,duration){{
+  // Open up the map before moving. Integrate acceleration, cruise and braking
+  // so the car and drawn route share one distance and settle at the cut.
+  if(duration<=0)return 1;
+  const t=Math.max(0,Math.min(duration,time));
+  const {{launch,delay,acceleration,arrival,start,total}}=motionTiming(duration);
+  if(t<=delay)return 0;
+  if(t<launch){{const u=(t-delay)/acceleration;return acceleration*(u*u*u-u*u*u*u/2)/total;}}
+  if(t<=start)return (t-delay-acceleration/2)/total;
+  const u=(t-start)/arrival;
+  return clamp((start-delay-acceleration/2+arrival*(1-Math.pow(1-u,5))/5)/total);
+}}
 function locate(path,p){{const goal=path.total*Math.max(0,Math.min(1,p));let low=1,high=path.lengths.length-1;
   while(low<high){{const mid=(low+high)>>1;if(path.lengths[mid]<goal)low=mid+1;else high=mid;}}
   const i=low,a=path.points[i-1],b=path.points[i],span=path.lengths[i]-path.lengths[i-1];
   const f=span?Math.max(0,Math.min(1,(goal-path.lengths[i-1])/span)):0;
   return {{coord:[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f],index:i}};}}
-function headingAt(path,p){{
+function headingAt(path,p,duration){{
   // A road vertex can turn sharply over a few metres. Use the direction of a
   // short stretch of the journey so a fast-moving icon does not flicker left/right.
-  const width=Math.min(.12,Math.max(.05,.8/D.duration));
+  const cruiseTime=motionTiming(duration).total;
+  const width=Math.min(.18,Math.max(.05,.8/cruiseTime));
   const start=Math.max(0,Math.min(1-width,p-width/2));
-  const before=map.project(locate(path,start).coord),after=map.project(locate(path,start+width).coord);
-  return Math.atan2(after.y-before.y,after.x-before.x)*180/Math.PI;
+  const before=locate(path,start).coord,after=locate(path,start+width).coord;
+  return Math.atan2(mercatorY(before[1])-mercatorY(after[1]),(after[0]-before[0])*Math.PI/180)*180/Math.PI;
+}}
+function legDuration(index){{return D.legDurations[index]||D.duration}}
+function parkedAt(stop){{
+  const leg=stop>0?stop-1:0,path=paths[leg],p=stop>0?1:0;
+  return path?{{coord:locate(path,p).coord,heading:headingAt(path,p,legDuration(leg))}}:
+    {{coord:D.stops[stop].coord,heading:0}};
+}}
+function fitOverview(){{
+  if(phase.mode!=='summary')return;
+  // Include road detours as well as the stops, and reserve room for labels,
+  // the parked car and attribution at the actual preview dimensions.
+  const bounds=[[Infinity,Infinity],[-Infinity,-Infinity]];
+  function extend(coord){{for(let i=0;i<2;i++){{bounds[0][i]=Math.min(bounds[0][i],coord[i]);bounds[1][i]=Math.max(bounds[1][i],coord[i]);}}}}
+  D.stops.forEach(stop=>extend(stop.coord));paths.forEach(path=>path.points.forEach(extend));
+  const container=map.getContainer(),width=container.clientWidth,height=container.clientHeight;
+  const labelWidth=Math.max(0,...stopLabels.map(label=>label.getBoundingClientRect().width));
+  overviewCamera=map.cameraForBounds(bounds,{{maxZoom:13,padding:{{
+    top:Math.min(72,height*.25),bottom:Math.min(88,height*.25),
+    left:Math.min(labelWidth+40,width*.4),right:Math.min(labelWidth+40,width*.4)
+  }}}});
+}}
+function stateAt(time){{
+  const t=Math.max(0,Math.min(D.duration,Number(time)||0)),parked=parkedAt(phase.stopIndex);
+  let coord=parked.coord,center=coord,heading=parked.heading,zoom=13,progress=1;
+  if(phase.mode==='move'){{
+    const path=paths[phase.legIndex],launch=launchDuration(D.duration),arrival=arrivalDuration(D.duration);
+    progress=travelProgress(t,D.duration);coord=locate(path,progress).coord;center=coord;
+    const incoming=parkedAt(phase.legIndex).heading,target=headingAt(path,progress,legDuration(phase.legIndex));
+    heading=incoming+((target-incoming+540)%360-180)*smooth(t/launch);
+    zoom=13-6.6*smooth(t/launch)+6.6*smooth((t-(D.duration-arrival))/arrival);
+  }}else if(phase.mode==='depart'){{
+    zoom=5.7+7.3*smooth(t/Math.min(4.5,D.duration));
+  }}else if(phase.mode==='summary'){{
+    if(overviewCamera&&t>0){{
+      const u=smooth(t/Math.min(4.5,D.duration)),overview=overviewCamera.center;
+      center=u===1?[overview.lng,overview.lat]:[coord[0]+(overview.lng-coord[0])*u,
+        (Math.atan(Math.exp(mercatorY(coord[1])+(mercatorY(overview.lat)-mercatorY(coord[1]))*u))*2-Math.PI/2)*180/Math.PI];
+      zoom=13+(overviewCamera.zoom-13)*u;
+    }}
+  }}
+  return {{coord,center,zoom,heading,progress}};
 }}
 function reveal(p){{return ['step',['line-progress'],'#d71920',Math.max(0,Math.min(1,p)),'rgba(215,25,32,0)']}}
 function renderAt(value){{pending=Math.max(0,Math.min(D.duration,Number(value)||0));
   if(!ready||pending===appliedTime)return;appliedTime=pending;
-  const p=D.duration?pending/D.duration:0, stop=phase.stopIndex;
-  const moving=phase.mode==='move';
-  if(moving)map.setPaintProperty('active-route','line-gradient',reveal(p));
-  const position=moving?locate(paths[phase.legIndex],p):null;
-  let coord=moving?position.coord:D.stops[stop].coord;
-  marker.setLngLat(coord);let center=coord,zoom=13;
-  if(phase.mode==='summary'){{center=D.stops[Math.floor(D.stops.length/2)].coord;zoom=5.7;}}
-  else if(phase.mode==='depart'){{zoom=5.7+7.3*Math.min(1,p*3);}}
-  else if(phase.mode==='move'){{zoom=p<.85?6.4:6.4+6.6*(p-.85)/.15;}}
-  map.jumpTo({{center,zoom,duration:0}});
-  if(position)car.style.setProperty('--heading',headingAt(paths[phase.legIndex],p)+'deg');
+  const state=stateAt(pending);
+  if(phase.mode==='move')map.setPaintProperty('active-route','line-gradient',reveal(state.progress));
+  marker.setLngLat(state.coord);
+  map.jumpTo({{center:state.center,zoom:state.zoom}});
+  car.style.setProperty('--heading',state.heading+'deg');
 }}
 window.renderAt=renderAt;
-map.on('load',()=>{{ready=true;
+map.on('load',()=>{{ready=true;fitOverview();
   const completed=phase.mode==='summary'?D.legs.length:phase.mode==='move'?phase.legIndex:phase.stopIndex;
   map.addSource('route',{{type:'geojson',data:{{type:'FeatureCollection',features:D.legs.slice(0,completed).map(l=>feature(l.coordinates))}}}});
   map.addLayer({{id:'route',type:'line',source:'route',paint:{{'line-color':'#d71920','line-width':7,'line-opacity':.95}},layout:{{'line-cap':'round','line-join':'round'}}}});
@@ -259,9 +320,9 @@ map.on('load',()=>{{ready=true;
     map.addLayer({{id:'active-route',type:'line',source:'active-route',paint:{{'line-width':7,'line-gradient':reveal(0)}},layout:{{'line-cap':'round','line-join':'round'}}}});}}
   map.addSource('stops',{{type:'geojson',data:{{type:'FeatureCollection',features:D.stops.map(s=>({{type:'Feature',geometry:{{type:'Point',coordinates:s.coord}},properties:{{name:s.name}}}}))}}}});
   map.addLayer({{id:'dots',type:'circle',source:'stops',paint:{{'circle-color':'#d71920','circle-radius':10,'circle-stroke-color':'#fff','circle-stroke-width':3}}}});
-  renderAt(pending);map.once('idle',()=>resolveReady(true));
-  parent.postMessage({{type:'preview-ready'}},'*');
+  renderAt(pending);map.once('idle',()=>{{resolveReady(true);parent.postMessage({{type:'preview-ready'}},'*')}});
 }});
+map.on('resize',()=>{{if(ready&&phase.mode==='summary'){{fitOverview();appliedTime=NaN;renderAt(pending)}}}});
 map.on('error',e=>{{rejectReady(e.error||new Error('Không tải được bản đồ.'));
   parent.postMessage({{type:'preview-error',message:e.error?.message||'Không tải được bản đồ.'}},'*')}});
 addEventListener('message',e=>{{if(e.source===parent&&e.data&&Number.isFinite(e.data.t))renderAt(e.data.t)}});
@@ -273,8 +334,11 @@ def _write_pages(script, output, plan, fingerprint):
     manifest_path = output / 'references.json'
     manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.is_file() else []
     images = reference_data(output, manifest)
+    leg_durations = {state['legIndex']: phase['duration']
+                     for state, phase in zip(plan['phases'], script['phases']) if state['mode'] == 'move'}
     for index, phase in enumerate(script['phases'], 1):
-        (output / f'phase_{index}.html').write_text(_phase_html(index, phase, plan, fingerprint, images), encoding='utf-8')
+        (output / f'phase_{index}.html').write_text(
+            _phase_html(index, phase, plan, fingerprint, images, leg_durations), encoding='utf-8')
     write_index(script, output, fingerprint)
 
 
