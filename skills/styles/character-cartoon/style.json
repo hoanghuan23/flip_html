@@ -1,0 +1,105 @@
+{
+  "id": "character-cartoon",
+  "name": "Character Cartoon",
+  "version": "1.0.0",
+  "description": "Expressive 2D cartoon style for educational storytelling and humorous YouTube videos.",
+  "category": "illustration",
+  "tags": [
+    "cartoon",
+    "character",
+    "mascot",
+    "educational",
+    "storytelling",
+    "humor",
+    "youtube",
+    "2d"
+  ],
+  "visual": {
+    "dimension": "2D",
+    "rendering": "flat digital cartoon",
+    "outline": {
+      "enabled": true,
+      "color": "#111111",
+      "weight": "thick",
+      "consistency": "uniform",
+      "quality": "smooth"
+    },
+    "coloring": {
+      "mode": "flat",
+      "saturation": "high",
+      "contrast": "high",
+      "shading": "minimal cel shading",
+      "texture": "minimal"
+    },
+    "shapes": {
+      "geometry": "simplified",
+      "silhouette": "clear",
+      "detail_level": "medium-low"
+    },
+    "proportions": {
+      "head": "large",
+      "body": "compact",
+      "limbs": "short and simplified",
+      "features": "expressive"
+    },
+    "expressions": {
+      "intensity": "exaggerated",
+      "humor": "playful",
+      "body_language": "dynamic",
+      "comic_symbols": true
+    },
+    "background": {
+      "default": "plain white",
+      "scene_adaptive": true,
+      "complexity": "low"
+    }
+  },
+  "composition": {
+    "primary_focus": "character",
+    "readability": "high",
+    "thumbnail_friendly": true,
+    "negative_space": "balanced",
+    "avoid_clutter": true,
+    "avoid_unwanted_cropping": true
+  },
+  "character_policy": {
+    "preserve_identity": true,
+    "use_template_references": true,
+    "allow_costume_changes": true,
+    "allow_pose_changes": true,
+    "allow_expression_changes": true,
+    "allow_identity_redesign": false
+  },
+  "prompt": {
+    "positive": [
+      "expressive 2D cartoon illustration",
+      "thick smooth black outlines",
+      "bright saturated flat colors",
+      "minimal cel shading",
+      "simplified geometric shapes",
+      "large head and compact body",
+      "exaggerated facial expressions",
+      "playful body language",
+      "clean readable silhouette",
+      "humorous educational cartoon aesthetic",
+      "consistent character identity"
+    ],
+    "negative": [
+      "photorealistic",
+      "realistic human anatomy",
+      "3D render",
+      "complex textures",
+      "heavy gradients",
+      "excessive shadows",
+      "blurry outlines",
+      "inconsistent line weight",
+      "deformed anatomy",
+      "extra limbs",
+      "extra ears",
+      "duplicated facial features",
+      "cluttered composition",
+      "unrequested text",
+      "watermark"
+    ]
+  }
+}

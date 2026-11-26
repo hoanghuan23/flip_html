@@ -1,0 +1,242 @@
+{
+  "id": "character",
+  "name": "Xeko",
+  "version": "1.0.0",
+  "type": "character-template",
+  "description": "Xeko is a recurring humorous cartoon mascot for educational and entertainment YouTube videos.",
+  "default_style": "character-cartoon",
+  "tags": [
+    "xeko",
+    "mascot",
+    "cartoon",
+    "brand-character",
+    "educational",
+    "storytelling",
+    "youtube"
+  ],
+  "identity": {
+    "name": "Xeko",
+    "gender": "male",
+    "character_type": "young cartoon mascot",
+    "personality": [
+      "humorous",
+      "curious",
+      "playful",
+      "expressive",
+      "friendly",
+      "energetic",
+      "mischievous"
+    ],
+    "appearance": {
+      "hair": {
+        "color": "#292526",
+        "style": "angular black spiky hair",
+        "signature": "three prominent forward-facing spikes",
+        "preserve_silhouette": true
+      },
+      "face": {
+        "shape": "angular forehead with rounded cheeks",
+        "skin_color": "#FFE0C2",
+        "eyes": "large round or oval white cartoon eyes",
+        "pupils": "small black pupils",
+        "nose": "small simplified cartoon nose",
+        "mouth": "simple expressive cartoon mouth",
+        "cheeks": "subtle pink blush",
+        "ears": "small rounded human cartoon ears"
+      },
+      "body": {
+        "proportions": "large head and compact body",
+        "build": "small cartoon body",
+        "limbs": "short simplified limbs",
+        "anatomy": "stylized human cartoon"
+      }
+    }
+  },
+  "default_outfit": {
+    "top": "bright red hoodie",
+    "top_color": "#EF2020",
+    "chest_emblem": "white play-button emblem",
+    "bottom": "dark charcoal shorts",
+    "bottom_color": "#292733",
+    "socks": "white socks",
+    "shoes": "red and white sneakers",
+    "accessories": [
+      "dark crossbody bag"
+    ]
+  },
+  "references": {
+    "base_path": ".",
+    "design": {
+      "directory": "design",
+      "required": true,
+      "priority": 100,
+      "recursive": true,
+      "extensions": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp"
+      ],
+      "selection": "match camera angle"
+    },
+    "poses": {
+      "directory": "poses",
+      "required": false,
+      "priority": 70,
+      "recursive": true,
+      "extensions": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp"
+      ],
+      "selection": "match emotion and action"
+    },
+    "variants": {
+      "directory": "variants",
+      "required": false,
+      "priority": 80,
+      "recursive": true,
+      "extensions": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp"
+      ],
+      "selection": "match scene role or costume"
+    }
+  },
+  "consistency": {
+    "identity_lock": true,
+    "preserve_hair_color": true,
+    "preserve_hair_shape": true,
+    "preserve_face_shape": true,
+    "preserve_eye_style": true,
+    "preserve_skin_tone": true,
+    "preserve_body_proportions": true,
+    "preserve_outline_style": true,
+    "allow_costume_changes": true,
+    "allow_accessory_changes": true,
+    "allow_expression_changes": true,
+    "allow_pose_changes": true,
+    "allow_camera_angle_changes": true,
+    "allow_contextual_transformations": true,
+    "allow_identity_replacement": false
+  },
+  "anatomy": {
+    "prevent_extra_ears": true,
+    "prevent_extra_limbs": true,
+    "prevent_duplicated_features": true,
+    "prevent_deformed_hands": true,
+    "profile_view_visible_ears": 1,
+    "front_view_max_ears": 2
+  },
+  "variant_catalog": {
+    "historical": [
+      "zhuge_liang",
+      "king",
+      "knight",
+      "viking",
+      "samurai",
+      "swordsman",
+      "cowboy",
+      "pirate"
+    ],
+    "professions": [
+      "doctor",
+      "scientist",
+      "astronaut",
+      "detective",
+      "footballer",
+      "hacker"
+    ],
+    "fantasy": [
+      "ninja",
+      "robot",
+      "taoist",
+      "fortune_teller",
+      "wizard",
+      "pinocchio"
+    ]
+  },
+  "pose_categories": {
+    "emotions": [
+      "happy",
+      "sad",
+      "angry",
+      "scared",
+      "surprised",
+      "confused",
+      "embarrassed",
+      "suspicious",
+      "excited",
+      "disgusted",
+      "sarcastic",
+      "exhausted"
+    ],
+    "gestures": [
+      "pointing",
+      "waving",
+      "thumbs_up",
+      "presenting",
+      "thinking",
+      "shrugging",
+      "facepalm",
+      "celebrating"
+    ],
+    "actions": [
+      "running",
+      "walking",
+      "jumping",
+      "eating",
+      "sleeping",
+      "gaming",
+      "typing",
+      "reading",
+      "explaining",
+      "holding_sign",
+      "taking_selfie"
+    ]
+  },
+  "scene_policy": {
+    "appearance": "contextual",
+    "include_in_every_scene": false,
+    "allow_supporting_characters": true,
+    "allow_multiple_instances": false,
+    "allow_new_variants": true,
+    "allow_new_poses": true,
+    "adapt_costume_to_topic": true,
+    "adapt_expression_to_narration": true,
+    "avoid_repetitive_poses": true,
+    "framing_options": [
+      "full_body",
+      "half_body",
+      "portrait",
+      "close_up"
+    ]
+  },
+  "prompt": {
+    "identity": "Xeko, a humorous young male cartoon mascot with signature angular black spiky hair, large round white eyes, small black pupils, light peach skin, pink cheeks, expressive mouth, large head and compact cartoon body.",
+    "default_outfit": "Bright red hoodie with a white play-button emblem, dark shorts, white socks, red and white sneakers, dark crossbody bag.",
+    "consistency_suffix": "Preserve the original Xeko character identity, signature black spiky hairstyle, recognizable facial structure, eye design, skin tone and cartoon body proportions. Change only the costume, accessories, expression, pose and scene as required.",
+    "negative": [
+      "different character",
+      "generic mascot",
+      "character replacement",
+      "pink hair",
+      "blonde hair",
+      "changed hairstyle",
+      "inconsistent face",
+      "realistic human face",
+      "extra ear behind head",
+      "duplicated ears",
+      "extra limbs",
+      "extra fingers",
+      "deformed anatomy",
+      "inconsistent body proportions",
+      "unrequested character redesign",
+      "watermark",
+      "unrequested text"
+    ]
+  }
+}
