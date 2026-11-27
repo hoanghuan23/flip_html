@@ -4,35 +4,25 @@ import os
 from pathlib import Path
 import re
 import shutil
-import uuid
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import ValidationError
 
 from .jobs import JobManager, PreviewNotFoundError, ROOT
-from .models import ExportRequest, GraphicsRequest, PreviewRequest, ScriptRequest, category_styles, load_style_config
-from .previews import create_preview
-from .scripts import ScriptJobManager
-from .graphics import GraphicsInputError, GraphicsJobManager
+from .models import ExportRequest
 from .image_store import ImageUpload, save_image
 
 
 def create_app(storage_root: Path | None = None):
     storage = (storage_root or Path(os.environ.get('VIDEO_STORAGE_DIR', ROOT / 'storage'))).resolve()
-    styles_root = ROOT / 'skills' / 'styles'
 
     @asynccontextmanager
     async def lifespan(app):
         app.state.jobs = JobManager(storage)
-        app.state.scripts = ScriptJobManager(storage)
-        app.state.graphics = GraphicsJobManager(storage)
         try:
             yield
         finally:
-            app.state.graphics.close()
-            app.state.scripts.close()
             app.state.jobs.close()
 
     app = FastAPI(title='AI Video Studio', lifespan=lifespan)
@@ -62,19 +52,12 @@ def create_app(storage_root: Path | None = None):
                                       any(shutil.which(p) for p in ('google-chrome', 'chromium', 'chromium-browser')))
         return {'ready': all(dependencies.values()), 'dependencies': dependencies}
 
-    @app.post('/api/previews', status_code=201)
-    def preview(request: PreviewRequest):
-        snapshot_id = uuid.uuid4().hex
-        return create_preview(request, storage / 'previews' / snapshot_id, snapshot_id)
-
-    @app.post('/api/scripts', status_code=202)
-    def script(request: ScriptRequest):
-        try:
-            return app.state.scripts.create(request)
-        except ValueError as error:
-            raise HTTPException(422, str(error))
-        except (OSError, RuntimeError):
-            raise HTTPException(503, 'Không thể tạo tác vụ kịch bản. Hãy kiểm tra máy chủ và thử lại.')
+    @app.post('/api/previews')
+    @app.post('/api/scripts')
+    @app.post('/api/graphics')
+    @app.post('/api/graphics/{graphics_id}/confirm')
+    def generation_unavailable():
+        raise HTTPException(503, 'Chưa có cấu hình tạo nội dung.')
 
     @app.post('/api/images', status_code=201)
     def upload_image(request: ImageUpload):
@@ -84,97 +67,6 @@ def create_app(storage_root: Path | None = None):
             raise HTTPException(422, str(error))
         except OSError:
             raise HTTPException(503, 'Không thể lưu ảnh trên máy chủ.')
-
-    @app.post('/api/graphics', status_code=202)
-    def graphics(request: GraphicsRequest):
-        try:
-            return app.state.graphics.create(request)
-        except GraphicsInputError as error:
-            raise HTTPException(409, str(error))
-        except (OSError, ValueError, RuntimeError) as error:
-            message = str(error) if isinstance(error, ValueError) else 'Không thể tạo tác vụ đồ họa trên máy chủ.'
-            raise HTTPException(503, message)
-
-    @app.get('/api/graphics/{graphics_id}')
-    def get_graphics(graphics_id: str):
-        checked_id(graphics_id)
-        try:
-            return app.state.graphics.read(graphics_id)
-        except FileNotFoundError:
-            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa. Hãy bấm Tạo đồ họa để thử lại.')
-
-    @app.post('/api/graphics/{graphics_id}/confirm', status_code=202)
-    def confirm_graphics(graphics_id: str):
-        checked_id(graphics_id)
-        try:
-            return app.state.graphics.confirm(graphics_id)
-        except FileNotFoundError:
-            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa.')
-        except GraphicsInputError as error:
-            raise HTTPException(409, str(error))
-        except (OSError, RuntimeError):
-            raise HTTPException(503, 'Không thể bắt đầu dựng animation. Hãy thử lại.')
-
-    @app.get('/api/graphics/{graphics_id}/previews/{filename}')
-    def graphics_still(graphics_id: str, filename: str):
-        checked_id(graphics_id)
-        match = re.fullmatch(r'phase_([1-9][0-9]*)\.png', filename)
-        if not match:
-            raise HTTPException(404, 'Không tìm thấy ảnh preview.')
-        try:
-            job = app.state.graphics.read(graphics_id)
-        except FileNotFoundError:
-            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa.')
-        index = int(match[1])
-        path = storage / 'previews' / graphics_id / f'phase_{index}.preview.png'
-        if index > len(job.get('previews', [])) or not path.is_file():
-            raise HTTPException(404, 'Ảnh preview chưa sẵn sàng.')
-        return FileResponse(path, media_type='image/png', headers={'Cache-Control': 'no-store'})
-
-    @app.get('/api/scripts/{script_id}')
-    def get_script(script_id: str):
-        checked_id(script_id)
-        try:
-            return app.state.scripts.read(script_id)
-        except FileNotFoundError:
-            raise HTTPException(404, 'Không tìm thấy tác vụ kịch bản trên máy chủ. Hãy tạo lại.')
-
-    def current_style_config():
-        try:
-            return load_style_config()
-        except (OSError, ValidationError):
-            raise HTTPException(503, 'Không đọc được cấu hình danh mục. Hãy kiểm tra config/style_config.json.')
-
-    def sample_directory(style_id):
-        allowed_styles = {style for category in current_style_config()['categories'].values()
-                          for style in category_styles(category)}
-        if style_id not in allowed_styles:
-            raise HTTPException(404, 'Phong cách không tồn tại.')
-        return styles_root / style_id / 'demo'
-
-    @app.get('/api/styles/{style_id}/preview')
-    def style_preview(style_id: str):
-        path = sample_directory(style_id) / 'index.html'
-        return JSONResponse(
-            {'url': f'/api/styles/{style_id}/demo/index.html' if path.is_file() else None},
-            headers={'Cache-Control': 'no-store'},
-        )
-
-    @app.get('/api/styles/{style_id}/demo/index.html')
-    def style_demo(style_id: str):
-        path = sample_directory(style_id) / 'index.html'
-        if not path.is_file():
-            raise HTTPException(404, 'Chưa có bản demo.')
-        return FileResponse(path, media_type='text/html', headers={'Cache-Control': 'no-store'})
-
-    @app.get('/api/styles/{style_id}/demo/assets/{asset_path:path}')
-    def style_demo_asset(style_id: str, asset_path: str):
-        root = sample_directory(style_id) / 'assets'
-        path = (root / asset_path).resolve()
-        if (not path.is_relative_to(root.resolve()) or not path.is_file()
-                or path.suffix.lower() not in {'.js', '.woff2', '.png', '.jpg', '.jpeg', '.webp'}):
-            raise HTTPException(404, 'Không tìm thấy tài nguyên mẫu.')
-        return FileResponse(path)
 
     @app.get('/api/previews/{snapshot_id}')
     def get_preview(snapshot_id: str):
@@ -199,7 +91,7 @@ def create_app(storage_root: Path | None = None):
         root = snapshot_path(snapshot_id) / 'assets'
         path = (root / asset_path).resolve()
         if (not path.is_relative_to(root.resolve()) or not path.is_file()
-                or path.suffix.lower() not in {'.js', '.css', '.woff2', '.mp3', '.wav', '.png', '.jpeg', '.jpg', '.webp'}):
+                or path.suffix.lower() not in {'.js', '.css', '.woff', '.woff2', '.ttf', '.otf', '.mp3', '.wav', '.png', '.jpeg', '.jpg', '.webp', '.svg'}):
             raise HTTPException(404, 'Không tìm thấy tài nguyên preview.')
         return FileResponse(path, headers={'Cache-Control': 'public, max-age=31536000, immutable'})
 

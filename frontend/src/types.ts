@@ -241,8 +241,8 @@ export function parseDraft(value: unknown): ProjectDraft {
     (p.referenceImages !== undefined && !validReferenceImages(p.referenceImages)) ||
     (p.lastReferenceImageNumber !== undefined &&
       (!Number.isSafeInteger(p.lastReferenceImageNumber) || p.lastReferenceImageNumber < 0)) ||
-    !savedStyle ||
-    !categoryId ||
+    savedStyle === undefined ||
+    categoryId === undefined ||
     !Array.isArray(p.scenes) ||
     p.scenes.length > 100 ||
     !Array.isArray(p.messages) ||

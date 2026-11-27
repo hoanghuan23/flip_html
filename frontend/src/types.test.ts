@@ -5,11 +5,11 @@ import { afterEach, vi } from "vitest";
 import { categories, restoreStyle, styleForCategory } from "./styleConfig";
 
 describe("draft and snapshot contracts", () => {
-  it("migrates 3D aliases and keeps local images out of snapshot signatures", () => {
+  it("preserves saved IDs and keeps local images out of snapshot signatures", () => {
     const p = {...newProject(), categoryId: "3D", styleId: "3D-Motion-InFographic"};
-    expect(parseDraft(p).styleId).toBe("3d-motion-infographic");
+    expect(parseDraft(p).styleId).toBe(p.styleId);
     for (const name of ["3D-Motion-Infographic", "3D-Motion_Infographic"])
-      expect(restoreStyle(name)).toBe("3d-motion-infographic");
+      expect(restoreStyle(name)).toBe(name);
     const image = {id:"photo", name:"photo.png", number:7, dataUrl:"data:image/png;base64,aGVsbG8="};
     const before = signature({...p, referenceImages:[image]});
     expect(before).not.toContain("base64");
@@ -24,7 +24,7 @@ describe("draft and snapshot contracts", () => {
     expect(() =>
       parseDraft({ ...p, scenes: [{ id: "x", name: "Cảnh", duration: 0 }] }),
     ).toThrow();
-    expect(() => parseDraft({ ...p, styleId: "unknown" })).toThrow();
+    expect(() => parseDraft({ ...p, styleId: "../unknown" })).toThrow();
   });
   it("invalidates preview on renderable edits, preserving chat-only changes", () => {
     const p = newProject();
@@ -82,40 +82,13 @@ describe("draft and snapshot contracts", () => {
   });
 });
 describe("category style configuration", () => {
-  it("assigns 3D motion to science and keeps all styles available", () => {
-    expect(categories.map((c) => c.label)).toEqual([
-      "Khoa học – Công nghệ", "Kinh doanh – Tài chính", "Thời sự – Đời sống",
-      "Thế giới – Quân sự", "Bản đồ - Biểu đồ", "Sức khỏe – Y tế", "Giáo dục", "Xe – Giao thông",
-      "Bất động sản – Quy hoạch", "Tất cả phong cách",
-    ]);
-    expect(categories.find((c) => c.id === "science")?.allowedStyles).toEqual(["3d-motion-infographic", "3d-technical-illustration"]);
-    expect(categories.find((c) => c.id === "education")?.allowedStyles).toEqual(["3d-technical-illustration", "2d-educational-illustration"]);
-    expect(categories.find((c) => c.id === "map_chart")?.allowedStyles).toEqual(["map-2d"]);
-    expect(styleForCategory("map_chart", "flat")).toBe("map-2d");
-    expect(restoreStyle("map-satellite")).toBeUndefined();
-    expect(categories.filter((c) => !["science", "education", "map_chart", "all_styles"].includes(c.id)).every((c) => !c.allowedStyles.length)).toBe(true);
-    expect(categories.find((c) => c.id === "all_styles")?.allowedStyles).toHaveLength(18);
-    expect(styleForCategory("education", "flat")).toBe("3d-technical-illustration");
-    expect(restoreStyle("3d-technical-illustration")).toBe("3d-technical-illustration");
-    expect(styleForCategory("science", "outlined-cartoon")).toBe("3d-motion-infographic");
-    expect(styleForCategory("science", "flat")).toBe("3d-motion-infographic");
-    expect(newProject()).toMatchObject({ categoryId: "science", styleId: "3d-motion-infographic" });
-    const p = newProject();
-    expect(
-      parseDraft({
-        ...p,
-        categoryId: "technology",
-        styleId: "outlined-cartoon",
-      }).styleId,
-    ).toBe("3d-motion-infographic");
-    expect(parseDraft({ ...p, categoryId: "technology", sourceContent: "Nội dung cũ" }))
-      .toMatchObject({ categoryId: "science", sourceContent: "Nội dung cũ" });
-    expect(parseDraft({ ...p, categoryId: "3D", styleId: "3d-motion-infographic" }))
-      .toMatchObject({ categoryId: "all_styles", styleId: "3d-motion-infographic" });
-    expect(
-      parseDraft({ ...p, categoryId: "all_styles", styleId: "one-line" }).styleId,
-    ).toBe("one-line");
-    expect(() => parseDraft({ ...p, categoryId: "unknown" })).toThrow();
+  it("starts with no category or style and accepts an empty config", () => {
+    expect(categories).toEqual([]);
+    const project = newProject();
+    expect(project.categoryId).toBe("");
+    expect(project.styleId).toBe("");
+    expect(parseDraft(project)).toMatchObject({ categoryId: "", styleId: "" });
+    expect(styleForCategory("", "")).toBe("");
   });
   it("preserves scenes in older drafts with legacy visual presets", () => {
     const p = newProject();
@@ -132,7 +105,7 @@ describe("category style configuration", () => {
       styleId: "cartoon",
       scenes: [scene],
     });
-    expect(imported.styleId).toBe(styleForCategory(p.categoryId, "outlined-cartoon"));
+    expect(imported.styleId).toBe("cartoon");
     expect(imported.scenes).toEqual([scene]);
     expect(parseDraft({ ...p, categoryId: "all_styles", styleId: "flat" }).styleId).toBe("flat");
   });

@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -5,20 +6,10 @@ import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-
 from backend.app import create_app
 from backend.jobs import JobManager
-from backend.models import ExportConfig, ExportRequest, GraphicsRequest, category_styles, load_style_config
+from backend.models import ExportConfig, ExportRequest
 from render_hyperframes import PreviewError, verify_video
-
-
-def draft():
-    return {'projectId': 'project-1', 'title': 'Một câu chuyện', 'styleId': 'cartoon',
-            'scenes': [{'id': 'one', 'name': 'Biển và mây', 'narration': 'Nước biển ấm.',
-                        'description': 'Mây trôi trên biển.', 'duration': 1.5},
-                       {'id': 'two', 'name': 'Gió', 'narration': 'Gió thổi.',
-                        'description': 'Những dòng khí chuyển động.', 'duration': 2}]}
-
 
 class ApiTests(unittest.TestCase):
     def setUp(self):
@@ -33,132 +24,34 @@ class ApiTests(unittest.TestCase):
         self.addCleanup(self.client.__exit__, None, None, None)
 
     def preview(self):
-        response = self.client.post('/api/previews', json=draft())
-        self.assertEqual(response.status_code, 201, response.text)
-        return response.json()
+        snapshot_id = 'a' * 32
+        directory = self.root / 'previews' / snapshot_id
+        directory.mkdir(exist_ok=True)
+        source = '<html><head></head><body><svg viewBox="0 0 1920 1080"></svg><script>var D=2;window.renderAt=function(t){};</script></body></html>'
+        (directory / 'phase_1.html').write_text(source)
+        playlist = [{'src': 'phase_1.html', 'title': 'Cảnh', 'duration': 2}]
+        (directory / 'index.html').write_text('<script type="application/json" id="data">' + json.dumps(playlist) + '</script>')
+        snapshot = {'id': snapshot_id, 'revision': hashlib.sha256(source.encode()).hexdigest(),
+                    'duration': 2, 'width': 1920, 'height': 1080,
+                    'phases': [{'id': '1', 'name': 'Cảnh', 'duration': 2,
+                                'url': f'/api/previews/{snapshot_id}/phase_1.html'}]}
+        (directory / 'snapshot.json').write_text(json.dumps(snapshot))
+        return snapshot
+
+    def test_empty_configuration_keeps_preview_and_export_routes(self):
+        snapshot = self.preview()
+        self.assertEqual(self.client.get('/api/previews/' + snapshot['id']).json(), snapshot)
+        self.assertEqual(self.client.get(snapshot['phases'][0]['url']).status_code, 200)
+        for path in ['/api/previews', '/api/scripts', '/api/graphics', '/api/graphics/' + 'b' * 32 + '/confirm']:
+            response = self.client.post(path, json={})
+            self.assertEqual(response.status_code, 503)
+            self.assertIn('Chưa có cấu hình', response.json()['detail'])
+        self.assertEqual(self.client.get('/api/styles/flat/preview').status_code, 404)
+        self.assertFalse(hasattr(self.client.app.state, 'graphics'))
+        self.assertFalse(hasattr(self.client.app.state, 'scripts'))
 
     def export(self, snapshot, **config):
         return self.client.post('/api/exports', json={'snapshotId': snapshot['id'], 'config': config})
-
-    def test_preview_is_immutable_seekable_and_escapes_user_text(self):
-        value = draft()
-        value['scenes'][0]['name'] = '<script>alert(1)</script>'
-        response = self.client.post('/api/previews', json=value)
-        snapshot = response.json()
-        self.assertEqual(snapshot['duration'], 3.5)
-        self.assertEqual([p['name'] for p in snapshot['phases']], ['<script>alert(1)</script>', 'Gió'])
-        html = self.client.get(snapshot['phases'][0]['url']).text
-        self.assertIn('window.renderAt', html)
-        self.assertIn('&lt;script&gt;alert(1)&lt;/script&gt;', html)
-        self.assertNotIn('<script>alert(1)</script>', html)
-        self.assertNotIn('caption-copy', html)
-        self.assertNotIn(value['scenes'][0]['narration'], html)
-        self.assertNotIn(value['scenes'][0]['description'], html)
-        self.assertEqual(self.client.get('/api/previews/'+snapshot['id']).json(), snapshot)
-        self.assertNotEqual(self.preview()['id'], snapshot['id'])
-
-    def test_rejects_invalid_durations_duplicate_ids_style_and_empty_scenes(self):
-        for key, value in [('duration', 0), ('duration', -2), ('duration', 121), ('name', ' '), ('narration', 'x'*2001)]:
-            data = draft(); data['scenes'][0][key] = value
-            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-        for data in [dict(draft(), scenes=[]), dict(draft(), styleId='unknown')]:
-            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-        data = draft(); data['scenes'][1]['id'] = 'one'
-        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-
-    def test_category_style_pair_uses_shared_configuration(self):
-        config = load_style_config()
-        self.assertEqual(len(config['categories']), 10)
-        self.assertEqual(category_styles(config['categories']['map_chart']),
-                         ['map-2d'])
-        data = dict(draft(), categoryId='all_styles', styleId='outlined-cartoon')
-        response = self.client.post('/api/previews', json=data)
-        self.assertEqual(response.status_code, 201, response.text)
-        self.assertIn('#78ccc4', self.client.get(response.json()['phases'][0]['url']).text)
-        data['styleId'] = 'flat'
-        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
-        for category_id in config['categories']:
-            request = dict(projectId='project-1', scriptId='a' * 32,
-                           categoryId=category_id, styleId='flat')
-            if 'flat' in category_styles(config['categories'][category_id]):
-                self.assertEqual(GraphicsRequest(**request).styleId, 'flat')
-                continue
-            data['categoryId'] = category_id
-            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-            with self.assertRaises(ValueError):
-                GraphicsRequest(**request)
-        data['categoryId'] = 'unknown'
-        self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-
-    def test_preview_validation_uses_current_style_config(self):
-        path = self.root / 'style_config.json'
-        config = {'categories': {'science': {'label': 'Tên ban đầu', 'templates': {
-                  'id_1': {'allowed_styles': ['detailed-vector']},
-                  'id_2': {'allowed_styles': ['flat']}}}},
-                  'default_style': 'detailed-vector'}
-        with patch('backend.models.STYLE_CONFIG_PATH', path):
-            path.write_text(json.dumps(config), encoding='utf-8')
-            data = dict(draft(), categoryId='science', styleId='flat')
-            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 201)
-            config['categories']['science']['templates']['id_2']['allowed_styles'] = []
-            path.write_text(json.dumps(config), encoding='utf-8')
-            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-            path.write_text('{invalid', encoding='utf-8')
-            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-
-    def test_new_configured_styles_create_preview_and_keep_draft_style(self):
-        path = self.root / 'style_config.json'
-        styles = ['flat', 'flat-with-black', 'halftone-line', 'future-style']
-        config = {'categories': {'news_current_affairs': {
-            'label': 'Thời sự - tin tức', 'templates': {
-                'id_1': {'allowed_styles': styles[:2]},
-                'id_2': {'allowed_styles': ['flat', *styles[2:]]}}}}, 'default_style': 'flat'}
-        path.write_text(json.dumps(config), encoding='utf-8')
-        with patch('backend.models.STYLE_CONFIG_PATH', path):
-            self.assertEqual(category_styles(load_style_config()['categories']['news_current_affairs']), styles)
-            for style in styles:
-                self.assertEqual(GraphicsRequest(projectId='project-1', scriptId='a' * 32,
-                                 categoryId='news_current_affairs', styleId=style).styleId, style)
-                data = dict(draft(), categoryId='news_current_affairs', styleId=style)
-                response = self.client.post('/api/previews', json=data)
-                self.assertEqual(response.status_code, 201, response.text)
-                snapshot = response.json()
-                saved = json.loads((self.root / 'previews' / snapshot['id'] / 'draft.json').read_text())
-                self.assertEqual(saved['styleId'], style)
-                self.assertIn('window.renderAt', self.client.get(snapshot['phases'][0]['url']).text)
-            data['styleId'] = 'not-configured'
-            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-            data['styleId'] = '../flat'
-            self.assertEqual(self.client.post('/api/previews', json=data).status_code, 422)
-
-    def test_style_sample_serves_demo_html_and_leaves_missing_samples_empty(self):
-        # Use a separate skills directory; never modify the user's demos.
-        sample_root = self.root / 'sample-project'
-        with patch('backend.app.ROOT', sample_root):
-            app = create_app(self.root / 'sample-storage')
-        with TestClient(app) as client:
-            endpoint = '/api/styles/outlined-cartoon/preview'
-            self.assertEqual(client.get(endpoint).json(), {'url': None})
-            demo = sample_root / 'skills' / 'styles' / 'outlined-cartoon' / 'demo' / 'index.html'
-            demo.parent.mkdir(parents=True)
-            # An image alone no longer counts as a demo.
-            (demo.parent / 'preview.png').write_bytes(b'png sample')
-            self.assertEqual(client.get(endpoint).json(), {'url': None})
-            demo.write_text('<!doctype html><h1>Outlined cartoon</h1>', encoding='utf-8')
-            metadata = client.get(endpoint)
-            self.assertEqual(metadata.headers['cache-control'], 'no-store')
-            demo_url = metadata.json()['url']
-            self.assertEqual(demo_url, '/api/styles/outlined-cartoon/demo/index.html')
-            response = client.get(demo_url)
-            self.assertEqual(response.status_code, 200)
-            self.assertTrue(response.headers['content-type'].startswith('text/html'))
-            self.assertEqual(response.content, demo.read_bytes())
-            demo.unlink()
-            self.assertEqual(client.get(endpoint).json(), {'url': None})
-            self.assertEqual(client.get(demo_url).status_code, 404)
-            self.assertEqual(client.get('/api/styles/outlined-cartoon/demo/PROMPT.md').status_code, 404)
-            self.assertEqual(client.get('/api/styles/unknown/preview').status_code, 404)
-            self.assertEqual(client.get('/api/styles/unknown/demo/index.html').status_code, 404)
 
     def test_export_config_validation_and_deduplication(self):
         snapshot = self.preview()
@@ -233,6 +126,7 @@ class ApiTests(unittest.TestCase):
             restored.close()
 
 
+
 class VerificationTests(unittest.TestCase):
     def test_verifies_actual_duration_size_and_fps(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -249,7 +143,3 @@ class VerificationTests(unittest.TestCase):
                 metadata['streams'][0][field] = saved
             metadata['format']['duration'] = '3'
             with self.assertRaises(PreviewError): verify()
-
-
-if __name__ == '__main__':
-    unittest.main()

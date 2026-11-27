@@ -3,7 +3,6 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type CSSProperties,
 } from "react";
 import { X, Check, Sparkles, Image as ImageIcon, Expand } from "lucide-react";
 import { type StyleId, type CategoryId, type GraphicsJob, type Scene } from "./types";
@@ -11,7 +10,6 @@ import { StageUsage } from "./TokenUsage";
 import type { TokenUsage } from "./types";
 import { getStyle } from "./styleCatalog";
 import { categories } from "./styleConfig";
-import { api } from "./services";
 import s from "./Studio.module.css";
 
 export function SectionHeading({
@@ -135,77 +133,6 @@ function PhaseStillPreviews({ scenes, job, busy }: { scenes: Scene[]; job?: Grap
     </Modal>}
   </div>;
 }
-export function Art({
-  styleId,
-  large = false,
-}: {
-  styleId: StyleId;
-  large?: boolean;
-}) {
-  const style = getStyle(styleId);
-  return (
-    <div
-      className={`${s.art} ${large ? s.artLarge : ""} ${s[styleId] || ""}`}
-      style={
-        {
-          "--art-bg": style.colors[0],
-          "--art-sea": style.colors[1],
-          "--art-sun": style.colors[2],
-        } as CSSProperties
-      }
-      aria-hidden="true"
-    >
-      <span className={s.artGrid} />
-      <span className={s.artSun} />
-      <span className={s.artCloud} />
-      <span className={s.artHillBack} />
-      <span className={s.artHill} />
-      <span className={s.artWave} />
-      {large && (
-        <div className={s.artLabel}>
-          <span>Ý TƯỞNG ĐANG CHUYỂN ĐỘNG</span>
-          <strong>
-            Mỗi ý tưởng,
-            <br />
-            một thế giới mới.
-          </strong>
-          <span>MINH HỌA PHONG CÁCH</span>
-        </div>
-      )}
-    </div>
-  );
-}
-function StyleSample({ styleId, name }: { styleId: StyleId; name: string }) {
-  const [demo, setDemo] = useState<{ styleId: StyleId; url: string }>();
-  useEffect(() => {
-    let cancelled = false;
-    setDemo(undefined);
-    api<{ url: string | null }>(`/api/styles/${styleId}/preview`)
-      .then(({ url }) => {
-        if (!cancelled && url) setDemo({ styleId, url });
-      })
-      .catch(() => {
-        /* Missing samples leave the frame empty. */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [styleId]);
-  return (
-    <div className={s.styleSample} aria-label={`Hình mẫu ${name}`}>
-      {demo?.styleId === styleId && (
-        <iframe
-          key={styleId}
-          src={demo.url}
-          title={`Bản demo ${name}`}
-          sandbox="allow-scripts"
-          onError={() => setDemo(undefined)}
-        />
-      )}
-    </div>
-  );
-}
-
 export function StylePicker({
   categoryId,
   onCategoryChange,
@@ -237,9 +164,8 @@ export function StylePicker({
   readyToConfirm: boolean;
   usage?: TokenUsage;
 }) {
-  const selected = getStyle(value);
-  const category = categories.find((p) => p.id === categoryId)!;
-  const availableStyles = [...new Set(category.allowedStyles)].map(getStyle);
+  const category = categories.find((p) => p.id === categoryId);
+  const availableStyles = [...new Set(category?.allowedStyles ?? [])].map(getStyle);
   return (
     <section className={s.card} id="phong-cach">
       <SectionHeading
@@ -273,12 +199,12 @@ export function StylePicker({
         <div className={s.styleList}>
           <p className={s.styleHeading}>
             {categoryId === "all_styles"
-              ? category.label
-              : `Phong cách cho “${category.label}”`} ({availableStyles.length} lựa chọn)
+              ? (category?.label ?? "Chưa có cấu hình")
+              : `Phong cách cho “${(category?.label ?? "Chưa có cấu hình")}”`} ({availableStyles.length} lựa chọn)
           </p>
           {!availableStyles.length && (
             <p className={s.scriptStatus}>
-              Nhóm chủ đề này chưa có phong cách. Chọn “Tất cả phong cách” để tiếp tục.
+              Chưa có cấu hình phong cách.
             </p>
           )}
           <div className={s.styleGrid}>
@@ -299,9 +225,7 @@ export function StylePicker({
             ))}
           </div>
         </div>
-        <div className={s.stylePreview}>
-          {!!availableStyles.length && <StyleSample styleId={value} name={selected.name} />}
-        </div>
+        <div className={s.stylePreview} />
       </div>
       {hasScript && scenes.length > 0 && <PhaseStillPreviews scenes={scenes} job={graphicsJob} busy={busy} />}
       {!hasScript && <p className={s.scriptStatus}>Hoàn tất tạo kịch bản ở mục 1 để tạo đồ họa.</p>}
@@ -310,7 +234,7 @@ export function StylePicker({
       <div className={`${s.sectionFooter} ${s.styleFooter}`}>
         <button
           className={s.primary}
-          disabled={!canGenerate || busy || !category.allowedStyles.includes(value)}
+          disabled={!canGenerate || busy || !(category?.allowedStyles ?? []).includes(value)}
           onClick={onGenerate}
         >
           <Sparkles size={17} className={busy ? s.spin : ""} />
