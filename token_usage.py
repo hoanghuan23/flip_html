@@ -5,7 +5,13 @@ import json
 from urllib.error import HTTPError
 
 _collector = ContextVar('token_usage_collector', default=None)
+_phase = ContextVar('token_usage_phase', default=None)
 FIELDS = ('input_tokens', 'output_tokens', 'cached_input_tokens')
+
+
+def empty_usage():
+    return {**dict.fromkeys((*FIELDS, 'total_tokens'), 0),
+            'requests': 0, 'unknown_requests': 0}
 
 
 def measured_usage(value):
@@ -18,12 +24,16 @@ def measured_usage(value):
 
 
 @contextmanager
-def collect_usage(directory, stage, emit):
+def collect_usage(directory, stage, emit, *, phase_ids=()):
     """Persist before emitting absolute totals, so polling/retries cannot double count."""
     path = directory / 'token_usage.json'
     stages = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
-    stages.setdefault(stage, {**dict.fromkeys((*FIELDS, 'total_tokens'), 0),
-                              'requests': 0, 'unknown_requests': 0})
+    row = stages.setdefault(stage, empty_usage())
+    if phase_ids:
+        phases = row.setdefault('phases', {})
+        for phase_id in phase_ids:
+            phases.setdefault(str(phase_id), empty_usage())
+        row.setdefault('shared', empty_usage())
 
     def publish():
         temporary = path.with_suffix('.tmp')
@@ -31,15 +41,22 @@ def collect_usage(directory, stage, emit):
         temporary.replace(path)
         emit(tokenUsage=stages)
 
-    def record(value):
+    def record(value, *, initialize=False):
         row = stages[stage]
-        row['requests'] += 1
+        phase_id = _phase.get()
+        detail = (row.setdefault('phases', {}).setdefault(phase_id, empty_usage())
+                  if phase_id is not None else row.setdefault('shared', empty_usage()))
+        if initialize:
+            publish()
+            return
         measured = measured_usage(value)
-        if measured is None:
-            row['unknown_requests'] += 1
-        else:
-            for key, count in measured.items():
-                row[key] += count
+        for target in (row, detail):
+            target['requests'] += 1
+            if measured is None:
+                target['unknown_requests'] += 1
+            else:
+                for key, count in measured.items():
+                    target[key] += count
         publish()
 
     token = _collector.set(record)
@@ -48,6 +65,19 @@ def collect_usage(directory, stage, emit):
         yield
     finally:
         _collector.reset(token)
+
+
+@contextmanager
+def phase_usage(phase_id):
+    """Attribute requests and retries to the script's phase ID, not its list index."""
+    token = _phase.set(str(phase_id))
+    try:
+        record = _collector.get()
+        if record:
+            record(None, initialize=True)
+        yield
+    finally:
+        _phase.reset(token)
 
 
 @contextmanager

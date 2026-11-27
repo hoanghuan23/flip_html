@@ -61,12 +61,27 @@ const puppeteer = require('puppeteer-core');
     assert.equal(current.tokenUsage.graphics.requests, 5, 'confirmation must not recount stills');
     assert.ok(current.tokenUsage.animation.requests > 0);
     assert.equal(current.tokenUsage.animation.unknown_requests, 0);
+    assert.equal(current.tokenUsage.graphics.phases['1'].total_tokens, 150);
+    assert.equal(current.tokenUsage.animation.phases['1'].total_tokens, 150);
+    assert.equal(current.tokenUsage.animation.shared.total_tokens, 150);
+    assert.deepEqual(current.snapshot.tokenUsage, {
+      graphics: current.tokenUsage.graphics, animation: current.tokenUsage.animation,
+    });
+    const phaseCard = () => page.$eval('[aria-label^="Token Phase "]', (el) => el.textContent);
+    assert.match(await phaseCard(), /Token · Phase 1/);
+    assert.match(await phaseCard(), /Tổng phase300/);
+    assert.match(await phaseCard(), /dùng chung cho các phase: 150 token/);
+    await page.$$eval('[aria-label="Danh sách phase"] button', (buttons) => buttons[1].click());
+    assert.match(await phaseCard(), /Token · Phase 2/);
+    assert.match(await phaseCard(), /Tổng phase300/);
     const expected = Object.values(current.tokenUsage).reduce((sum, u) => sum + u.total_tokens, 0);
     const shown = await page.$eval('#xem-truoc tfoot td:last-child', (el) => el.textContent);
     assert.equal(shown, expected.toLocaleString('vi-VN'));
     assert.equal(await page.$$eval('[aria-label^="Token "]', (els) => els.length), 3);
     await page.reload({ waitUntil: 'networkidle0' });
     assert.deepEqual((await project()).tokenUsage, current.tokenUsage);
+    assert.match(await phaseCard(), /Token · Phase 1/);
+    assert.match(await phaseCard(), /Tổng phase300/);
     await page.$eval('#xem-truoc', (el) => el.scrollIntoView());
     const output = path.resolve(__dirname, '../../storage/qa');
     fs.mkdirSync(output, { recursive: true });

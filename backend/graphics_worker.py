@@ -15,16 +15,6 @@ from token_usage import collect_usage
 def run(output, mode='complete'):
     protocol = sys.stdout
 
-    def emit_usage(**event):
-        print(json.dumps(event), file=protocol, flush=True)
-
-    with collect_usage(output, 'graphics' if mode == 'stills' else 'animation', emit_usage):
-        run_graphics(output, mode)
-
-
-def run_graphics(output, mode='complete'):
-    protocol = sys.stdout
-
     def emit(**event):
         print(json.dumps(event, ensure_ascii=False), file=protocol, flush=True)
 
@@ -45,7 +35,9 @@ def run_graphics(output, mode='complete'):
         if not is_three and not is_map and not image_config().get('key'):
             raise ValueError('Thiếu cấu hình khóa API ảnh trên máy chủ.')
         progress = lambda stage, completed, total: emit(stage=stage, completed=completed, total=total)
-        with (output / 'render.log').open('a', encoding='utf-8') as log, redirect_stdout(log):
+        with collect_usage(output, 'graphics' if mode == 'stills' else 'animation', emit,
+                           phase_ids=[phase['id'] for phase in script['phases']]), \
+                (output / 'render.log').open('a', encoding='utf-8') as log, redirect_stdout(log):
             if mode == 'stills':
                 if is_map:
                     from map_renderer import build_map_stills

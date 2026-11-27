@@ -34,7 +34,7 @@ export interface Scene {
   annotations?: Annotation[];
   duration_status?: "estimated";
 }
-export interface TokenUsage {
+export interface TokenCounts {
   input_tokens: number;
   output_tokens: number;
   cached_input_tokens: number;
@@ -42,16 +42,31 @@ export interface TokenUsage {
   requests: number;
   unknown_requests: number;
 }
+export interface TokenUsage extends TokenCounts {
+  phases?: Record<string, TokenCounts>;
+  shared?: TokenCounts;
+}
 export type PipelineUsage = Partial<Record<"script" | "graphics" | "animation", TokenUsage>>;
+
+function validTokenCounts(value: unknown): value is TokenCounts {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as TokenCounts;
+  return (["input_tokens", "output_tokens", "cached_input_tokens", "total_tokens", "requests", "unknown_requests"] as const)
+    .every((field) => Number.isSafeInteger(row[field]) && row[field] >= 0) &&
+    row.cached_input_tokens <= row.input_tokens && row.unknown_requests <= row.requests &&
+    row.total_tokens === row.input_tokens + row.output_tokens;
+}
 
 export function validTokenUsage(value: unknown): value is PipelineUsage {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  return Object.entries(value).every(([key, row]) =>
-    ["script", "graphics", "animation"].includes(key) && row && typeof row === "object" &&
-    ["input_tokens", "output_tokens", "cached_input_tokens", "total_tokens", "requests", "unknown_requests"]
-      .every((field) => Number.isSafeInteger(row[field]) && row[field] >= 0) &&
-    row.cached_input_tokens <= row.input_tokens && row.unknown_requests <= row.requests &&
-    row.total_tokens === row.input_tokens + row.output_tokens);
+  return Object.entries(value).every(([key, value]) => {
+    const row = value as TokenUsage;
+    return ["script", "graphics", "animation"].includes(key) && validTokenCounts(value) &&
+    (row.shared === undefined || validTokenCounts(row.shared)) &&
+    (row.phases === undefined || (!!row.phases && typeof row.phases === "object" && !Array.isArray(row.phases) &&
+      Object.keys(row.phases).length <= 100 && Object.entries(row.phases).every(([id, phase]) =>
+        !!id && id.length <= 100 && validTokenCounts(phase))));
+  });
 }
 
 export interface ScriptJob {

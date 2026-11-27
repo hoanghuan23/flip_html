@@ -267,7 +267,10 @@ def build_preview(script, output, request, *, style_context=None, on_progress=No
         print(f"  Phase {index}: {phase.get('name', '')} ({phase['duration']:g}s) - đang vẽ…", flush=True)
         if previous_svg and f'data-fingerprint="{ai.fingerprint}"' not in previous_svg:
             previous_svg = None
-        write_phase(output, index, phase, ai.render(index, previous_svg), script, background=background, references=illustrations)
+        from token_usage import phase_usage
+        with phase_usage(phase['id']):
+            svg = ai.render(index, previous_svg)
+        write_phase(output, index, phase, svg, script, background=background, references=illustrations)
         if on_progress:
             on_progress('phases', done, len(selected))
 

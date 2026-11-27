@@ -265,7 +265,9 @@ def build_preview(script, output, request, *, style_context, references=None, on
             from plant_kurzge import extract_json
             for attempt in range(3):
                 (output / 'prompts' / f'phase_{index}_3d.txt').write_text(prompt, encoding='utf-8')
-                response = request(prompt)
+                from token_usage import phase_usage
+                with phase_usage(phase['id']):
+                    response = request(prompt)
                 (output / 'prompts' / f'phase_{index}_3d_response_{attempt + 1}.txt').write_text(response, encoding='utf-8')
                 try:
                     plan = validate_plan(extract_json(response), phase, references, alignment)

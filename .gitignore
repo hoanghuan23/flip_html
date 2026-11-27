@@ -19,8 +19,3 @@ storage/
 
 ketqua/
 kichban/
-
-
-# Keep the requested Xeko HTML preview reproducible.
-!preview_xeko/
-!preview_xeko/**

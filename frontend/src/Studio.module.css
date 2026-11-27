@@ -3056,6 +3056,7 @@
 .stageUsage span { display: inline-flex; gap: 10px; }
 .stageUsage b { color: #4935c9; font-variant-numeric: tabular-nums; }
 .stageUsage small { display: block; margin-top: 9px; color: #6b6681; font-size: 13px; }
+.phaseUsageBreakdown { margin-top: 10px; font-size: 13px; }
 .tokenSummary { margin-top: 24px; color: #41405b; }
 .tokenSummary h3 { margin: 0 0 14px; font-size: 16px; }
 .tokenTableScroll { overflow-x: auto; border: 1px solid #e6e1f7; border-radius: 12px; }

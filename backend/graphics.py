@@ -81,11 +81,13 @@ def completed_snapshot(storage, job, fingerprint):
             if abs(actual - audio['duration']) > .01 or hashlib.sha256(path.read_bytes()).hexdigest() != audio['sha256']:
                 raise ValueError('Audio không khớp snapshot.')
             row['audio'] = {'url': f"/api/previews/{job['id']}/{audio['src']}", 'duration': actual}
+    usage_path = output / 'token_usage.json'
+    usage = json.loads(usage_path.read_text(encoding='utf-8')) if usage_path.is_file() else job.get('tokenUsage')
     snapshot = {'id': job['id'], 'revision': fingerprint, 'renderer': VERSION,
                 **job['config'], 'sourceSignature': signature(job['config']),
                 'duration': sum(p['duration'] for p in script['phases']),
                 'width': 1920, 'height': 1080, 'phases': rows,
-                **({'tokenUsage': job['tokenUsage']} if 'tokenUsage' in job else {})}
+                **({'tokenUsage': usage} if usage is not None else {})}
     temporary = output / 'snapshot.tmp'
     temporary.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding='utf-8')
     temporary.replace(output / 'snapshot.json')

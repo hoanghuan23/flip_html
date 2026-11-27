@@ -4,6 +4,7 @@ import json
 
 from image_asset_generator import ImageAssetGenerator, validate_png
 from render_style import style_prompt
+from token_usage import phase_usage
 from .illustrations import still_with_illustration
 
 
@@ -56,7 +57,8 @@ def build_stills(script, output, context, on_progress):
             + '\nPHASE TO ILLUSTRATE:\n' + json.dumps(phase, ensure_ascii=False)
         )
         (prompts / f'phase_{index}_still.txt').write_text(prompt, encoding='utf-8')
-        source, info = generator.generate(prompt, transparent=False, requested_size=[1920, 1080])
+        with phase_usage(phase['id']):
+            source, info = generator.generate(prompt, transparent=False, requested_size=[1920, 1080])
         data = still_with_illustration(source.read_bytes(), phase, output, manifest)
         target = output / f'phase_{index}.preview.png'
         temporary = target.with_suffix('.tmp')

@@ -495,6 +495,15 @@ AI và backend; build frontend bằng `npm run build` nếu dùng bản giao di�
 Mỗi worker lưu `token_usage.json` cạnh dữ liệu tác vụ và trả `tokenUsage` trong
 API theo dõi tiến độ. Bản nháp trình duyệt lưu thống kê để phục hồi sau tải lại.
 
+Khung token dưới player hiển thị Input, Output và tổng token của phase đang
+chọn, gồm ảnh tĩnh và animation. `graphics.phases` và `animation.phases` lưu số
+liệu theo ID phase; `shared` lưu token tạo thư viện asset và tác vụ dùng chung.
+Phần dùng chung nằm trong tổng giai đoạn, không cộng lặp vào từng phase.
+Các lần gọi lại được cộng vào đúng phase, dùng cache không phát sinh token mới.
+Snapshot lưu cả số liệu này để giữ nguyên thống kê khi xem lại. Dữ liệu cũ chỉ
+có tổng giai đoạn sẽ báo chưa có số liệu theo phase; không chia đều hoặc ước
+lượng lại token lịch sử. Nếu tiếp tục tác vụ cũ, dấu `≥` chỉ phần mới ghi nhận.
+
 Token cache đã nằm trong input; tổng bằng input + output. Dùng lại asset từ
 cache không phát sinh lời gọi AI nên không cộng token mới. Phản hồi thiếu usage
 và lỗi kết nối được ghi nhận là lần gọi chưa có số liệu; giao diện hiển thị

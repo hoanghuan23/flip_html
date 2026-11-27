@@ -56,10 +56,8 @@
     "education": {
       "label": "Giáo dục",
       "templates": {
-        "id_6": {
+        "character": {
           "allowed_styles": [
-            "3d-technical-illustration",
-            "2d-educational-illustration",
             "character-cartoon"
           ]
         }
