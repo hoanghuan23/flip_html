@@ -368,6 +368,7 @@ NỘI DUNG ĐẦU VÀO
 
 
 def request_text(prompt, *, api_url=None, api_key=None, model=None):
+    from token_usage import track_request
     request = Request(
         API_URL if api_url is None else api_url,
         data=json.dumps({"prompt": prompt, "model": MODEL if model is None else model}).encode("utf-8"),
@@ -375,8 +376,10 @@ def request_text(prompt, *, api_url=None, api_key=None, model=None):
         method="POST",
     )
     # Chờ API không giới hạn thời gian, kể cả khi socket có timeout mặc định.
-    with urlopen(request, timeout=None) as response:
-        data = json.load(response)
+    with track_request() as observe:
+        with urlopen(request, timeout=None) as response:
+            data = json.load(response)
+        observe(data)
     if (not isinstance(data, dict) or data.get("success") is not True
             or not isinstance(data.get("result"), str) or not data["result"].strip()):
         raise ValueError("Server không trả kết quả text thành công.")

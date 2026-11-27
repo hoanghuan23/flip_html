@@ -34,7 +34,28 @@ export interface Scene {
   annotations?: Annotation[];
   duration_status?: "estimated";
 }
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cached_input_tokens: number;
+  total_tokens: number;
+  requests: number;
+  unknown_requests: number;
+}
+export type PipelineUsage = Partial<Record<"script" | "graphics" | "animation", TokenUsage>>;
+
+export function validTokenUsage(value: unknown): value is PipelineUsage {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.entries(value).every(([key, row]) =>
+    ["script", "graphics", "animation"].includes(key) && row && typeof row === "object" &&
+    ["input_tokens", "output_tokens", "cached_input_tokens", "total_tokens", "requests", "unknown_requests"]
+      .every((field) => Number.isSafeInteger(row[field]) && row[field] >= 0) &&
+    row.cached_input_tokens <= row.input_tokens && row.unknown_requests <= row.requests &&
+    row.total_tokens === row.input_tokens + row.output_tokens);
+}
+
 export interface ScriptJob {
+  tokenUsage?: PipelineUsage;
   id: string;
   projectId: string;
   status: "queued" | "running" | "succeeded" | "rejected" | "failed";
@@ -48,6 +69,7 @@ export interface ChatMessage {
   text: string;
 }
 export interface PreviewSnapshot {
+  tokenUsage?: PipelineUsage;
   id: string;
   revision: string;
   projectId: string;
@@ -62,6 +84,7 @@ export interface PreviewSnapshot {
   renderer?: string;
 }
 export interface GraphicsJob {
+  tokenUsage?: PipelineUsage;
   id: string;
   projectId: string;
   status: "queued" | "running" | "awaiting_confirmation" | "succeeded" | "failed";
@@ -95,6 +118,7 @@ export interface RenderJob {
   result: { videoUrl: string; downloadUrl: string; bytes: number } | null;
 }
 export interface ProjectDraft {
+  tokenUsage?: PipelineUsage;
   id: string;
   title: string;
   sourceContent: string;
@@ -247,6 +271,7 @@ export function parseDraft(value: unknown): ProjectDraft {
     styleId: styleForCategory(categoryId, savedStyle),
     scenes: p.scenes,
     scriptReview: p.scriptReview,
+    tokenUsage: validTokenUsage(p.tokenUsage) ? p.tokenUsage : undefined,
     messages: p.messages,
     updatedAt: new Date().toISOString(),
     sourceFilename:

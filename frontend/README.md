@@ -478,3 +478,28 @@ python3 generate_kurzge.py --resume --output preview_halftone
 
 `--resume` giữ snapshot phong cách đã lưu; truyền `--style` để đọc phiên bản
 phong cách hiện tại. Cache sẽ được kiểm tra lại theo nội dung phong cách.
+
+### Thống kê token AI
+
+Giao diện hiển thị Input, Output và tổng token cho ba giai đoạn: tạo kịch bản,
+preview phong cách đồ họa (ảnh tĩnh), và preview HTML animation. Bảng tổng nằm
+trong mục 3, phía trên phần xuất video. Số liệu thuộc lượt tạo hiện tại; tác vụ
+chạy lại để sửa lỗi giữ số liệu trước đó, còn lượt tạo kịch bản hoặc đồ họa mới
+bắt đầu thống kê riêng. Các bước phân tích, nghiên cứu và sửa kịch bản đều được
+tính vào giai đoạn tạo kịch bản. Sinh asset trong lúc dựng animation thuộc giai
+đoạn animation.
+
+`codex_server` cần chạy phiên bản dùng `codex exec --json` và trả thêm `usage`
+cho `/generate`, `/analyze`, `/generate-image`. Sau cập nhật, khởi động lại server
+AI và backend; build frontend bằng `npm run build` nếu dùng bản giao diện tĩnh.
+Mỗi worker lưu `token_usage.json` cạnh dữ liệu tác vụ và trả `tokenUsage` trong
+API theo dõi tiến độ. Bản nháp trình duyệt lưu thống kê để phục hồi sau tải lại.
+
+Token cache đã nằm trong input; tổng bằng input + output. Dùng lại asset từ
+cache không phát sinh lời gọi AI nên không cộng token mới. Phản hồi thiếu usage
+và lỗi kết nối được ghi nhận là lần gọi chưa có số liệu; giao diện hiển thị
+“Chưa có dữ liệu” hoặc `≥` cho tổng còn thiếu. Không ước lượng bằng độ dài chuỗi
+và không thể truy hồi token của những lượt tạo trước khi bật thu thập.
+
+Kiểm tra giao diện với AI giả lập: chạy `python3 frontend/scripts/qa_server.py`
+từ thư mục gốc, sau đó `node frontend/scripts/token-usage-e2e.cjs`.

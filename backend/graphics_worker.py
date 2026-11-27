@@ -9,9 +9,20 @@ from urllib.error import HTTPError, URLError
 import plant_kurzge as planner
 from generate_kurzge import build_preview
 from image_asset_generator import image_config
+from token_usage import collect_usage
 
 
 def run(output, mode='complete'):
+    protocol = sys.stdout
+
+    def emit_usage(**event):
+        print(json.dumps(event), file=protocol, flush=True)
+
+    with collect_usage(output, 'graphics' if mode == 'stills' else 'animation', emit_usage):
+        run_graphics(output, mode)
+
+
+def run_graphics(output, mode='complete'):
     protocol = sys.stdout
 
     def emit(**event):

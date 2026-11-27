@@ -27,7 +27,9 @@ class FixtureAI(BaseHTTPRequestHandler):
             self.end_headers()
             return
         if self.path == '/generate-image':
-            payload = png_response()
+            image = json.loads(png_response())
+            image['usage'] = {'input_tokens': 120, 'cached_input_tokens': 80, 'output_tokens': 30}
+            payload = json.dumps(image).encode()
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
@@ -53,7 +55,8 @@ class FixtureAI(BaseHTTPRequestHandler):
                 phase['actions'][0]['end'] = .5
                 result['phases'].append(phase)
             result['total_duration'] = 2.5
-        payload = json.dumps({'success': True, 'result': result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)}).encode()
+        payload = json.dumps({'success': True, 'result': result if isinstance(result, str) else json.dumps(result, ensure_ascii=False),
+                              'usage': {'input_tokens': 120, 'cached_input_tokens': 80, 'output_tokens': 30}}).encode()
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.end_headers()

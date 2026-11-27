@@ -100,7 +100,7 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(saved, script)
         self.assertIn('Ý tưởng riêng do người dùng nhập', call.call_args.args[0])
         self.assertEqual(events[-1], {'status': 'succeeded'})
-        self.assertEqual([e['stage'] for e in events[:-1]], ['validating', 'classifying', 'generating', 'saving'])
+        self.assertEqual([e['stage'] for e in events if 'stage' in e], ['validating', 'classifying', 'generating', 'saving'])
         row = project_script(saved)['scenes'][0]
         self.assertEqual(set(row), {'id', 'name', 'narration', 'description', 'duration'})
         for field in ('name', 'narration', 'description', 'duration'):
@@ -214,7 +214,8 @@ class ProcessIntegrationTests(unittest.TestCase):
         class Handler(BaseHTTPRequestHandler):
             def do_POST(self):
                 requests.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
-                payload = json.dumps({'success': True, 'result': replies.pop(0)}).encode()
+                payload = json.dumps({'success': True, 'result': replies.pop(0),
+                                      'usage': {'input_tokens': 120, 'cached_input_tokens': 80, 'output_tokens': 30}}).encode()
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
@@ -242,6 +243,10 @@ class ProcessIntegrationTests(unittest.TestCase):
                     saved = json.loads((root / 'scripts' / job['id'] / 'kich_ban.json').read_text())
                     self.assertEqual(saved, screenplay())
                     self.assertEqual(job['result'], project_script(saved))
+                    self.assertEqual(job['tokenUsage']['script']['input_tokens'], 240)
+                    self.assertEqual(job['tokenUsage']['script']['output_tokens'], 60)
+                    self.assertEqual(job['tokenUsage']['script']['total_tokens'], 300)
+                    self.assertEqual(job['tokenUsage']['script']['requests'], 2)
                     self.assertEqual(len(requests), 2)
                     self.assertEqual(requests[1]['model'], 'test-model')
         finally:

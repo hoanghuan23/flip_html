@@ -8,6 +8,7 @@ import plant_kurzge as planner
 from script_analysis import parse_detailed
 from .illustrations import attach_events, validate_events
 from .scripts import project_script, validate_for_ui
+from token_usage import collect_usage
 
 
 def emit(**event):
@@ -15,6 +16,11 @@ def emit(**event):
 
 
 def run(directory):
+    with collect_usage(directory, 'script', emit):
+        run_script(directory)
+
+
+def run_script(directory):
     try:
         if not all((planner.API_URL, planner.API_KEY, planner.MODEL)):
             raise ValueError('Thiếu cấu hình CODEX_API_URL, CODEX_API_TOKEN hoặc CODEX_MODEL trên máy chủ.')

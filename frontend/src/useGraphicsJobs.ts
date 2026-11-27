@@ -53,6 +53,11 @@ export function useGraphicsJobs(notify: (message: string, error?: boolean) => vo
           const project = stateRef.current.projects.find((p) => p.id === projectId);
           if (!project || (project.graphicsJobId !== jobId && project.graphicsPreviewId !== jobId)) return;
           setJobs((values) => ({ ...values, [jobId]: job }));
+          if (job.tokenUsage && job.sourceSignature === signature(project)) {
+            dispatch({ type: "patch", id: projectId, patch: {
+              tokenUsage: { script: project.tokenUsage?.script, ...job.tokenUsage },
+            } });
+          }
           setErrors((values) => ({ ...values, [projectId]: "" }));
           if (project.graphicsJobId !== jobId) {
             if (job.sourceSignature === signature(project)) {
@@ -107,7 +112,8 @@ export function useGraphicsJobs(notify: (message: string, error?: boolean) => vo
     try {
       const job = ready && reviewJob ? await confirmGraphicsJob(reviewJob.id) : await createGraphicsJob(project);
       setJobs((values) => ({ ...values, [job.id]: job }));
-      dispatch({ type: "patch", id: project.id, patch: { graphicsJobId: job.id, graphicsPreviewId: job.id } });
+      dispatch({ type: "patch", id: project.id, patch: { graphicsJobId: job.id, graphicsPreviewId: job.id,
+        tokenUsage: { script: project.tokenUsage?.script, ...job.tokenUsage } } });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể tạo đồ họa.";
       setErrors((values) => ({ ...values, [project.id]: message }));
@@ -121,6 +127,13 @@ export function useGraphicsJobs(notify: (message: string, error?: boolean) => vo
   const busy = !!current.graphicsJobId || startingIds.includes(current.id);
   const storedJob = jobs[current.graphicsJobId || current.graphicsPreviewId || ""];
   const reviewJob = storedJob?.sourceSignature === signature(current) ? storedJob : undefined;
+  useEffect(() => {
+    if (reviewJob?.tokenUsage && !current.scriptJobId) {
+      dispatch({ type: "patch", id: current.id, patch: {
+        tokenUsage: { script: current.tokenUsage?.script, ...reviewJob.tokenUsage },
+      } });
+    }
+  }, [current.id, currentSignature, current.scriptJobId, reviewJob, dispatch]);
   const job = current.graphicsJobId ? storedJob : reviewJob;
   const ready = !!reviewJob && reviewJob.previews?.length === current.scenes.length &&
     (reviewJob.status === "awaiting_confirmation" || (reviewJob.status === "failed" && !!reviewJob.confirmed));

@@ -23,6 +23,7 @@ import {
 import { api, ApiError, createScriptJob, getScriptJob, scriptStages, uploadImage } from "./services";
 import { Modal, errorText } from "./components";
 import InputPanel from "./InputPanel";
+import { StageUsage } from "./TokenUsage";
 import { StylePicker } from "./components";
 import { styleForCategory } from "./styleConfig";
 import ScenePanel from "./ScenePanel";
@@ -115,6 +116,7 @@ export default function App() {
           const current = stateRef.current.projects.find((p) => p.id === projectId);
           if (!current || current.scriptJobId !== jobId) return;
           setScriptJobs((jobs) => ({ ...jobs, [jobId]: job }));
+          if (job.tokenUsage) dispatch({ type: "patch", id: projectId, patch: { tokenUsage: job.tokenUsage } });
           setScriptErrors((errors) => ({ ...errors, [projectId]: "" }));
           if (job.status === "succeeded" && job.result) {
             scriptScrollRef.current = projectId;
@@ -167,7 +169,7 @@ export default function App() {
         dispatch({ type: "patch", id, patch: { referenceImages: images } });
       const job = await createScriptJob(id, project.sourceContent, images);
       setScriptJobs((jobs) => ({ ...jobs, [job.id]: job }));
-      dispatch({ type: "patch", id, patch: { scriptJobId: job.id } });
+      dispatch({ type: "patch", id, patch: { scriptJobId: job.id, tokenUsage: job.tokenUsage || {} } });
     } catch (error) {
       const message = errorText(error);
       setScriptErrors((errors) => ({ ...errors, [id]: message }));
@@ -298,6 +300,7 @@ export default function App() {
               : void createScript()
           }
         >
+          <StageUsage label="Tạo kịch bản" usage={project.tokenUsage?.script} />
           {project.scenes.length > 0 && (
             <ScenePanel
               project={project}
@@ -311,12 +314,13 @@ export default function App() {
           categoryId={project.categoryId}
           onCategoryChange={(categoryId) =>
             patch({
+              ...(categoryId !== project.categoryId ? { tokenUsage: { script: project.tokenUsage?.script } } : {}),
               categoryId,
               styleId: styleForCategory(categoryId, project.styleId),
             })
           }
           value={project.styleId}
-          onChange={(styleId) => patch({ styleId })}
+          onChange={(styleId) => patch({ styleId, ...(styleId !== project.styleId ? { tokenUsage: { script: project.tokenUsage?.script } } : {}) })}
           busy={previewBusy}
           canGenerate={!!project.scriptId && !scriptBusy}
           hasScript={!!project.scriptId}
@@ -325,6 +329,7 @@ export default function App() {
           scenes={project.scenes}
           graphicsJob={graphics.reviewJob}
           readyToConfirm={graphics.ready}
+          usage={project.tokenUsage?.graphics}
           onGenerate={() => void graphics.create()}
         />
         <PreviewPanel

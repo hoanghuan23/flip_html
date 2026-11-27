@@ -59,7 +59,8 @@
         "id_6": {
           "allowed_styles": [
             "3d-technical-illustration",
-            "2d-educational-illustration"
+            "2d-educational-illustration",
+            "character-cartoon"
           ]
         }
       }
@@ -102,7 +103,8 @@
             "vintage-emblem",
             "3d-motion-infographic",
             "3d-technical-illustration",
-            "2d-educational-illustration"
+            "2d-educational-illustration",
+            "character-cartoon"
           ]
         }
       }

@@ -11,6 +11,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
+from token_usage import track_request
+
 from PIL import Image
 
 import plant_kurzge as config  # Loads the existing .env without modifying it.
@@ -95,12 +97,14 @@ class ImageAssetGenerator:
                           data=json.dumps({"prompt": full_prompt, "model": self.config["model"]}).encode(),
                           headers={"Content-Type": "application/json", "x-api-key": self.config["key"]})
         try:
-            with urlopen(request, timeout=660) as response:
-                # Base64 adds ~1/3 overhead. Bound the JSON response too.
-                raw = response.read(MAX_BYTES * 2 + 1)
-            if len(raw) > MAX_BYTES * 2:
-                raise ValueError("Response ảnh vượt giới hạn.")
-            payload = json.loads(raw)
+            with track_request() as observe:
+                with urlopen(request, timeout=660) as response:
+                    # Base64 adds ~1/3 overhead. Bound the JSON response too.
+                    raw = response.read(MAX_BYTES * 2 + 1)
+                if len(raw) > MAX_BYTES * 2:
+                    raise ValueError("Response ảnh vượt giới hạn.")
+                payload = json.loads(raw)
+                observe(payload)
         except HTTPError as error:
             raise ValueError(f"/generate-image trả HTTP {error.code}; kiểm tra model, API key và server.") from error
         except (URLError, TimeoutError) as error:

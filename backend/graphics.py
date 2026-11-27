@@ -84,7 +84,8 @@ def completed_snapshot(storage, job, fingerprint):
     snapshot = {'id': job['id'], 'revision': fingerprint, 'renderer': VERSION,
                 **job['config'], 'sourceSignature': signature(job['config']),
                 'duration': sum(p['duration'] for p in script['phases']),
-                'width': 1920, 'height': 1080, 'phases': rows}
+                'width': 1920, 'height': 1080, 'phases': rows,
+                **({'tokenUsage': job['tokenUsage']} if 'tokenUsage' in job else {})}
     temporary = output / 'snapshot.tmp'
     temporary.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding='utf-8')
     temporary.replace(output / 'snapshot.json')
@@ -187,7 +188,8 @@ class GraphicsJobManager(ScriptJobManager):
                    'status': 'queued', 'stage': 'queued', 'completed': 0, 'total': 0,
                    'createdAt': retry['createdAt'] if retry else now(), 'updatedAt': now(),
                    'attempt': retry.get('attempt', 1) + 1 if retry else 1,
-                   'result': None, 'error': None}
+                   'result': None, 'error': None,
+                   **({'tokenUsage': retry['tokenUsage']} if retry and 'tokenUsage' in retry else {})}
             if request.previewOnly:
                 job.update(workflow='stills-v1', confirmed=bool(retry and retry.get('confirmed')),
                            sourceSignature=signature(config), previews=load_stills(output))
@@ -241,6 +243,8 @@ class GraphicsJobManager(ScriptJobManager):
                 outcome = None
                 for line in process.stdout:
                     event = json.loads(line)
+                    if isinstance(event.get('tokenUsage'), dict):
+                        self.update(job_id, tokenUsage=event['tokenUsage'])
                     if event.get('stage') in ('preparing', 'narration', 'synchronizing', 'images', 'phases', 'checking', 'stills'):
                         self.update(job_id, stage=event['stage'], completed=event.get('completed', 0),
                                     total=event.get('total', 0),

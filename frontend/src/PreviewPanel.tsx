@@ -4,6 +4,7 @@ import { Play, Pause, Film, RotateCcw, Pencil, MessageSquare,
 import { SectionHeading, timeLabel } from "./components";
 import { signature, type ProjectDraft } from "./types";
 import s from "./Studio.module.css";
+import { StageUsage, TokenSummary } from "./TokenUsage";
 import ExportControls from "./ExportControls";
 import type { useExportJobs } from "./useExportJobs";
 
@@ -155,6 +156,8 @@ export default function PreviewPanel({ project, previewBusy, status, exporting }
           Video xuất giữ nguyên animation, thời lượng từng phase{snapshot.phases.some(p => p.audio) ? " và giọng thuyết minh." : ", không có âm thanh."}
         </div>
       </>}
+      <StageUsage label="Preview HTML animation" usage={project.tokenUsage?.animation} />
+      <TokenSummary usage={project.tokenUsage} />
       <ExportControls key={project.id} project={project} disabled={previewBusy || !!project.scriptJobId} exporting={exporting} />
     </section>
   );

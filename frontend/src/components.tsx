@@ -7,6 +7,8 @@ import {
 } from "react";
 import { X, Check, Sparkles, Image as ImageIcon, Expand } from "lucide-react";
 import { type StyleId, type CategoryId, type GraphicsJob, type Scene } from "./types";
+import { StageUsage } from "./TokenUsage";
+import type { TokenUsage } from "./types";
 import { getStyle } from "./styleCatalog";
 import { categories } from "./styleConfig";
 import { api } from "./services";
@@ -218,6 +220,7 @@ export function StylePicker({
   scenes,
   graphicsJob,
   readyToConfirm,
+  usage,
 }: {
   categoryId: CategoryId;
   onCategoryChange: (id: CategoryId) => void;
@@ -232,6 +235,7 @@ export function StylePicker({
   scenes: Scene[];
   graphicsJob?: GraphicsJob;
   readyToConfirm: boolean;
+  usage?: TokenUsage;
 }) {
   const selected = getStyle(value);
   const category = categories.find((p) => p.id === categoryId)!;
@@ -302,6 +306,7 @@ export function StylePicker({
       {hasScript && scenes.length > 0 && <PhaseStillPreviews scenes={scenes} job={graphicsJob} busy={busy} />}
       {!hasScript && <p className={s.scriptStatus}>Hoàn tất tạo kịch bản ở mục 1 để tạo đồ họa.</p>}
       {status && <p className={s.scriptStatus} role={statusError ? "alert" : "status"}>{status}</p>}
+      <StageUsage label="Preview phong cách đồ họa" usage={usage} />
       <div className={`${s.sectionFooter} ${s.styleFooter}`}>
         <button
           className={s.primary}

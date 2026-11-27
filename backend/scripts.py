@@ -137,6 +137,8 @@ class ScriptJobManager:
             outcome = None
             for line in process.stdout:
                 event = json.loads(line)
+                if isinstance(event.get('tokenUsage'), dict):
+                    self.update(job_id, tokenUsage=event['tokenUsage'])
                 if event.get('stage') in ('validating', 'classifying', 'researching', 'generating', 'normalizing', 'saving'):
                     self.update(job_id, stage=event['stage'])
                 if event.get('status') in ('succeeded', 'rejected', 'failed'):
