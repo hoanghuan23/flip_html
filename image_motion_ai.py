@@ -7,9 +7,11 @@ import re
 import xml.etree.ElementTree as ET
 
 import flat_motion_ai as vector
-from image_asset_generator import ImageAssetGenerator
+from image_asset_generator import ImageAssetGenerator, validate_png
+from character_assets import CharacterAssets, is_xeko, reference_prompt
+from scene_logic import REAL_WORLD_RULES, CONTRACT_PROMPT, check_scene, validate_contract
 
-VERSION = "image-motion-v3"
+VERSION = "image-motion-v5"
 NS = vector.NS
 
 
@@ -30,7 +32,12 @@ def image_specs(script):
             raise ValueError(f"{asset['id']}: kích thước asset ngoài khoảng 1..8192.")
         first = re.search(r"\bpose\s+([\w-]+)\s*:", asset.get("description", ""), re.I)
         base_pose = first[1] if first else (asset["poses"][0]["description"] if asset["poses"] else "default")
-        specs.append({**asset, "width": width, "height": height, "transparent": not background,
+        # A shared canvas must contain the complete pose envelope. In particular,
+        # turning a tall subject sideways must not shrink it to the old width.
+        reference_size = [width, height]
+        if not background and asset['poses']:
+            width = height = max(width, height)
+        specs.append({**asset, "width": width, "height": height, "reference_size": reference_size, "transparent": not background,
                       "base_pose": base_pose})
     return specs
 
@@ -59,9 +66,10 @@ def asset_prompt(script, asset, pose, style_context=None):
             "separate assets, transient action effects, safety/result checkmarks or UI annotations "
             "into the base artwork. A dedicated effect asset must depict its requested effect. "
             "Render only the requested pose, never a pose sheet or multiple views.\n"
+            + REAL_WORLD_RULES
             + "ILLUSTRATION SKILL:\n" + vector.load_style(style_context)
             + "\nASSET: " + json.dumps({k: asset.get(k) for k in ("id", "name", "category", "description")}, ensure_ascii=False)
-            + "\nBASE POSE (identity/scale reference, not an attached image): " + asset["base_pose"]
+            + "\nBASE POSE (shared identity/scale description): " + asset["base_pose"]
             + "\nCOMPLETE POSE SET (design consistently; render only the requested one): "
             + json.dumps([asset["base_pose"], *(p["description"] for p in asset["poses"])], ensure_ascii=False)
             + "\nSHARED CAST/OBJECT DESIGN CONTEXT: "
@@ -73,12 +81,22 @@ def asset_prompt(script, asset, pose, style_context=None):
             + json.dumps([{k: p.get(k) for k in ("camera", "initial_state", "final_state", "actions")}
                           for p in script["phases"]], ensure_ascii=False)
             + f"\nLogical local canvas: {asset['width']}x{asset['height']}. "
+            + f"Reference visible dimensions before a pose change: {asset['reference_size']}. "
+              "The canvas reserves the envelope of all poses; empty space is allowed. "
+              "Changing orientation does not shorten body/part lengths. "
             + ("Origin at top left (0,0), full scene canvas 1920x1080. "
                "Use the full canvas for scenery, with no reserved caption strip. Do not include foreground subjects."
                if not asset["transparent"] else
                "Origin at the center (0,0). True transparent alpha, including empty margins. "
                "Respect the described local coordinates and silhouette bounds. "
                "Do not crop tightly or recenter between poses. No scenery or painted background."))
+    if not asset['transparent']:
+        prompt += ('\nSCENERY OWNERSHIP: Do NOT draw any of these independently rendered subjects/objects, '
+                   'even if the background description mentions their location or support region:\n'
+                   + json.dumps([{k: a.get(k) for k in ('id', 'name', 'description')}
+                                 for a in script['assets'] if a['category'] != 'background'], ensure_ascii=False)
+                   + '\nLeave their occupied regions available. Draw only the room/landscape/static environment; '
+                     'a support supplied as a separate asset must not also be painted into this image.')
     if hidden_pose(pose):
         visible = next((p['description'] for p in asset['poses'] if not hidden_pose(p['description'])),
                        asset.get('description', ''))
@@ -107,9 +125,11 @@ def write_asset_prompts(script, output, style_context=None):
             (prompts / f"image_{name}.txt").write_text(asset_prompt(script, asset, pose, style_context), encoding="utf-8")
 
 
-def prompt_library(script):
+def prompt_library(script, metadata=None):
     """Describe local geometry without sending PNG base64 to the text endpoint."""
-    return json.dumps(image_specs(script), ensure_ascii=False)
+    return json.dumps({'assets': image_specs(script), 'measured_geometry': metadata or [],
+                       'coordinates': 'bounds are actual visible alpha in local SVG units; PNG margins are empty'},
+                      ensure_ascii=False)
 
 
 def phase_prompt(script, index, library, previous=None, *, style_context=None):
@@ -133,13 +153,35 @@ def phase_prompt(script, index, library, previous=None, *, style_context=None):
             "Pose chỉ mô tả chưa xuất hiện/chưa hiển thị/ẩn vẫn có PNG chứa hình nhìn thấy được. "
             "Trong animation, trạng thái đó phải có opacity=0. Khi chuyển từ ẩn sang hiện, "
             "dùng opacity 0→1 theo mốc action; không crossfade hai ảnh cùng nhìn thấy được. "
-            "Khi chuyển từ hiện sang ẩn, dùng opacity 1→0.")
+            "Khi chuyển từ hiện sang ẩn, dùng opacity 1→0."
+            + CONTRACT_PROMPT)
+
+
+def measured_geometry(library):
+    """Measure source alpha in the same uniform image transform used by SVG."""
+    rows = []
+    for group in ET.fromstring(library).find(f'{{{NS}}}defs'):
+        image = group.find(f'{{{NS}}}image')
+        if image is None:
+            continue
+        data = base64.b64decode(image.get('href').split(',', 1)[1], validate=True)
+        info = validate_png(data)
+        cw, ch = float(image.get('width')), float(image.get('height'))
+        iw, ih = info['size']
+        scale = min(cw / iw, ch / ih)
+        x = float(image.get('x')) + (cw - iw * scale) / 2
+        y = float(image.get('y')) + (ch - ih * scale) / 2
+        left, top, right, bottom = info.get('visible_bbox', info['content_bbox'])
+        rows.append({'id': group.get('id'), 'bounds': [x + left * scale, y + top * scale,
+                                                      x + right * scale, y + bottom * scale]})
+    return rows
 
 
 class Renderer(vector.Renderer):
     def prepare(self):
         write_asset_prompts(self.script, self.output, self.style_context)
         generator = ImageAssetGenerator(self.output / "image_cache")
+        characters = CharacterAssets(self.style_context, self.output)
         root = ET.Element(f"{{{NS}}}svg", {"viewBox": "0 0 1920 1080"})
         defs = ET.SubElement(root, f"{{{NS}}}defs", {"id": "shared-assets"})
         assets_dir = self.output / "assets"
@@ -151,14 +193,20 @@ class Renderer(vector.Renderer):
         self.progress('images', completed, total)
         for asset in specs:
             generated = {}
+            xeko = characters.enabled and is_xeko(asset)
             for aid, pose in [(asset["id"], asset["base_pose"]),
                               *((p["id"], p["description"]) for p in asset["poses"])]:
                 if pose not in generated:
                     print(f"  generate_image: {asset['id']} ({pose})…", flush=True)
                     try:
-                        generated[pose] = generator.generate(asset_prompt(self.script, asset, pose, self.style_context),
-                                                            transparent=asset["transparent"],
-                                                            requested_size=[asset["width"], asset["height"]])
+                        references = characters.references(pose + ' ' + asset['description']) if xeko else []
+                        prompt = asset_prompt(self.script, asset, pose, self.style_context)
+                        prompt += reference_prompt(references, self.output)
+                        (self.output / 'prompts' / f'image_{vector.digest(aid)[:16]}.txt').write_text(
+                            prompt, encoding='utf-8')
+                        generated[pose] = characters.reuse(asset, pose) or generator.generate(
+                            prompt, transparent=asset["transparent"],
+                            requested_size=[asset["width"], asset["height"]], reference_images=references)
                     except ValueError as error:
                         raise ValueError(f"Asset {asset['id']} ({pose}): {error}") from error
                     completed += 1
@@ -166,17 +214,27 @@ class Renderer(vector.Renderer):
                 path, info = generated[pose]
                 data = path.read_bytes()
                 filename = vector.digest(aid)[:16] + ".png"
-                (assets_dir / filename).write_bytes(data)
+                relative = 'characters/poses/xeko-' + filename if xeko else filename
+                target = assets_dir / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+                if xeko:
+                    characters.record(aid, pose, target, info,
+                                      characters.references(pose + ' ' + asset['description']))
                 group = ET.SubElement(defs, f"{{{NS}}}g", {"id": aid})
                 ET.SubElement(group, f"{{{NS}}}image", {
                     "href": "data:image/png;base64," + base64.b64encode(data).decode("ascii"),
                     "x": str(-asset["width"] / 2 if asset["transparent"] else 0),
                     "y": str(-asset["height"] / 2 if asset["transparent"] else 0),
                     "width": str(asset["width"]), "height": str(asset["height"]),
-                    "preserveAspectRatio": "none"})
-                metadata.append({"id": aid, "pose": pose, "file": "assets/" + filename,
+                    "preserveAspectRatio": "xMidYMid meet"})
+                metadata.append({"id": aid, "pose": pose, "file": "assets/" + relative,
                                  "sha256": hashlib.sha256(data).hexdigest(), **info})
         self.library = ET.tostring(root, encoding="unicode")
+        self.geometry = measured_geometry(self.library)
+        bounds = {row['id']: row['bounds'] for row in self.geometry}
+        for row in metadata:
+            row['render_bounds'] = bounds[row['id']]
         self.fingerprint = vector.digest({"version": VERSION, "script": self.script, "library": self.library, "style": self.style_context})
         (self.output / "assets.svg").write_text(self.library, encoding="utf-8")
         (self.output / "assets.meta.json").write_text(json.dumps({"renderer": VERSION,
@@ -195,6 +253,13 @@ class Renderer(vector.Renderer):
                     root.remove(element)
             root.set("data-renderer", vector.VERSION)
             raw = ET.tostring(root, encoding="unicode")
+        # Parse untrusted SVG through the existing security checks BEFORE browser
+        # inspection. Remove only the machine contract for the vector validator.
+        parsed = vector.parse_svg(raw, self.cleaner, animation=True)
+        ids = {e.get('id') for e in ET.fromstring(self.library).iter() if e.get('id')}
+        contract, description = validate_contract(parsed, self.script['phases'][index - 1], ids)
+        parsed.remove(description)
+        raw = ET.tostring(parsed, encoding='unicode')
         result = super().clean_phase(raw, index)
         # Each PNG group is self-contained. Embed only those used by this scene,
         # so a multi-scene player does not decode every full-resolution PNG nine times.
@@ -206,9 +271,15 @@ class Renderer(vector.Renderer):
             if group.get('id') not in used:
                 defs.remove(group)
         root.set('data-renderer', VERSION)
-        return ET.tostring(root, encoding='unicode')
+        root.insert(1, description)
+        result = ET.tostring(root, encoding='unicode')
+        if not hasattr(self, 'geometry'):
+            self.geometry = measured_geometry(self.library)
+        check_scene(result, contract, {r['id']: r for r in self.geometry},
+                    self.script['phases'][index - 1], self.output, index)
+        return result
 
     def render(self, index, previous=None):
-        prompt = phase_prompt(self.script, index, prompt_library(self.script), previous, style_context=self.style_context)
+        prompt = phase_prompt(self.script, index, prompt_library(self.script, self.geometry), previous, style_context=self.style_context)
         (self.output / "prompts" / f"phase_{index}.txt").write_text(prompt, encoding="utf-8")
         return self.generate(prompt, lambda raw: self.clean_phase(raw, index))

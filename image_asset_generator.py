@@ -60,7 +60,8 @@ def validate_png(data, *, transparent=False, expected_size=None):
                 raise ValueError("Asset cần nền trong suốt nhưng PNG không có vùng alpha=0. "
                                  "Yêu cầu sinh lại PNG có alpha thật; không tự xóa nền.")
             return {"size": list(image.size), "mode": image.mode, "has_alpha": has_alpha,
-                    "alpha_range": [lo, hi], "content_bbox": list(alpha.getbbox())}
+                    "alpha_range": [lo, hi], "content_bbox": list(alpha.getbbox()),
+                    "visible_bbox": list(alpha.point(lambda a: 255 if a >= 8 else 0).getbbox() or alpha.getbbox())}
     except (OSError, SyntaxError, Image.DecompressionBombError) as error:
         raise ValueError(f"PNG không giải mã được: {error}") from error
 
@@ -70,14 +71,27 @@ class ImageAssetGenerator:
         self.cache_dir = Path(cache_dir)
         self.config = configuration if configuration is not None else image_config()
 
-    def generate(self, prompt, *, transparent, requested_size, offline=False):
-        # The endpoint accepts ONLY prompt and model. Image options belong in the prompt.
+    def generate(self, prompt, *, transparent, requested_size, offline=False, reference_images=None):
+        references = []
+        for source in reference_images or []:
+            data = Path(source).read_bytes()
+            validate_png(data)
+            references.append(data)
+        if len(references) > 4 or sum(map(len, references)) > MAX_BYTES:
+            raise ValueError('Tối đa 4 ảnh tham chiếu, tổng dung lượng 20 MiB.')
         full_prompt = (prompt + f"\nRequested PNG canvas: {requested_size[0]}x{requested_size[1]} pixels."
                        + f"\nDetail preference: {self.config['quality']}. "
                        + ("Real transparent alpha background, including empty margins. No checkerboard."
                           if transparent else "Opaque background. No transparent margins."))
-        recipe = {"version": 1, "endpoint": self.config["url"], "model": self.config["model"],
+        if references:
+            full_prompt += ('\nATTACHED REFERENCES: Image 1 is the original Xeko design and is the '
+                            'highest-priority identity reference. Other images guide pose/costume only. '
+                            'Use these actual images in the image generation tool; preserve the original '
+                            'face, hair silhouette, proportions and default outfit. Do not copy their backgrounds.')
+        recipe = {"version": 2 if references else 1, "endpoint": self.config["url"], "model": self.config["model"],
                   "prompt": full_prompt, "transparent": transparent, "requested_size": list(requested_size)}
+        if references:
+            recipe['reference_sha256'] = [hashlib.sha256(data).hexdigest() for data in references]
         key = hashlib.sha256(json.dumps(recipe, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         path = self.cache_dir / f"{key}.png"
         meta_path = path.with_suffix(".json")
@@ -93,8 +107,12 @@ class ImageAssetGenerator:
             raise ValueError(f"Chưa có cache PNG hợp lệ: {key}. Cần gọi generate_image để sinh ảnh.")
         if not self.config.get("key"):
             raise ValueError("Thiếu IMAGE_API_KEY hoặc CODEX_API_TOKEN.")
+        body = {"prompt": full_prompt, "model": self.config["model"]}
+        if references:
+            body['reference_images'] = ['data:image/png;base64,' + base64.b64encode(data).decode('ascii')
+                                        for data in references]
         request = Request(self.config["url"], method="POST",
-                          data=json.dumps({"prompt": full_prompt, "model": self.config["model"]}).encode(),
+                          data=json.dumps(body).encode(),
                           headers={"Content-Type": "application/json", "x-api-key": self.config["key"]})
         try:
             with track_request() as observe:
@@ -106,6 +124,9 @@ class ImageAssetGenerator:
                 payload = json.loads(raw)
                 observe(payload)
         except HTTPError as error:
+            if references and error.code == 422:
+                raise ValueError('/generate-image chưa hỗ trợ reference_images hoặc ảnh tham chiếu bị từ chối. '
+                                 'Cập nhật codex_server; không sinh Xeko chỉ bằng mô tả chữ.') from error
             raise ValueError(f"/generate-image trả HTTP {error.code}; kiểm tra model, API key và server.") from error
         except (URLError, TimeoutError) as error:
             raise ValueError(f"Không kết nối được /generate-image: {error}. Chưa thể kiểm tra sinh ảnh thực tế.") from error

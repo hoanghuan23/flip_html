@@ -5,7 +5,9 @@ import json
 from image_asset_generator import ImageAssetGenerator, validate_png
 from render_style import style_prompt
 from token_usage import phase_usage
+from scene_logic import REAL_WORLD_RULES
 from .illustrations import still_with_illustration
+from character_assets import CharacterAssets, phase_has_xeko, reference_prompt
 
 
 def load_stills(output, *, complete=False):
@@ -29,6 +31,7 @@ def load_stills(output, *, complete=False):
 
 def build_stills(script, output, context, on_progress):
     generator = ImageAssetGenerator(output / 'still_cache')
+    characters = CharacterAssets(context, output)
     prompts = output / 'prompts'
     prompts.mkdir(exist_ok=True)
     rows = []
@@ -48,6 +51,7 @@ def build_stills(script, output, context, on_progress):
             'with the shared design descriptions across all phases. '
             'The style controls drawing technique; the script controls the subject and staging.\n'
             + style_prompt(context)
+            + REAL_WORLD_RULES
             + '\nSHARED DESIGN CONTEXT:\n'
             + json.dumps({'title': script['title'], 'assets': script['assets'],
                           'style': script.get('style', {})}, ensure_ascii=False)
@@ -56,9 +60,13 @@ def build_stills(script, output, context, on_progress):
                           for p in script['phases']], ensure_ascii=False)
             + '\nPHASE TO ILLUSTRATE:\n' + json.dumps(phase, ensure_ascii=False)
         )
+        references = (characters.references(json.dumps(phase, ensure_ascii=False))
+                      if phase_has_xeko(script, phase) else [])
+        prompt += reference_prompt(references, output)
         (prompts / f'phase_{index}_still.txt').write_text(prompt, encoding='utf-8')
         with phase_usage(phase['id']):
-            source, info = generator.generate(prompt, transparent=False, requested_size=[1920, 1080])
+            source, info = generator.generate(prompt, transparent=False, requested_size=[1920, 1080],
+                                              reference_images=references)
         data = still_with_illustration(source.read_bytes(), phase, output, manifest)
         target = output / f'phase_{index}.preview.png'
         temporary = target.with_suffix('.tmp')

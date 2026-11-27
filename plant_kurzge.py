@@ -10,6 +10,7 @@ import re
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from scene_logic import REAL_WORLD_RULES
 
 from script_analysis import (
     InputRejectedError, IMAGE_MENTION, IMAGE_WARNING, UNVERIFIED_WARNING,
@@ -365,6 +366,10 @@ SCHEMA
 NỘI DUNG ĐẦU VÀO
 <<TEXT>>
 """
+
+# The same world-logic rules reach planning, stills, assets and animated staging.
+PROMPT = PROMPT.replace('BỐ CỤC, TỶ LỆ VÀ ĐIỂM TIẾP XÚC',
+                        REAL_WORLD_RULES + '\nBỐ CỤC, TỶ LỆ VÀ ĐIỂM TIẾP XÚC', 1)
 
 
 def request_text(prompt, *, api_url=None, api_key=None, model=None):

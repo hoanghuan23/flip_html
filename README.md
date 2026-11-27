@@ -76,6 +76,34 @@ chữ; dựng hiệu ứng hành động có nguồn/đích và thời điểm b
 lớp SVG phụ cạnh PNG. Các quy tắc áp dụng cho mọi chủ đề, không cố định trang
 phục, màu, nhân vật hay tỷ lệ của một video mẫu.
 
+Luồng PNG kiểm tra thêm **quan hệ tương tác trong cảnh đã dựng**, không chỉ tỷ lệ
+riêng từng asset. Quy tắc chung trong `scene_logic.py` đi qua bước lập kịch bản,
+ảnh tĩnh, sinh asset và dàn cảnh: điểm tựa/tiếp xúc, vật cầm theo tay, vật chứa,
+che khuất, chướng ngại, tỷ lệ theo góc máy và nguyên nhân–kết quả. Nền nhận danh
+sách các vật thể được dựng riêng để tránh vẽ lặp chúng vào phòng/phong cảnh.
+
+Mỗi SVG PNG mới phải có `<desc id="scene-logic">` khai báo instance và các quan hệ
+theo thời gian. Chương trình đo vùng alpha thực của từng PNG, truyền các biên local
+đó vào prompt dàn cảnh và giữ tỷ lệ ảnh khi đặt vào SVG. Canvas chung của asset
+có nhiều pose chừa đủ cả hai chiều để đổi hướng mà không ép nhỏ tư thế nằm/ngang.
+Chrome seek CSS thật mỗi 0,1 giây và hai phía mốc action/quan hệ, kiểm tra tiếp xúc,
+bề mặt đỡ, vùng chứa, lớp che, va chạm với chướng ngại đã khai báo, tỷ lệ tương đối,
+số bản sao và thời điểm hiện của hiệu ứng có quan hệ nhân quả. Cảnh sai được trả
+về vòng sửa SVG, không được công bố snapshot. `phase_N.logic.json` lưu kết quả;
+cache chỉ dùng lại khi nội dung cảnh, hình học và hợp đồng kiểm tra đều khớp.
+
+Bước này dùng Node, `frontend/node_modules/puppeteer-core` và Chrome
+(`CHROME_PATH`, mặc định `/usr/bin/google-chrome`); thiếu trình duyệt thì dừng với
+lỗi kiểm tra, không âm thầm bỏ qua. Kiểm thử quan hệ: `python3 -m unittest
+backend.test_scene_logic -v`.
+
+Đây là kiểm tra hình học của **những quan hệ đã khai báo**, không phải bộ mô phỏng
+vật lý hay nhận diện ngữ nghĩa ảnh: chưa tự xác nhận điểm khai báo đúng bàn tay,
+mặt ghế, vật đã bị vẽ lặp trong nền hoặc tương tác bị bỏ sót. Biên alpha là hình
+chữ nhật bảo thủ nên quan hệ tránh va chạm cần phù hợp với silhouette; vẫn phải
+xem lại khung hình khi nghiệm thu. Ảnh tĩnh duyệt hiện vẫn được sinh riêng, chưa
+chứng minh animation sẽ giống ảnh đó.
+
 Các pose PNG hiện được gọi sinh riêng; pose gốc trong prompt là mô tả văn bản,
 không phải ảnh tham chiếu được gửi kèm API. Prompt giúp hướng dẫn sự nhất quán,
 chưa bảo đảm các ảnh sẽ khớp hoàn toàn; vẫn cần xem ảnh ở đầu/giữa/cuối cảnh,
@@ -192,8 +220,31 @@ pose, socket, chu trình track cha/con và trạng thái nối phase; nếu sai,
 
 Adapter được viết theo `../codex_server/server.py`: `GenerateRequest`, `GenerateImageRequest` và `generate_image()`.
 API văn bản `/generate` và API ảnh `/generate-image` là hai route riêng, cùng nhận JSON
-`{"prompt":"...","model":"..."}` và header `x-api-key`. Không gửi thêm trường vì server dùng
-`extra="forbid"`. `request_text()` chỉ dùng cho kịch bản và Scene Plan, không dùng để vẽ ảnh.
+`{"prompt":"...","model":"..."}` và header `x-api-key`. API ảnh còn nhận trường tùy chọn
+`reference_images`: tối đa 4 PNG data URL (`data:image/png;base64,...`), tổng tối đa 20 MiB.
+Server lưu ảnh trong thư mục tạm riêng của request, đính kèm bằng `codex exec --image`,
+và yêu cầu công cụ sinh ảnh sử dụng `referenced_image_paths`. Các trường khác vẫn bị từ chối.
+`request_text()` chỉ dùng cho kịch bản và Scene Plan, không dùng để vẽ ảnh.
+
+Khi chọn **Giáo dục → Character Cartoon**, `render_config.json` lưu template Xeko,
+catalog và hash ảnh gốc. Ảnh trong `design/` và `poses/` được sao chép vào
+`assets/characters/` của preview. Pose khớp chính xác ID/tags catalog và có alpha được dùng lại;
+pose mới và ảnh tĩnh có Xeko luôn kèm thiết kế gốc làm ảnh tham chiếu thật. Chỉ áp dụng
+nhận diện Xeko cho asset nhân vật ghi rõ Xeko; các nhân vật phụ giữ thiết kế riêng.
+Nhận diện và trang phục gốc ưu tiên hơn mô tả hoặc palette mâu thuẫn trong kịch bản.
+Cache tính cả bytes ảnh tham chiếu. `assets/characters/catalog.json` ghi nguồn gốc asset
+đã dùng; ảnh mới chưa được duyệt không tự thay thế thư viện mẫu dùng chung.
+
+Nếu triển khai với bản `codex_server` cũ, áp dụng bản vá đi kèm rồi khởi động lại server:
+
+```bash
+cd ../codex_server
+patch -p1 < ../flip_html/integrations/codex_server/reference_images.patch
+```
+
+Không áp dụng lại nếu server đã có `GenerateImageRequest.reference_images`. Khi API từ chối
+ảnh tham chiếu, tác vụ báo lỗi và không tự chuyển sang sinh Xeko chỉ bằng chữ.
+Khởi động lại backend và tạo tác vụ đồ họa mới để thay các ảnh cũ đã sinh sai nhận diện.
 
 Cấu hình `.env` theo `.env.example`, giữ nguyên token hiện có:
 

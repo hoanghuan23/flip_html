@@ -228,9 +228,12 @@ IMAGE_MODEL=your-image-model
 IMAGE_QUALITY=medium
 ```
 
-API ảnh nhận `{prompt, model}` với `x-api-key`, trả PNG base64 trong
+API ảnh nhận `{prompt, model, reference_images?}` với `x-api-key`, trả PNG base64 trong
 `{success: true, data: [{b64_json: "..."}]}`. Không tự chuyển sang đồ họa mẫu
 khi thiếu cấu hình hoặc API ảnh lỗi. Khởi động lại backend sau khi đổi cấu hình.
+`reference_images` chứa tối đa 4 PNG data URL, tổng tối đa 20 MiB. Luồng Xeko dùng
+ảnh thiết kế gốc và catalog trong `skills/templates/character/`; cần bản `codex_server`
+đã hỗ trợ ảnh tham chiếu (bản vá ở `integrations/codex_server/reference_images.patch`).
 Lưu file React/CSS hoặc `config/style_config.json` để Vite tự cập nhật giao
 diện. Không cần build lại khi phát triển. Cổng 8000 phục vụ bản build trong
 `frontend/dist`, nên cần `npm run build` sau khi sửa giao diện ở chế độ đó.

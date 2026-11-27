@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 from .jobs import JobManager, ROOT, now
 from .models import GraphicsRequest
 from .scripts import ACTIVE, ScriptJobManager, project_script
-from render_style import load_render_style
+from render_style import load_render_context
 from .still_previews import load_stills
 
 
@@ -115,10 +115,7 @@ class GraphicsJobManager(ScriptJobManager):
             project_script(script)
         except (OSError, json.JSONDecodeError, KeyError) as error:
             raise GraphicsInputError('Không tìm thấy JSON đầy đủ. Hãy tạo lại kịch bản ở bước 1.') from error
-        context = load_render_style(request.styleId)
-        if request.categoryId == 'map_chart':
-            from render_style import load_render_template
-            context['template'] = load_render_template('map')
+        context = load_render_context(request.styleId, request.categoryId)
         from image_motion_ai import VERSION
         legacy_renderer = VERSION
         if request.styleId == '3d-motion-infographic':
@@ -184,6 +181,8 @@ class GraphicsJobManager(ScriptJobManager):
                     shutil.copy2(source / item['src'], target)
             (output / 'render_config.json').write_text(
                 json.dumps(context, ensure_ascii=False, indent=2), encoding='utf-8')
+            from character_assets import CharacterAssets
+            CharacterAssets(context, output)
             # An incomplete attempt is never served, including after a failed publication.
             (output / 'snapshot.json').unlink(missing_ok=True)
             job = {'id': job_id, 'projectId': request.projectId, 'config': config, 'key': key,

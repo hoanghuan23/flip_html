@@ -1,0 +1,91 @@
+--- a/server.py
++++ b/server.py
+@@ -3,6 +3,7 @@
+ 
+ import asyncio
+ import base64
++import binascii
+ import json
+ import os
+ import shutil
+@@ -86,6 +87,29 @@
+     model: str = Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$")
+ 
+ 
++class GenerateImageRequest(GenerateRequest):
++    """Optional PNG data URLs, passed to Codex as actual image attachments."""
++    reference_images: list[str] = Field(default_factory=list, max_length=4)
++
++
++def decode_reference_images(values):
++    images = []
++    total = 0
++    prefix = "data:image/png;base64,"
++    for value in values:
++        if not value.startswith(prefix) or len(value) > MAX_IMAGE_BYTES * 4 // 3 + 64:
++            raise HTTPException(422, "References must be PNG base64 data URLs, maximum 20 MiB total")
++        try:
++            data = base64.b64decode(value[len(prefix):], validate=True)
++        except (binascii.Error, ValueError) as exc:
++            raise HTTPException(422, "Invalid reference image base64") from exc
++        total += len(data)
++        if not data.startswith(b"\x89PNG\r\n\x1a\n") or total > MAX_IMAGE_BYTES:
++            raise HTTPException(422, "References must be PNG images, maximum 20 MiB total")
++        images.append(data)
++    return images
++
++
+ @app.post("/generate", tags=["generation"])
+ async def generate(
+     data: GenerateRequest,
+@@ -97,7 +121,7 @@
+ 
+ @app.post("/generate-image", tags=["generation"])
+ async def generate_image(
+-    data: GenerateRequest,
++    data: GenerateImageRequest,
+     x_api_key: str | None = Header(default=None)
+ ):
+     """Generate one PNG through the logged-in Codex CLI and return its base64."""
+@@ -106,8 +130,16 @@
+     if not data.prompt.strip():
+         raise HTTPException(422, "Image prompt must not be blank")
+ 
++    references = decode_reference_images(data.reference_images)
+     with tempfile.TemporaryDirectory() as workdir:
+         output = Path(workdir) / "output.png"
++        image_args = []
++        reference_paths = []
++        for index, image in enumerate(references, 1):
++            path = Path(workdir) / f"reference_{index}.png"
++            path.write_bytes(image)
++            image_args.extend(["--image", str(path)])
++            reference_paths.append(str(path))
+         prompt = (
+              "$imagegen\n"
+             "Generate exactly one image using the image generation tool.\n"
+@@ -116,6 +148,15 @@
+             "If generation fails, do not create output.png.\n\n"
+             f"Prompt: {data.prompt}\n"
+         )
++        if reference_paths:
++            prompt += (
++                "\nThe attached reference images are saved here, in attachment order: "
++                + json.dumps(reference_paths)
++                + "\nInspect these images and pass them to the image generation tool as "
++                  "referenced_image_paths. Image 1 is the canonical character identity; "
++                  "other images guide pose/costume. Preserve the canonical face, hair, "
++                  "proportions and outfit. Do not generate from text alone.\n"
++            )
+         try:
+             process = await asyncio.create_subprocess_exec(
+                 resolve_codex_executable(),
+@@ -123,7 +164,7 @@
+                 "--enable", "image_generation",
+                 "exec", "--json", "--model", data.model,
+                 "--skip-git-repo-check",
+-                "--sandbox", "workspace-write", "-",
++                "--sandbox", "workspace-write", *image_args, "-",
+                 cwd=workdir,
+                 stdin=asyncio.subprocess.PIPE,
+                 stdout=asyncio.subprocess.PIPE,

@@ -15,7 +15,11 @@ def load_render_template(template_id):
     preset = json.loads((directory / 'template.json').read_text(encoding='utf-8'))
     if not skill.strip() or preset.get('id') != template_id:
         raise ValueError('Template không hợp lệ.')
-    return {'id': template_id, 'skill': skill, 'preset': preset}
+    context = {'id': template_id, 'skill': skill, 'preset': preset}
+    if template_id == 'character':
+        from character_assets import catalog_snapshot
+        context['library'] = catalog_snapshot()
+    return context
 
 
 def load_render_style(style_id):
@@ -33,8 +37,34 @@ def load_render_style(style_id):
     return {'id': style_id, 'skill': skill, 'preset': preset}
 
 
+def load_render_context(style_id, category_id):
+    """Resolve the selected category's real template, not just its style list."""
+    context = load_render_style(style_id)
+    config = json.loads((STYLES_ROOT.parent.parent / 'config/style_config.json').read_text(encoding='utf-8'))
+    templates = config['categories'][category_id]['templates']
+    available = [tid for tid, item in templates.items() if style_id in item['allowed_styles']
+                 and (TEMPLATES_ROOT / tid / 'template.json').is_file()]
+    if len(available) > 1:
+        raise ValueError('Danh mục/phong cách khớp nhiều template; cần chọn duy nhất một template.')
+    if available:
+        context['template'] = load_render_template(available[0])
+    return context
+
+
 def style_prompt(context):
-    return ('SELECTED TEMPLATE:\n' + context.get('template', {}).get('skill', '') + '\n'
+    template = context.get('template', {})
+    identity = ('\nCHARACTER IDENTITY PRIORITY: Original Xeko design references and template '
+                'identity/outfit override conflicting Plan descriptions and style palette. '
+                'Preserve black spiky hair, face, peach skin, bright red hoodie, WHITE PLAY-BUTTON '
+                'emblem (never a yellow star), charcoal shorts, white socks, red/white sneakers '
+                'and dark crossbody bag. Change costume only for an explicitly requested story role. '
+                'Pose, emotion, topic or palette changes do not authorize a new outfit. '
+                'Apply Xeko identity only to Xeko; keep supporting characters distinct. '
+                'Do not introduce Xeko into scenes that do not request him.\n'
+                if template.get('id') == 'character' else '')
+    return ('SELECTED TEMPLATE:\n' + template.get('skill', '') + '\n'
+            + ('TEMPLATE PRESET:\n' + json.dumps(template.get('preset', {}), ensure_ascii=False) + '\n'
+               if template else '')
             + 'SELECTED ILLUSTRATION STYLE: ' + context['id'] + '\n'
             + context['skill'] + '\nSTYLE PRESET:\n'
             + json.dumps(context['preset'], ensure_ascii=False)
@@ -44,7 +74,7 @@ def style_prompt(context):
               'subjects, camera, geometry, actions and timing. PNG output/alpha requirements '
               'take precedence over SVG examples in the style guide. Do not copy example '
               'subjects, object counts, card dimensions, compositions or decorative elements '
-              'that the Plan does not request.\n')
+              'that the Plan does not request.\n' + identity)
 
 
 def caption_colors(context):

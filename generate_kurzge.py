@@ -331,9 +331,10 @@ def main(argv=None):
     script_path.write_text(json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"{script.get('title', '')}: {len(phases)} phase, {sum(p['duration'] for p in phases):g} giây.", flush=True)
 
-    from render_style import load_render_style
+    from render_style import load_render_style, load_render_context
     config_path = output / 'render_config.json'
-    style_context = (load_render_style(args.style) if args.style else
+    style_context = ((load_render_context(args.style, 'education') if args.style == 'character-cartoon'
+                      else load_render_style(args.style)) if args.style else
                      json.loads(config_path.read_text(encoding='utf-8')) if config_path.is_file() else None)
     build_preview(script, output, request_text, style_context=style_context,
                   resume=args.resume, redo=args.redo, phase_number=args.phase,

@@ -39,11 +39,15 @@ def graphics_script():
 
 def phase_svg(phase):
     duration = phase['duration']
+    contract = json.dumps({'version': 1, 'instances': [
+        {'id': 'cloud-instance', 'asset': 'CLOUD', 'space': 'sky', 'mode': 'free',
+         'reason': 'A cloud drifting freely through the sky.'}], 'relations': [], 'causality': []})
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">'
+            '<desc id="scene-logic">' + contract + '</desc>'
             '<style>@keyframes drift{from{transform:translateX(0px)}to{transform:translateX(500px)}}'
             f'.motion{{animation:drift {duration}s linear both}}</style>'
             '<g id="artwork"><g transform="translate(400 320)"><g class="motion">'
-            '<use href="#CLOUD"/></g></g></g></svg>')
+            '<use id="cloud-instance" href="#CLOUD"/></g></g></g></svg>')
 
 
 def png_response():
@@ -331,10 +335,11 @@ class GraphicsApiTests(unittest.TestCase):
         self.assertEqual(self.client.get(sample.json()['url']).status_code, 200)
 
     def test_technical_style_is_selectable_and_has_a_seekable_demo(self):
-        for category in ('science', 'education', 'all_styles'):
+        for category in ('science', 'all_styles'):
             with self.subTest(category=category):
                 response = self.create(categoryId=category, styleId='3d-technical-illustration')
                 self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(self.create(categoryId='education', styleId='3d-technical-illustration').status_code, 422)
         sample = self.client.get('/api/styles/3d-technical-illustration/preview')
         self.assertEqual(sample.status_code, 200)
         demo = self.client.get(sample.json()['url'])
@@ -352,7 +357,7 @@ class GraphicsApiTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/graphics/' + '0' * 32).status_code, 404)
 
     def test_missing_style_guide_is_an_error_without_flat_fallback(self):
-        with patch('backend.graphics.load_render_style', side_effect=ValueError('Không đọc được phong cách')):
+        with patch('backend.graphics.load_render_context', side_effect=ValueError('Không đọc được phong cách')):
             response = self.create()
         self.assertEqual(response.status_code, 503)
 

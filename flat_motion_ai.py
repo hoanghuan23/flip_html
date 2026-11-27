@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
+from scene_logic import REAL_WORLD_RULES
 
 VERSION = "flat-detailed-v4"
 NS = "http://www.w3.org/2000/svg"
@@ -135,7 +136,7 @@ def phase_prompt(script, index, library, previous=None, *, style_context=None):
     phase = script["phases"][index - 1]
     before = script["phases"][(phase.get("branch_from") or index - 1) - 1] if index > 1 else None
     return ("Dàn cảnh MỘT phase bằng SVG + CSS animation. Chỉ trả một <svg xmlns=\""
-            + NS + "\" viewBox=\"0 0 1920 1080\">...</svg>.\n" + load_style(style_context) + """
+            + NS + "\" viewBox=\"0 0 1920 1080\">...</svg>.\n" + load_style(style_context) + REAL_WORLD_RULES + """
 Canvas 1920x1080. Dùng toàn bộ khung hình cho diễn hoạt, không chừa dải chữ
 phía dưới. Không vẽ phụ đề hoặc chép caption/narration lên hình.
 
