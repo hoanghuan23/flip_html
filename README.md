@@ -69,6 +69,37 @@ npm run build
 npm run test:analysis
 ```
 
+## Tạo audio thuyết minh bằng VieNeu
+
+Module `backend/narration.py` được khôi phục từ `main`, dùng thư viện
+`vieneu>=3.8.5,<4` chạy trên máy chủ. Sau khi cài `requirements.txt`, tạo audio
+từ kịch bản có `voiceover` bằng CLI:
+
+```bash
+python3 generate_audio.py --input storage/scripts/ID_KICH_BAN/kich_ban.json --output storage/narration/ID_KICH_BAN
+```
+
+Thay `ID_KICH_BAN` bằng ID tác vụ kịch bản thực tế. Lần chạy đầu, VieNeu cần tải model.
+Chọn giọng bằng `VIENEU_VOICE` trong `.env` hoặc biến môi trường; mặc định là
+`Hải Đăng`. Lệnh này chỉ tạo giọng đọc, không gọi dịch vụ AI văn bản hoặc ảnh.
+
+Output gồm `assets/audio/*.wav`, metadata JSON và `kich_ban.json` đã gắn
+`phase.audio`. Thời lượng cảnh và mốc hoạt ảnh được đồng bộ theo WAV thực tế;
+mốc ảnh minh họa được lấy từ ranh giới các đoạn lời đọc. Kịch bản nguồn được giữ
+nguyên. Dùng `--overwrite` để tạo lại trong cùng thư mục output.
+
+Cache mặc định là `storage/audio_cache` (hoặc dưới `VIDEO_STORAGE_DIR`), có thể
+đổi bằng `--cache`. Cùng lời đọc, giọng và phiên bản VieNeu sẽ dùng lại WAV;
+cache lỗi sẽ được tạo lại. Module có thể gọi trực tiếp qua
+`prepare_narration(script, output, cache, on_progress)` khi nối lại luồng đồ họa.
+Studio hiện chưa có nút tạo audio; API tạo đồ họa/animation vẫn chưa được triển khai.
+
+Kiểm thử audio dùng model giả và WAV cục bộ, không tải model:
+
+```bash
+python3 -m unittest backend.test_narration
+```
+
 ## Cấu hình nhóm chủ đề và phong cách
 
 Chỉnh `config/style_config.json` để thay đổi lựa chọn ở mục **Nhóm chủ đề &
@@ -107,10 +138,68 @@ Mặc định chạy `npx --yes hyperframes@0.9.33` (lần đầu cần mạng).
 cho backend. Script kiểm tra project, chụp giữa cảnh, render và xác minh MP4.
 Dùng `--quality draft --fps 24` để thử nhanh, `--overwrite` để ghi đè MP4.
 
+## Thư viện nhân vật AI hoàn chỉnh
+
+`skills/templates/character_rig/GENERATED/` lưu PNG nhân vật hoàn chỉnh do AI
+trả về, tách khỏi ảnh đầu, thân, tay và chân nguồn. `config/character_assets.json`
+lưu mỗi nhân vật theo ID trong `generated_characters`, gồm đường dẫn ảnh,
+SHA-256, kích thước PNG, preset nguồn, thông tin lần tạo và vị trí các khớp.
+Hiện chưa có nhân vật hoàn chỉnh được đăng ký; danh sách này để trống.
+
+Nhập kết quả AI và JSON thông số khớp:
+
+```bash
+python3 character_library.py add front_happy_v1 --image ketqua/character.png --metadata ketqua/joints.json
+python3 character_library.py list
+python3 character_library.py get front_happy_v1
+```
+
+Ví dụ **cấu trúc** `joints.json` dưới đây dùng ảnh 1024×1536; cần thay kích thước
+và toàn bộ tọa độ bằng số đo thực tế trên PNG được AI trả về:
+
+```json
+{
+  "preset_id": "front_happy",
+  "view": "front",
+  "image_size": [1024, 1536],
+  "coordinate_space": "image_pixels_top_left",
+  "joints": {
+    "neck": [512, 600],
+    "shoulder_L": [380, 690],
+    "shoulder_R": [644, 690],
+    "hip_L": [460, 1100],
+    "hip_R": [564, 1100]
+  },
+  "generation": {"provider": "codex", "model": "your-image-model"}
+}
+```
+
+Tọa độ `[x, y]` tính bằng pixel trên **PNG hoàn chỉnh gốc**: gốc ở góc trên trái,
+trục x sang phải, trục y hướng xuống. Không dùng tọa độ của từng ảnh bộ phận hoặc
+ảnh preview đã co giãn. Tên `_L`/`_R` theo bên trái/phải của người xem. Có thể
+thêm các khớp khuỷu tay, cổ tay, đầu gối và cổ chân theo cùng quy ước.
+
+`GeneratedCharacterLibrary.save(id, png_bytes, metadata)` là điểm lưu kết quả
+cho luồng AI sau này. `get_or_create(id, generate)` đọc và kiểm tra ảnh đã lưu
+trước; callback AI chỉ chạy khi ID chưa có và phải trả `(png_bytes, metadata)`.
+Ảnh và thông số đã lưu dùng được sau khi khởi động lại, không cần ảnh bộ phận
+nguồn hoặc dịch vụ AI. Nếu PNG bị sửa/mất, thư viện báo lỗi để kiểm tra lại.
+
+Mỗi ID đại diện cho một bộ biểu cảm, trang phục và tư thế cụ thể. Khi thay đổi,
+dùng ID mới hoặc `add ... --overwrite` để cập nhật ảnh cùng thông số khớp.
+Ảnh cũ được giữ nguyên; catalog được cập nhật nguyên tử và giữ các phần cấu hình
+khác. Công cụ này lưu/đọc kết quả, chưa tự tạo ảnh hoặc tự suy đoán tọa độ khớp.
+
+```bash
+python3 -m unittest backend.test_character_library
+```
+
 ## Ghép SVG bằng rig (công cụ cũ)
 
 Config mặc định hiện có 5 preset chỉ chọn ảnh bộ phận,
-không có transforms hoặc tọa độ rig. `config/character_assets.json` để trống (`{}`).
+không có transforms hoặc tọa độ rig. Trong `config/character_assets.json`,
+`assets` và `rig_profiles` của công cụ ghép cũ hiện để trống; `generated_characters`
+dành riêng cho ảnh nhân vật hoàn chỉnh và thông số khớp.
 Các lệnh ghép SVG bên dưới chỉ dùng khi cung cấp lại catalog assets và preset
 có cấu hình rig tương ứng qua `--assets` và `--presets`. Gallery đã xuất vẫn mở được.
 Phần dưới mô tả bộ rig cũ, không phải config mặc định hiện tại.

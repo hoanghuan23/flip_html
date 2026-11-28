@@ -1,1 +1,7 @@
-{}
+{
+  "version": 1,
+  "asset_root": "skills/templates/character_rig",
+  "assets": {},
+  "rig_profiles": {},
+  "generated_characters": {}
+}

@@ -18,3 +18,5 @@ storage/
 
 ketqua/
 kichban/
+config/character_assets.json.lock
+skills/templates/character_rig/GENERATED/
