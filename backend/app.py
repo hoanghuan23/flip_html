@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from .jobs import JobManager, PreviewNotFoundError, ROOT
 from .models import ExportRequest
 from .image_store import ImageUpload, save_image
+from .character_ai import router as character_ai_router
 
 
 def create_app(storage_root: Path | None = None):
@@ -26,6 +27,8 @@ def create_app(storage_root: Path | None = None):
             app.state.jobs.close()
 
     app = FastAPI(title='AI Video Studio', lifespan=lifespan)
+    app.state.storage_root = storage
+    app.include_router(character_ai_router)
 
     def checked_id(value):
         if not re.fullmatch(r'[a-f0-9]{32}', value):

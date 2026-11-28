@@ -597,18 +597,18 @@
       "attach_point": [76.5, 144], "pivot": [76.5, 144], "scale": 1.15891473,
       "compatible_suits": ["DEFAULT"]
     },
-    "prepared/DEFAULT/torso_front_v2.png": {
+    "prepared/DEFAULT/torso_front.png": {
       "slot": "suit", "view": "front",
-      "source": "prepared/DEFAULT/torso_front_v2.png",
-      "reference_source": "prepared/DEFAULT/torso_front_v2.png",
-      "render_source": "prepared/DEFAULT/torso_front_v2.png",
+      "source": "prepared/DEFAULT/torso_front.png",
+      "reference_source": "prepared/DEFAULT/torso_front.png",
+      "render_source": "prepared/DEFAULT/torso_front.png",
       "attach_point": [646, 385], "pivot": [646, 385], "scale": 0.175,
       "compatible_suits": ["DEFAULT"],
       "generation": {
         "method": "imagegen",
         "fit_profile": "front_default"
       },
-      "preparation": "The current default suit is prepared/DEFAULT/torso_front_v2.png. Sleeves come exclusively from HAND sprites. Head, arms and legs keep their original PNGs. Calibrated for front_default."
+      "preparation": "The current default suit is prepared/DEFAULT/torso_front.png. Sleeves come exclusively from HAND sprites. Head, arms and legs keep their original PNGs. Calibrated for front_default."
     },
     "HAND/07_ARM/down_L.png": {
       "slot": "arm_L", "view": "front",

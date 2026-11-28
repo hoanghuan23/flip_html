@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ghép nhân vật bằng AI</title>
+  <script>
+    if (location.protocol === 'file:' || location.pathname !== '/character-ai') {
+      document.documentElement.hidden = true;
+      location.replace('http://127.0.0.1:8001/character-ai');
+    }
+  </script>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #172e33;
+      background: #f3f6f6;
+      font-size: 16px;
+      color-scheme: light
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0
+    }
+
+    main {
+      max-width: 1420px;
+      margin: auto;
+      padding: 32px 24px 48px
+    }
+
+    header {
+      margin-bottom: 26px
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin: 0 0 8px;
+      letter-spacing: -.04em
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      margin: 0 0 16px
+    }
+
+    p {
+      line-height: 1.6;
+      margin: 6px 0;
+      color: #51666b
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #dbe5e6;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      min-width: 0
+    }
+
+    fieldset {
+      border: 0;
+      margin: 0;
+      padding: 0;
+      min-width: 0
+    }
+
+    label {
+      display: block;
+      font-size: .9rem;
+      font-weight: 600;
+      margin: 16px 0 7px
+    }
+
+    label:first-child {
+      margin-top: 0
+    }
+
+    input,
+    select,
+    textarea,
+    button,
+    .download {
+      font: inherit
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid #bfcfd1;
+      border-radius: 7px;
+      padding: 10px 12px;
+      color: #172e33;
+      background: #fff;
+      min-width: 0
+    }
+
+    textarea {
+      resize: vertical;
+      line-height: 1.55
+    }
+
+    #config {
+      font: 14px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+      min-height: 285px;
+      tab-size: 2
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus,
+    button:focus-visible,
+    a:focus-visible {
+      outline: 3px solid #86cfc5;
+      outline-offset: 2px
+    }
+
+    select {
+      appearance: none;
+      padding-right: 34px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%2336555b' stroke-width='1.7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: end
+    }
+
+    .row>* {
+      flex: 1;
+      min-width: 0
+    }
+
+    .row label {
+      margin-top: 0
+    }
+
+    .row+label {
+      margin-top: 16px
+    }
+
+    .hint {
+      font-size: .85rem;
+      line-height: 1.55;
+      color: #5d7276;
+      margin: 8px 0 0
+    }
+
+    .file {
+      font-size: .85rem;
+      padding: 8px;
+      max-width: 100%
+    }
+
+    button,
+    .download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #b8cccf;
+      border-radius: 7px;
+      padding: 11px 16px;
+      background: #fff;
+      color: #23454a;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer
+    }
+
+    button.primary {
+      background: #087b70;
+      border-color: #087b70;
+      color: #fff;
+      flex: 1
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: wait
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px
+    }
+
+    .parts {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px
+    }
+
+    .part {
+      min-width: 0;
+      margin: 0
+    }
+
+    .part-image {
+      height: 105px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #e0e6e7;
+      border-radius: 8px;
+      background: #f8fafb
+    }
+
+    .part img {
+      max-width: 100%;
+      max-height: 95px;
+      object-fit: contain;
+      padding: 7px
+    }
+
+    figcaption {
+      font-size: .8rem;
+      text-align: center;
+      margin-top: 7px;
+      overflow-wrap: anywhere;
+      color: #486068
+    }
+
+    .part strong {
+      display: block;
+      color: #223c42
+    }
+
+    .path {
+      font-size: .75rem;
+      display: block;
+      margin-top: 4px
+    }
+
+    .stage {
+      min-height: 470px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      overflow: hidden;
+      background-color: #fff;
+      background-image: linear-gradient(45deg, #edf1f2 25%, transparent 25%), linear-gradient(-45deg, #edf1f2 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #edf1f2 75%), linear-gradient(-45deg, transparent 75%, #edf1f2 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0
+    }
+
+    .stage img {
+      display: block;
+      max-width: 100%;
+      max-height: 680px;
+      object-fit: contain
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px;
+      max-width: 350px;
+      color: #697f84
+    }
+
+    .empty strong {
+      display: block;
+      color: #405c62;
+      font-size: 1.1rem;
+      margin-bottom: 8px
+    }
+
+    .result-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px
+    }
+
+    .result-head h2 {
+      margin: 0
+    }
+
+    .result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px
+    }
+
+    .download {
+      font-size: .85rem;
+      padding: 8px 12px
+    }
+
+    #status {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: .9rem;
+      margin-top: 14px;
+      line-height: 1.6;
+      color: #365b62
+    }
+
+    #status[data-error="true"] {
+      color: #b12838
+    }
+
+    #usage {
+      font-size: .85rem;
+      color: #5d7276;
+      margin-top: 12px
+    }
+
+    details {
+      margin-top: 18px;
+      font-size: .85rem
+    }
+
+    summary {
+      cursor: pointer;
+      color: #3c6469
+    }
+
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #f5f8f8;
+      padding: 14px;
+      border-radius: 7px;
+      line-height: 1.6;
+      max-height: 280px;
+      overflow: auto
+    }
+
+    [hidden] {
+      display: none !important
+    }
+
+    @media(max-width:950px) {
+      .layout {
+        grid-template-columns: 1fr
+      }
+
+      .stage {
+        min-height: 380px
+      }
+    }
+
+    @media(max-width:540px) {
+      main {
+        padding: 22px 14px
+      }
+
+      .panel {
+        padding: 18px
+      }
+
+      .row {
+        flex-direction: column;
+        align-items: stretch
+      }
+
+      .parts {
+        grid-template-columns: repeat(3, minmax(0, 1fr))
+      }
+
+      h1 {
+        font-size: 1.5rem
+      }
+
+      .stage {
+        min-height: 330px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>Ghép nhân vật bằng AI</h1>
+      <p>Chỉ cần chọn hoặc dán config để tạo nhân vật hoàn chỉnh.</p>
+    </header>
+    <div class="layout">
+      <form id="form" class="panel">
+        <fieldset id="fields">
+          <h2>Nhân vật đã lưu</h2>
+          <label for="saved">Chọn kết quả để dùng lại</label>
+          <select id="saved"><option value="">Chưa có nhân vật đã lưu</option></select>
+          <div class="actions">
+            <button id="open-saved" type="button" disabled>Mở nhân vật</button>
+            <button id="refresh-saved" type="button">Làm mới danh sách</button>
+          </div>
+          <p id="saved-note" class="hint">Mỗi kết quả được tự lưu cùng PNG và cấu hình JSON. Mở lại không gọi AI.</p>
+          <hr style="border:0;border-top:1px solid #dbe5e6;margin:24px 0">
+          <h2>Config nhân vật</h2>
+          <div class="row">
+            <div><label for="preset">Preset</label><select id="preset" aria-label="Chọn preset"><option value="">Config tùy chỉnh</option></select></div>
+            <div><label for="file">Nạp config JSON</label><input class="file" id="file" type="file"
+                accept=".json,application/json"></div>
+          </div>
+          <label for="config">Config nhân vật</label>
+          <textarea id="config" spellcheck="false" aria-describedby="config-help"></textarea>
+          <p id="config-help" class="hint">Dán một preset có <code>parts</code>, toàn bộ file presets, hoặc object ánh
+            xạ tên bộ phận tới PNG. Đường dẫn tính từ <code>skills/templates/character_rig/</code>. Không cần thông số
+            điểm nối hay tỷ lệ.</p>
+          <div class="actions">
+            <button id="preview" type="button">Xem bộ phận</button>
+            <button id="generate" type="submit" class="primary">Tạo nhân vật</button>
+          </div>
+        </fieldset>
+        <div id="status" role="status" aria-live="polite">Đang tải preset có sẵn. Bạn vẫn có thể dán hoặc nạp config.</div>
+      </form>
+      <div>
+        <section class="panel" aria-labelledby="parts-heading">
+          <h2 id="parts-heading">Bộ phận gửi cho AI</h2>
+          <div id="parts" class="parts"></div>
+          <p id="parts-note" class="hint">Xem trước các ảnh trước khi tạo.</p>
+        </section>
+        <section class="panel" aria-labelledby="result-heading">
+          <div class="result-head">
+            <h2 id="result-heading">Kết quả</h2>
+            <div class="result-actions">
+              <a id="download" class="download" hidden>Tải PNG</a>
+              <a id="download-config" class="download" hidden>Tải JSON</a>
+            </div>
+          </div>
+          <div class="stage" aria-busy="false" id="stage">
+            <div id="empty" class="empty"><strong>Nhân vật của bạn sẽ xuất hiện ở đây</strong>AI nhận các ảnh rời và
+              tinh chỉnh nhẹ chỗ nối để ghép thành một nhân vật.</div>
+            <img id="result" alt="Nhân vật được AI ghép từ các bộ phận" hidden>
+          </div>
+          <div id="usage"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script id="character-prompt" type="text/plain">
+Use case: compositing. Assemble the five supplied PNG body parts like modular Lego pieces into one complete 2D cartoon character. Infer placement and relative scale from the images, without rig coordinates.
+
+Input images in exact attachment order:
+Image 1: head
+Image 2: suit
+Image 3: arm_L
+Image 4: arm_R
+Image 5: legs_pair
+head is the authoritative identity AND exact facial expression. Preserve its silhouette, hair, eyes, eyebrows, ears and mouth. Follow the visible expression rather than replacing it with a generic smile. suit is the torso: preserve its design, colors, emblems, straps and existing accessories. arm_L/arm_R mean viewer-left/viewer-right; legs_pair contains both legs, clothing and shoes.
+Preserve these actual parts, their shapes and drawing style as faithfully as possible. Translate, rotate and uniformly resize them to fit. Only make very small local touch-ups at the neck, shoulder and waist junctions. Infer small matching shoulder connections if needed. Do not redesign the character or add accessories. Exactly two arms, two hands and two legs. Follow the supplied parts and config for pose and view. Center a single complete character, head through shoes fully visible, with modest padding. No parts board, labels or watermark.
+Remove source matte/background. Set transparent_background=true in the image generation tool for a genuine transparent PNG.
+  </script>
+  <script>
+    (() => {
+      if (document.documentElement.hidden) return;
+      const $ = id => document.getElementById(id);
+      const CHARACTER_PROMPT = $('character-prompt').textContent.trim();
+      let presets = {}, resultUrl = null;
+      function status(message, error = false) {
+        $('status').textContent = message;
+        $('status').dataset.error = String(error);
+      }
+      async function api(path, body) {
+        let response;
+        try {
+          response = await fetch(path, body === undefined ? {signal: AbortSignal.timeout(10000)} : {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+          });
+        } catch {
+          throw new Error('Không kết nối được backend flip_html. Hãy kiểm tra backend đang chạy.');
+        }
+        let value;
+        try { value = await response.json(); }
+        catch {
+          throw new Error('Backend chưa trả API JSON hợp lệ. Hãy khởi động lại backend flip_html.');
+        }
+        if (!response.ok) {
+          const detail = value.detail;
+          throw new Error(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(e => e.msg || JSON.stringify(e)).join('\n') : 'Không xử lý được yêu cầu.');
+        }
+        return value;
+      }
+      function body() {
+        let config;
+        try { config = JSON.parse($('config').value); }
+        catch { throw new Error('Config chưa phải JSON hợp lệ. Kiểm tra dấu phẩy và dấu ngoặc.'); }
+        if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Config cần là một object JSON.');
+        const preset_id = config.presets && typeof config.presets === 'object'
+          ? (Object.hasOwn(config.presets, $('preset').value) ? $('preset').value : config.default_preset || null)
+          : null;
+        const selected = config.presets ? config.presets[preset_id] : config;
+        const context = {};
+        for (const key of ['description', 'view']) if (selected && Object.hasOwn(selected, key)) context[key] = selected[key];
+        const prompt = CHARACTER_PROMPT + '\n\nConfig context (the head image determines the facial expression): ' + JSON.stringify(context);
+        return { config, preset_id, prompt };
+      }
+      function showParts(prepared) {
+        const fragment = document.createDocumentFragment();
+        prepared.parts.forEach((part, i) => {
+          const figure = document.createElement('figure'); figure.className = 'part';
+          const box = document.createElement('div'); box.className = 'part-image';
+          const img = document.createElement('img'); img.src = prepared.reference_images[i]; img.alt = part.slot;
+          const caption = document.createElement('figcaption');
+          const label = document.createElement('strong'); label.textContent = part.slot;
+          const path = document.createElement('span'); path.className = 'path'; path.textContent = part.path;
+          caption.append(label, path); box.append(img); figure.append(box, caption); fragment.append(figure);
+        });
+        $('parts').replaceChildren(fragment);
+        $('parts-note').textContent = prepared.ignored_parts.length
+          ? 'Gửi 5 ảnh chính. Hai miếng khớp vai phụ không gửi; AI tự nối nhẹ phần vai.'
+          : '5 ảnh được gửi đúng thứ tự hiển thị. AI tự căn vị trí và tỷ lệ.';
+      }
+      async function preview() {
+        const prepared = await api('/api/character-ai/prepare', body());
+        showParts(prepared);
+        return prepared;
+      }
+      async function refreshSaved(selectedId = $('saved').value) {
+        const response = await api('/api/character-ai/saved');
+        const placeholder = document.createElement('option'); placeholder.value = '';
+        placeholder.textContent = response.characters.length ? 'Chọn nhân vật đã lưu' : 'Chưa có nhân vật đã lưu';
+        $('saved').replaceChildren(placeholder, ...response.characters.map(item => {
+          const option = document.createElement('option'); option.value = item.id;
+          option.textContent = (typeof item.description === 'string' && item.description ? item.description : item.id.slice(0, 8))
+            + ' · ' + new Date(item.created_at).toLocaleString('vi-VN');
+          return option;
+        }));
+        $('saved').value = selectedId;
+        $('open-saved').disabled = !$('saved').value;
+      }
+      function savedLinks(manifest) {
+        $('download-config').hidden = !manifest;
+        if (manifest) {
+          $('download-config').href = '/api/character-ai/saved/' + manifest.id + '/character.json';
+          $('download-config').download = manifest.id + '.json';
+        }
+      }
+      async function openSaved(characterId) {
+        if (!/^[a-f0-9]{32}$/.test(characterId)) throw new Error('Mã nhân vật đã lưu không hợp lệ.');
+        const manifest = await api('/api/character-ai/saved/' + characterId);
+        const url = '/api/character-ai/saved/' + characterId + '/character.png';
+        const image = new Image(); image.src = url;
+        try { await image.decode(); } catch { throw new Error('Không đọc được PNG đã lưu.'); }
+        selectConfig(manifest.input.config, manifest.input.preset_id);
+        if (resultUrl) URL.revokeObjectURL(resultUrl); resultUrl = null;
+        $('result').src = url; $('result').hidden = false; $('empty').hidden = true;
+        $('download').href = url; $('download').download = characterId + '.png'; $('download').hidden = false;
+        savedLinks(manifest);
+        $('usage').textContent = 'Đang dùng kết quả đã lưu · Không gọi AI, không phát sinh token.';
+        $('parts').replaceChildren();
+        $('parts-note').textContent = 'Đã mở PNG và cấu hình đã lưu. Bấm Xem bộ phận nếu muốn kiểm tra nguồn trước khi tạo ảnh mới.';
+        status('Đã mở nhân vật đã lưu. Bạn có thể tải PNG hoặc JSON; bấm Tạo nhân vật sẽ gọi AI để tạo ảnh mới.');
+      }
+      function selectConfig(value, presetId = null) {
+        presets = value.presets && typeof value.presets === 'object' ? value.presets : {};
+        const names = Object.keys(presets);
+        $('preset').replaceChildren(...(names.length ? names : ['custom']).map(name => {
+          const option = document.createElement('option'); option.value = names.length ? name : ''; option.textContent = names.length ? name : 'Config tùy chỉnh'; return option;
+        }));
+        if (names.includes(presetId)) $('preset').value = presetId;
+        else if (names.includes(value.default_preset)) $('preset').value = value.default_preset;
+        $('config').value = JSON.stringify(names.length ? presets[$('preset').value] : value, null, 2);
+      }
+      $('preset').addEventListener('change', async () => {
+        $('config').value = JSON.stringify(presets[$('preset').value], null, 2);
+        try { await preview(); status('Đã tải preset. Sẵn sàng tạo nhân vật.'); }
+        catch (error) { status(error.message, true); }
+      });
+      $('file').addEventListener('change', async event => {
+        const file = event.target.files[0]; if (!file) return;
+        try {
+          const config = JSON.parse(await file.text());
+          if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Config cần là object JSON.');
+          if (config.kind === 'character-ai-result') {
+            await openSaved(config.id);
+            return;
+          }
+          selectConfig(config); await preview(); status('Đã nạp ' + file.name + '.');
+        } catch (error) { status(error.message, true); }
+        finally { event.target.value = ''; }
+      });
+      $('config').addEventListener('input', () => {
+        $('parts-note').textContent = 'Config đã thay đổi. Bấm Xem bộ phận để cập nhật; khi tạo ảnh sẽ dùng config mới nhất.';
+        status('Config đã thay đổi.');
+      });
+      $('preview').addEventListener('click', async () => {
+        try { await preview(); status('Đã kiểm tra đủ ảnh. Sẵn sàng tạo nhân vật.'); }
+        catch (error) { $('parts').replaceChildren(); status(error.message, true); }
+      });
+      $('saved').addEventListener('change', () => { $('open-saved').disabled = !$('saved').value; });
+      $('refresh-saved').addEventListener('click', async () => {
+        try { await refreshSaved(); $('saved-note').textContent = 'Đã cập nhật danh sách. Mở kết quả đã lưu không gọi AI.'; }
+        catch (error) { $('saved-note').textContent = error.message; }
+      });
+      $('open-saved').addEventListener('click', async () => {
+        $('fields').disabled = true;
+        try { await openSaved($('saved').value); }
+        catch (error) { status(error.message, true); }
+        finally { $('fields').disabled = false; }
+      });
+      $('form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const started = Date.now();
+        $('fields').disabled = true; $('stage').setAttribute('aria-busy', 'true');
+        const timer = setInterval(() => status(`AI đang ghép nhân vật… ${Math.floor((Date.now() - started) / 1000)} giây. Việc tạo ảnh có thể mất vài phút.`), 1000);
+        try {
+          const input = body();
+          showParts(await api('/api/character-ai/prepare', input));
+          status('Đang gửi các bộ phận cho AI…');
+          const response = await api('/api/character-ai/generate', input);
+          const binary = atob(response.data[0].b64_json);
+          const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+          const nextUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+          const image = new Image(); image.src = nextUrl;
+          try { await image.decode(); } catch { URL.revokeObjectURL(nextUrl); throw new Error('Không đọc được PNG do server trả về.'); }
+          if (resultUrl) URL.revokeObjectURL(resultUrl); resultUrl = nextUrl;
+          $('result').src = resultUrl; $('result').hidden = false; $('empty').hidden = true;
+          $('download').href = resultUrl; $('download').download = (($('preset').value || 'character').replace(/[^a-zA-Z0-9_-]/g, '_')) + '-ai.png'; $('download').hidden = false;
+          savedLinks(response.saved);
+          const usage = response.usage;
+          $('usage').textContent = usage ? `Token: ${usage.input_tokens ?? '?'} đầu vào · ${usage.output_tokens ?? '?'} đầu ra` : '';
+          clearInterval(timer);
+          if (response.saved) {
+            try { await refreshSaved(response.saved.id); }
+            catch (error) { $('saved-note').textContent = error.message; }
+          }
+          status(response.save_error || `Đã tạo và lưu nhân vật trong ${Math.round((Date.now() - started) / 1000)} giây. Có thể tải PNG, JSON hoặc mở lại từ danh sách đã lưu.`, !!response.save_error);
+        } catch (error) { status(error.message, true); }
+        finally { clearInterval(timer); $('fields').disabled = false; $('stage').setAttribute('aria-busy', 'false'); }
+      });
+      refreshSaved().catch(error => { $('saved-note').textContent = error.message; });
+      (async () => {
+        try {
+          const initial = await api('/api/character-ai/config');
+          if (!$('config').value.trim()) selectConfig(initial.config);
+          await preview();
+          status('Sẵn sàng. Chọn hoặc dán config rồi bấm Tạo nhân vật.');
+        } catch (error) { status(error.message, true); }
+      })();
+    })();
+  </script>
+</body>
+
+</html>
