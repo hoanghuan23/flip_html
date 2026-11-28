@@ -3,7 +3,7 @@
 Nhánh `characer-assembly` giữ giao diện React/TypeScript, backend FastAPI và luồng
 xuất video từ preview HTML có sẵn. Bố cục giao diện vẫn giữ nguyên.
 
-`config/style_config.json` hiện để trống danh mục và phong cách. Luồng nhập văn
+Frontend hiện không cấu hình danh mục và phong cách. Luồng nhập văn
 bản → tạo kịch bản đã được chuyển từ `main`, dùng chung logic cho web và CLI.
 API đồ họa và preview mới vẫn trả thông báo chưa có cấu hình. Frontend lưu bản nháp,
 nhập tài liệu/ảnh, xem preview đã lưu và theo dõi/tải MP4. Metadata phong cách của
@@ -89,88 +89,13 @@ Mặc định chạy `npx --yes hyperframes@0.9.33` (lần đầu cần mạng).
 cho backend. Script kiểm tra project, chụp giữa cảnh, render và xác minh MP4.
 Dùng `--quality draft --fps 24` để thử nhanh, `--overwrite` để ghi đè MP4.
 
-## Trang thử ghép nhân vật bằng AI
+## Ghép SVG bằng rig (công cụ cũ)
 
-Chạy backend rồi mở **http://127.0.0.1:8001/character-ai**:
-
-```bash
-python3 -m uvicorn backend.app:app --host 127.0.0.1 --port 8001
-```
-
-Trang `character_ai.html` là HTML/JS thuần, không cần build React. Chọn preset
-có sẵn, dán JSON hoặc nạp file JSON, xem trước các ảnh rồi bấm
-**Tạo nhân vật**. Kết quả hiển thị ngay trên trang và có nút **Tải PNG**.
-Sau mỗi lần tạo thành công, backend tự lưu một bộ
-`storage/character_ai/<id>/character.png` và `character.json` (hoặc dưới
-`VIDEO_STORAGE_DIR` nếu đã cấu hình). JSON ghi lại config đầu vào, preset,
-prompt, model, thời điểm tạo và token đã dùng; không chứa API key.
-Chọn trong **Nhân vật đã lưu** rồi bấm **Mở nhân vật** để dùng lại PNG,
-hoặc bấm **Tải JSON** để giữ cấu hình. Nạp lại JSON kết quả trên cùng backend
-cũng mở nhân vật đã lưu, không gọi AI và không phát sinh token. Danh sách còn
-sau khi tải lại trang hoặc khởi động lại backend; không cần các PNG bộ phận
-gốc để mở kết quả. Nút **Tạo nhân vật** luôn tạo một ảnh mới qua AI.
-
-JSON kết quả tham chiếu tới PNG đã lưu trên backend: khi chuyển máy cần sao
-chép cả thư mục `<id>`, hoặc tải PNG để sử dụng trực tiếp. Đây là cấu hình lưu
-kết quả, không phải tọa độ rig cho `assemble_character.py` và không thay thế
-`config/character_assets.json`.
-Chỉ dùng một địa chỉ `/character-ai`. Mở file HTML trực tiếp hoặc qua server
-tĩnh sẽ tự chuyển tới `http://127.0.0.1:8001/character-ai`.
-Trang nhận một preset có `parts`, toàn bộ `character_presets.json` hoặc object
-chỉ gồm các đường dẫn bộ phận:
-
-```json
-{
-  "head": "HEAD/variant_mischief.png",
-  "suit": "SUIT/DEFAULT/torso_front.png",
-  "arm_L": "HAND/07_ARM/down_L.png",
-  "arm_R": "HAND/07_ARM/down_R.png",
-  "legs_pair": "LEG/01_PAIRS/stand_front.png"
-}
-```
-
-Đường dẫn tính từ `skills/templates/character_rig/`. Không cần đăng ký ảnh
-trong `character_assets.json`, không dùng `attach_point`, `pivot`, tỷ lệ,
-`transforms` hay tọa độ rig. AI tự căn các ảnh và chỉnh nhẹ chỗ nối; nhận diện,
-biểu cảm và chi tiết có thể thay đổi nên cần xem lại kết quả. Nếu preset có
-`shoulder_L`/`shoulder_R`, trang bỏ hai miếng phụ và báo rõ trong phần xem trước:
-công cụ nhận tối đa 5 ảnh, AI tự nối phần vai.
-
-Prompt cố định nằm trong thẻ `<script id="character-prompt" type="text/plain">`
-của `character_ai.html`. Trang tự thêm prompt này khi gửi config; không cần nhập
-prompt, URL, model hoặc API key trên giao diện. Muốn đổi cách ghép, sửa trực tiếp
-prompt trong file HTML.
-
-`backend/character_ai.py` trong **flip_html** đọc các PNG, đặt đúng thứ tự và
-giữ nguyên prompt do trang gửi. Backend gửi tới **codex_server** một JSON
-chung `{model, prompt, reference_images}` và header `X-API-Key`, rồi chuyển ảnh
-trả về cho trang. Codex Server chỉ nhận yêu cầu và trả PNG, không đọc config
-nhân vật hoặc giữ logic ghép. Dùng backend local giúp trang không phụ thuộc
-CORS phía Codex Server.
-
-URL, model và API key chỉ lấy từ `.env` của **flip_html** hoặc biến môi trường:
-
-```dotenv
-CODEX_IMAGE_API_URL=http://127.0.0.1:8000/generate-image
-CODEX_MODEL=your-codex-model
-CODEX_API_TOKEN=your-api-key
-```
-
-Nếu không có `CODEX_IMAGE_API_URL`, dùng `CODEX_API_URL` hiện có và đổi hậu tố
-`/analyze` hoặc `/generate` thành `/generate-image`. Các thông tin kết nối chỉ
-dùng phía backend, không trả ra trang hoặc nhận ghi đè từ trình duyệt.
-Khởi động lại backend sau khi đổi `.env`.
-
-Codex Server cần phiên bản `/generate-image` hỗ trợ 5 `reference_images`;
-khởi động lại server sau khi cập nhật. Tổng PNG đầu vào tối đa 20 MiB.
-Các API local `/api/character-ai/config`, `/prepare`, `/generate` phục vụ riêng
-trang thử này. `GET /api/character-ai/saved` liệt kê kết quả;
-`/saved/<id>` đọc JSON, `/saved/<id>/character.png` và
-`/saved/<id>/character.json` tải file (cùng tiền tố `/api/character-ai`).
-Kiểm thử giao diện: `cd frontend && npm run test:character-ai`;
-test tự chạy backend và Codex Server giả lập, không gọi AI thật.
-
-## Ghép nhân vật từ config
+Config mặc định hiện có 5 preset chỉ chọn ảnh bộ phận,
+không có transforms hoặc tọa độ rig. `config/character_assets.json` để trống (`{}`).
+Các lệnh ghép SVG bên dưới chỉ dùng khi cung cấp lại catalog assets và preset
+có cấu hình rig tương ứng qua `--assets` và `--presets`. Gallery đã xuất vẫn mở được.
+Phần dưới mô tả bộ rig cũ, không phải config mặc định hiện tại.
 
 `assemble_character.py` ghép bộ nhân vật áo đỏ `DEFAULT`, góc chính diện. Chạy:
 

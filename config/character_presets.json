@@ -2,97 +2,59 @@
   "version": 1,
   "default_preset": "front_happy",
   "presets": {
-    "front_happy": {
-      "description": "Chính diện, cười mở miệng, hai tay buông",
+    "front_excited": {
+      "description": "tình huống nhân vật hào hứng",
       "view": "front",
-      "rig_profile": "front_default",
-      "parts": {
-        "head": "HEAD/variant_mischief.png",
-        "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
-        "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
-        "suit": "SUIT/DEFAULT/torso_front.png",
-        "arm_L": "HAND/07_ARM/down_L.png",
-        "arm_R": "HAND/07_ARM/down_R.png",
-        "legs_pair": "LEG/01_PAIRS/stand_front.png"
-      },
-      "transforms": {
-        "arm_L": {"rotation": 8, "offset": [2, -4]},
-        "arm_R": {"rotation": -8, "offset": [-2, -4]}
-      }
-    },
-    "front_happy_closed": {
-      "description": "Chính diện, cười khép miệng, hai tay buông",
-      "view": "front",
-      "rig_profile": "front_default",
-      "parts": {
-        "head": "HEAD/variant_yummy.png",
-        "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
-        "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
-        "suit": "SUIT/DEFAULT/torso_front.png",
-        "arm_L": "HAND/07_ARM/down_L.png",
-        "arm_R": "HAND/07_ARM/down_R.png",
-        "legs_pair": "LEG/01_PAIRS/stand_front.png"
-      },
-      "transforms": {
-        "arm_L": {"rotation": 8, "offset": [2, -4]},
-        "arm_R": {"rotation": -8, "offset": [-2, -4]}
-      }
-    },
-    "front_bend": {
-      "description": "Chính diện, suy nghĩ, hai tay co trước thân",
-      "view": "front",
-      "rig_profile": "front_default",
       "parts": {
         "head": "HEAD/variant_excited.png",
-        "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
-        "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
+        "suit": "SUIT/DEFAULT/torso_front.png",
+        "arm_L": "HAND/07_ARM/down_L.png",
+        "arm_R": "HAND/07_ARM/down_R.png",
+        "legs_pair": "LEG/01_PAIRS/stand_front.png"
+      }
+    },
+    "front_think": {
+      "description": "tình huống nhân vật thắc mắc, bối rối, tò mò, hoặc đang phân tích một vấn đề",
+      "view": "front",
+      "parts": {
+        "head": "HEAD/variant_think.png",
+        "suit": "SUIT/DEFAULT/torso_front.png",
+        "arm_L": "HAND/07_ARM/down_L.png",
+        "arm_R": "HAND/07_ARM/down_R.png",
+        "legs_pair": "LEG/01_PAIRS/stand_front.png"
+      }
+    },
+    "front_happy": {
+      "description": "biểu cảm trạng thái mặc định của nhân vật",
+      "view": "front",
+      "parts": {
+        "head": "HEAD/variant_happy.png",
         "suit": "SUIT/DEFAULT/torso_front.png",
         "arm_L": "HAND/07_ARM/bend_L.png",
         "arm_R": "HAND/07_ARM/bend_R.png",
         "legs_pair": "LEG/01_PAIRS/stand_front.png"
-      },
-      "layer_order": ["legs_pair", "shoulder_L", "shoulder_R", "suit", "arm_L", "arm_R", "head"],
-      "transforms": {
-        "shoulder_L": {"scale": 0.7},
-        "shoulder_R": {"scale": 0.7}
       }
     },
-    "front_raise": {
-      "description": "Chính diện, ngạc nhiên, giơ hai tay",
+    "front_cry": {
+      "description": "tình huống nhân vật khóc",
       "view": "front",
-      "rig_profile": "front_default",
       "parts": {
-        "head": "HEAD/variant_love.png",
-        "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
-        "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
+        "head": "HEAD/variant_cry.png",
         "suit": "SUIT/DEFAULT/torso_front.png",
         "arm_L": "HAND/07_ARM/up_L.png",
         "arm_R": "HAND/07_ARM/up_R.png",
         "legs_pair": "LEG/01_PAIRS/stand_front.png"
-      },
-      "transforms": {
-        "arm_L": {"rotation": -20, "offset": [2, -4], "scale": 1.15},
-        "arm_R": {"rotation": 20, "offset": [-2, -4], "scale": 1.15},
-        "shoulder_L": {"rotation": 180, "scale": 0.75},
-        "shoulder_R": {"rotation": 180, "scale": 0.75}
       }
     },
-    "front_neutral": {
-      "description": "Chính diện, nét mặt bình thường, hai tay buông",
+    "front_laught": {
+      "description": "tình huống nhân vật cười",
       "view": "front",
-      "rig_profile": "front_default",
       "parts": {
-        "head": "HEAD/variant_neutral.png",
-        "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
-        "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
+        "head": "HEAD/variant_laugh.png",
         "suit": "SUIT/DEFAULT/torso_front.png",
         "arm_L": "HAND/07_ARM/down_L.png",
         "arm_R": "HAND/07_ARM/down_R.png",
         "legs_pair": "LEG/01_PAIRS/stand_front.png"
-      },
-      "transforms": {
-        "arm_L": {"rotation": 8, "offset": [2, -4]},
-        "arm_R": {"rotation": -8, "offset": [-2, -4]}
       }
     }
   }
