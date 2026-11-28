@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { newProject, parseDraft, sceneValid, signature } from "./types";
 import { api, createGraphicsJob, getGraphicsJob, createScriptJob, getScriptJob } from "./services";
 import { afterEach, vi } from "vitest";
-import { categories, restoreStyle, styleForCategory } from "./styleConfig";
+import { defaultCategoryId, defaultStyleId, restoreStyle, styleForCategory } from "./styleConfig";
 
 describe("draft and snapshot contracts", () => {
   it("preserves saved IDs and keeps local images out of snapshot signatures", () => {
@@ -82,12 +82,13 @@ describe("draft and snapshot contracts", () => {
   });
 });
 describe("category style configuration", () => {
-  it("starts with no category or style and accepts an empty config", () => {
-    expect(categories).toEqual([]);
+  it("starts with the configured defaults and fills empty saved selections", () => {
     const project = newProject();
-    expect(project.categoryId).toBe("");
-    expect(project.styleId).toBe("");
-    expect(parseDraft(project)).toMatchObject({ categoryId: "", styleId: "" });
+    expect(project.categoryId).toBe(defaultCategoryId);
+    expect(project.styleId).toBe(defaultStyleId);
+    expect(parseDraft({ ...project, categoryId: "", styleId: "" })).toMatchObject({
+      categoryId: defaultCategoryId, styleId: defaultStyleId,
+    });
     expect(styleForCategory("", "")).toBe("");
   });
   it("preserves scenes in older drafts with legacy visual presets", () => {

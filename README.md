@@ -3,12 +3,13 @@
 Nhánh `characer-assembly` giữ giao diện React/TypeScript, backend FastAPI và luồng
 xuất video từ preview HTML có sẵn. Bố cục giao diện vẫn giữ nguyên.
 
-Frontend hiện không cấu hình danh mục và phong cách. Luồng nhập văn
+Frontend đọc nhóm chủ đề và phong cách từ `config/style_config.json`, mặc định
+chọn **Giáo dục & giải trí → Character Cartoon**. Luồng nhập văn
 bản → tạo kịch bản đã được chuyển từ `main`, dùng chung logic cho web và CLI.
 API đồ họa và preview mới vẫn trả thông báo chưa có cấu hình. Frontend lưu bản nháp,
 nhập tài liệu/ảnh, xem preview đã lưu và theo dõi/tải MP4. Metadata phong cách của
-bản nháp cũ được giữ để không làm mất liên kết với preview; không xuất hiện trong
-lựa chọn mới. Trong `skills/templates/` chỉ còn nguyên bộ asset `character_rig`.
+bản nháp cũ được giữ để không làm mất liên kết với preview; các ID không có trong
+config không xuất hiện trong lựa chọn mới. Trong `skills/templates/` chỉ còn nguyên bộ asset `character_rig`.
 Dữ liệu preview và video đã sinh trong các thư mục local không bị xóa.
 
 ## Chạy ứng dụng
@@ -37,7 +38,7 @@ Backend phân loại nội dung (`general_script`, `topic`, `detailed_script`,
 `storage/scripts/<id>/input.txt`, `kich_ban.json`, `job.json` và
 `token_usage.json`. Giao diện theo dõi tiến độ và hiển thị các cảnh, lời đọc,
 chú giải, cảnh báo và nguồn do model trả về. Nguồn này chưa được hệ thống xác
-minh độc lập. Việc tạo kịch bản hoạt động khi danh mục phong cách đang trống.
+minh độc lập. Việc tạo kịch bản hoạt động độc lập với lựa chọn phong cách.
 
 Cấu hình dịch vụ văn bản trong `.env` hoặc biến môi trường:
 
@@ -67,6 +68,23 @@ cd frontend
 npm run build
 npm run test:analysis
 ```
+
+## Cấu hình nhóm chủ đề và phong cách
+
+Chỉnh `config/style_config.json` để thay đổi lựa chọn ở mục **Nhóm chủ đề &
+phong cách đồ họa**:
+
+- `categories`: ID, nhãn hiển thị và `allowed_styles` của từng nhóm chủ đề.
+- `styles`: ID, tên, mô tả và đường dẫn tới `SKILL.md` / `style.json` của phong cách.
+  Các đường dẫn tính từ thư mục gốc repository; `character-cartoon` trỏ tới
+  `skills/styles/character-cartoon/`.
+- `default_category`, `default_style`: lựa chọn mặc định; ID phải có trong danh sách
+  tương ứng và phong cách phải được nhóm cho phép.
+
+Frontend import trực tiếp file JSON này; chạy lại `npm run build` khi phục vụ
+qua FastAPI. Bản nháp trước đây chưa chọn phong cách sẽ nhận giá trị mặc định;
+các ID phong cách cũ vẫn được giữ. Config đăng ký lựa chọn và đường dẫn phong cách;
+API tạo đồ họa/animation chưa được triển khai nên chưa đọc skill để sinh ảnh.
 
 ## Render preview HTML
 

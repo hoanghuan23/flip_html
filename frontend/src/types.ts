@@ -229,7 +229,8 @@ export function parseDraft(value: unknown): ProjectDraft {
     throw new Error("Bản nháp không hợp lệ.");
   const p = value as ProjectDraft;
   const savedStyle = restoreStyle(p.styleId);
-  const categoryId = p.categoryId === undefined ? defaultCategoryId : restoreCategory(p.categoryId);
+  const savedCategory = p.categoryId === undefined ? defaultCategoryId : restoreCategory(p.categoryId);
+  const categoryId = savedCategory === "" ? defaultCategoryId : savedCategory;
   if (
     typeof p.id !== "string" ||
     !p.id ||
@@ -283,7 +284,8 @@ export function parseDraft(value: unknown): ProjectDraft {
       typeof p.scriptId === "string" && /^[a-f0-9]{32}$/.test(p.scriptId)
         ? p.scriptId : undefined,
     categoryId,
-    styleId: styleForCategory(categoryId, savedStyle),
+    // Fill previously empty selections while retaining nonempty legacy style IDs.
+    styleId: savedStyle || styleForCategory(categoryId, defaultStyleId),
     scenes: p.scenes,
     scriptReview: p.scriptReview,
     tokenUsage: validTokenUsage(p.tokenUsage) ? p.tokenUsage : undefined,

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "default_category": "education_entertainment",
+  "default_style": "character-cartoon",
+  "categories": [
+    {
+      "id": "education_entertainment",
+      "label": "Giáo dục & giải trí",
+      "allowed_styles": ["character-cartoon"]
+    }
+  ],
+  "styles": [
+    {
+      "id": "character-cartoon",
+      "name": "Character Cartoon",
+      "description": "Hoạt hình 2D với viền đen rõ nét, màu phẳng tươi sáng và biểu cảm vui nhộn cho nội dung giáo dục, kể chuyện và giải trí.",
+      "skill_path": "skills/styles/character-cartoon/SKILL.md",
+      "style_path": "skills/styles/character-cartoon/style.json"
+    }
+  ]
+}
