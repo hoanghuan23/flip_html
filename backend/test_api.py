@@ -42,13 +42,14 @@ class ApiTests(unittest.TestCase):
         snapshot = self.preview()
         self.assertEqual(self.client.get('/api/previews/' + snapshot['id']).json(), snapshot)
         self.assertEqual(self.client.get(snapshot['phases'][0]['url']).status_code, 200)
-        for path in ['/api/previews', '/api/scripts', '/api/graphics', '/api/graphics/' + 'b' * 32 + '/confirm']:
+        for path in ['/api/previews', '/api/graphics', '/api/graphics/' + 'b' * 32 + '/confirm']:
             response = self.client.post(path, json={})
             self.assertEqual(response.status_code, 503)
             self.assertIn('Chưa có cấu hình', response.json()['detail'])
         self.assertEqual(self.client.get('/api/styles/flat/preview').status_code, 404)
         self.assertFalse(hasattr(self.client.app.state, 'graphics'))
-        self.assertFalse(hasattr(self.client.app.state, 'scripts'))
+        self.assertTrue(hasattr(self.client.app.state, 'scripts'))
+        self.assertEqual(self.client.post('/api/scripts', json={}).status_code, 422)
 
     def export(self, snapshot, **config):
         return self.client.post('/api/exports', json={'snapshotId': snapshot['id'], 'config': config})

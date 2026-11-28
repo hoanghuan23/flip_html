@@ -37,8 +37,8 @@ class CharacterRigTests(unittest.TestCase):
     def test_svg_uses_corrected_suit_and_prepared_default_as_design_reference(self):
         _, layers = self.rig.layout('front_happy')
         torso = next(layer for layer in layers if layer.slot == 'suit')
-        self.assertEqual(torso.source, 'prepared/DEFAULT/torso_front.png')
-        self.assertEqual(torso.render_source, 'prepared/DEFAULT/torso_front.png')
+        self.assertEqual(torso.source, 'SUIT/DEFAULT/torso_front.png')
+        self.assertEqual(torso.render_source, 'SUIT/DEFAULT/torso_front.png')
         self.assertEqual(self.rig.assets[torso.source]['reference_source'], torso.source)
         svg = ET.fromstring(self.rig.svg('front_happy'))
         images = svg.findall('.//{http://www.w3.org/2000/svg}image')
@@ -56,8 +56,8 @@ class CharacterRigTests(unittest.TestCase):
                 self.assertEqual(layer.source, layer.render_source)
 
     def test_missing_suit_design_reference_is_reported(self):
-        suit = self.rig.assets['prepared/DEFAULT/torso_front.png']
-        suit['reference_source'] = 'prepared/DEFAULT/missing.png'
+        suit = self.rig.assets['SUIT/DEFAULT/torso_front.png']
+        suit['reference_source'] = 'SUIT/DEFAULT/missing.png'
         with self.assertRaisesRegex(CharacterConfigError, 'Không tìm thấy ảnh'):
             self.rig.layout('front_happy')
 

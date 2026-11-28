@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
+    "test:analysis": "node scripts/analysis-e2e.cjs",
     "test:exports": "node scripts/exports-e2e.cjs",
     "test:characters": "node scripts/character-rig-e2e.cjs",
     "test:character-ai": "node scripts/character-ai-e2e.cjs"

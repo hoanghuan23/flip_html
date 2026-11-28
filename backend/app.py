@@ -10,7 +10,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .jobs import JobManager, PreviewNotFoundError, ROOT
-from .models import ExportRequest
+from .models import ExportRequest, ScriptRequest
+from .scripts import ScriptJobManager
 from .image_store import ImageUpload, save_image
 from .character_ai import router as character_ai_router
 
@@ -21,9 +22,11 @@ def create_app(storage_root: Path | None = None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.jobs = JobManager(storage)
+        app.state.scripts = ScriptJobManager(storage)
         try:
             yield
         finally:
+            app.state.scripts.close()
             app.state.jobs.close()
 
     app = FastAPI(title='AI Video Studio', lifespan=lifespan)
@@ -56,11 +59,27 @@ def create_app(storage_root: Path | None = None):
         return {'ready': all(dependencies.values()), 'dependencies': dependencies}
 
     @app.post('/api/previews')
-    @app.post('/api/scripts')
     @app.post('/api/graphics')
     @app.post('/api/graphics/{graphics_id}/confirm')
     def generation_unavailable():
         raise HTTPException(503, 'Chưa có cấu hình tạo nội dung.')
+
+    @app.post('/api/scripts', status_code=202)
+    def script(request: ScriptRequest):
+        try:
+            return app.state.scripts.create(request)
+        except ValueError as error:
+            raise HTTPException(422, str(error))
+        except (OSError, RuntimeError):
+            raise HTTPException(503, 'Không thể tạo tác vụ kịch bản. Hãy kiểm tra máy chủ và thử lại.')
+
+    @app.get('/api/scripts/{script_id}')
+    def get_script(script_id: str):
+        checked_id(script_id)
+        try:
+            return app.state.scripts.read(script_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'Không tìm thấy tác vụ kịch bản trên máy chủ. Hãy tạo lại.')
 
     @app.post('/api/images', status_code=201)
     def upload_image(request: ImageUpload):

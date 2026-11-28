@@ -3,9 +3,9 @@
 Nhánh `characer-assembly` giữ giao diện React/TypeScript, backend FastAPI và luồng
 xuất video từ preview HTML có sẵn. Bố cục giao diện vẫn giữ nguyên.
 
-`config/style_config.json` hiện để trống danh mục và phong cách. Các pipeline AI,
-loader skill, style demo và renderer tạo nội dung cũ đã được gỡ. API tạo kịch bản,
-đồ họa và preview mới trả thông báo chưa có cấu hình. Frontend vẫn lưu bản nháp,
+`config/style_config.json` hiện để trống danh mục và phong cách. Luồng nhập văn
+bản → tạo kịch bản đã được chuyển từ `main`, dùng chung logic cho web và CLI.
+API đồ họa và preview mới vẫn trả thông báo chưa có cấu hình. Frontend lưu bản nháp,
 nhập tài liệu/ảnh, xem preview đã lưu và theo dõi/tải MP4. Metadata phong cách của
 bản nháp cũ được giữ để không làm mất liên kết với preview; không xuất hiện trong
 lựa chọn mới. Trong `skills/templates/` chỉ còn nguyên bộ asset `character_rig`.
@@ -28,6 +28,45 @@ Mở `http://127.0.0.1:8001`. Khi phát triển, chạy `npm run dev` trong `fro
 Vite chuyển `/api` tới backend ở cổng 8001. `VIDEO_STORAGE_DIR` đổi nơi lưu dữ liệu
 (mặc định `storage/`). API export sử dụng các preview có `snapshot.json` và ID
 32 ký tự hex đã lưu; CLI bên dưới hỗ trợ mọi thư mục/tên preview hợp lệ.
+
+## Từ văn bản đến kịch bản
+
+Trong Studio, nhập văn bản hoặc nạp `.txt`/`.docx`, rồi bấm **Tạo kịch bản**.
+Backend phân loại nội dung (`general_script`, `topic`, `detailed_script`,
+`legacy`), sinh các cảnh, kiểm tra và sửa JSON khi cần, sau đó lưu
+`storage/scripts/<id>/input.txt`, `kich_ban.json`, `job.json` và
+`token_usage.json`. Giao diện theo dõi tiến độ và hiển thị các cảnh, lời đọc,
+chú giải, cảnh báo và nguồn do model trả về. Nguồn này chưa được hệ thống xác
+minh độc lập. Việc tạo kịch bản hoạt động khi danh mục phong cách đang trống.
+
+Cấu hình dịch vụ văn bản trong `.env` hoặc biến môi trường:
+
+```dotenv
+CODEX_API_URL=http://127.0.0.1:8000/generate
+CODEX_API_TOKEN=your-api-key
+CODEX_MODEL=your-text-model
+```
+
+Chạy cùng logic qua CLI:
+
+```bash
+python3 plant_kurzge.py --input noi_dung.txt --output storage/kich_ban.json
+```
+
+Web gọi `POST /api/scripts` với `{projectId, content}` để tạo tác vụ và
+`GET /api/scripts/<id>` để đọc trạng thái/kết quả. API key chỉ dùng ở backend.
+Tác vụ chưa hoàn thành khi backend dừng sẽ được đánh dấu lỗi để tạo lại;
+kịch bản đã lưu vẫn được giữ. Luồng này kết thúc ở kịch bản JSON, chưa tự động
+chọn hoặc ghép nhân vật theo từng cảnh.
+
+Kiểm thử với dịch vụ AI giả lập (không tốn token):
+
+```bash
+python3 -m unittest backend.test_scripts backend.test_analysis
+cd frontend
+npm run build
+npm run test:analysis
+```
 
 ## Render preview HTML
 
@@ -83,7 +122,7 @@ chỉ gồm các đường dẫn bộ phận:
 ```json
 {
   "head": "HEAD/variant_mischief.png",
-  "suit": "prepared/DEFAULT/torso_front.png",
+  "suit": "SUIT/DEFAULT/torso_front.png",
   "arm_L": "HAND/07_ARM/down_L.png",
   "arm_R": "HAND/07_ARM/down_R.png",
   "legs_pair": "LEG/01_PAIRS/stand_front.png"
@@ -168,7 +207,7 @@ Ví dụ phần chọn ảnh cho nhân vật chính diện, cười mở miệng
     "head": "HEAD/variant_happy_open.png",
     "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
     "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
-    "suit": "prepared/DEFAULT/torso_front.png",
+    "suit": "SUIT/DEFAULT/torso_front.png",
     "arm_L": "HAND/07_ARM/down_L.png",
     "arm_R": "HAND/07_ARM/down_R.png",
     "legs_pair": "LEG/01_PAIRS/stand_front.png"
@@ -176,7 +215,7 @@ Ví dụ phần chọn ảnh cho nhân vật chính diện, cười mở miệng
 }
 ```
 
-`prepared/DEFAULT/torso_front.png` là **suit mặc định và ảnh tham chiếu thiết kế**.
+`SUIT/DEFAULT/torso_front.png` là **suit mặc định và ảnh tham chiếu thiết kế**.
 `source` và `reference_source` cùng trỏ tới ảnh này; không phụ thuộc bộ ảnh
 `SUIT/DEFAULT` và bản thân áo cũ đã xóa. Bản v2 không có mẩu tay áo ngắn;
 `render_source` cũng trỏ tới file này. Các ảnh đầu, tay, chân được giữ nguyên;

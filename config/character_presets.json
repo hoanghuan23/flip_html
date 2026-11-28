@@ -10,7 +10,7 @@
         "head": "HEAD/variant_mischief.png",
         "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
         "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
-        "suit": "prepared/DEFAULT/torso_front.png",
+        "suit": "SUIT/DEFAULT/torso_front.png",
         "arm_L": "HAND/07_ARM/down_L.png",
         "arm_R": "HAND/07_ARM/down_R.png",
         "legs_pair": "LEG/01_PAIRS/stand_front.png"
@@ -28,7 +28,7 @@
         "head": "HEAD/variant_yummy.png",
         "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
         "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
-        "suit": "prepared/DEFAULT/torso_front.png",
+        "suit": "SUIT/DEFAULT/torso_front.png",
         "arm_L": "HAND/07_ARM/down_L.png",
         "arm_R": "HAND/07_ARM/down_R.png",
         "legs_pair": "LEG/01_PAIRS/stand_front.png"
@@ -46,7 +46,7 @@
         "head": "HEAD/variant_excited.png",
         "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
         "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
-        "suit": "prepared/DEFAULT/torso_front.png",
+        "suit": "SUIT/DEFAULT/torso_front.png",
         "arm_L": "HAND/07_ARM/bend_L.png",
         "arm_R": "HAND/07_ARM/bend_R.png",
         "legs_pair": "LEG/01_PAIRS/stand_front.png"
@@ -65,7 +65,7 @@
         "head": "HEAD/variant_love.png",
         "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
         "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
-        "suit": "prepared/DEFAULT/torso_front.png",
+        "suit": "SUIT/DEFAULT/torso_front.png",
         "arm_L": "HAND/07_ARM/up_L.png",
         "arm_R": "HAND/07_ARM/up_R.png",
         "legs_pair": "LEG/01_PAIRS/stand_front.png"
@@ -85,7 +85,7 @@
         "head": "HEAD/variant_neutral.png",
         "shoulder_L": "JOINT/DEFAULT/shoulder_L.png",
         "shoulder_R": "JOINT/DEFAULT/shoulder_R.png",
-        "suit": "prepared/DEFAULT/torso_front.png",
+        "suit": "SUIT/DEFAULT/torso_front.png",
         "arm_L": "HAND/07_ARM/down_L.png",
         "arm_R": "HAND/07_ARM/down_R.png",
         "legs_pair": "LEG/01_PAIRS/stand_front.png"
