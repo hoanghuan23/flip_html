@@ -175,7 +175,7 @@ def prepare_narration(script, output, cache, on_progress=None):
             action['end'] = min(duration, max(action['start'] + 1 / 30, action['end'] / old * duration))
         for event in events:
             if event['operation'] == 'hide':
-                event['time'] = event.pop('fraction', 0) * duration
+                event['time'] = event.get('fraction', 0) * duration
             else:
                 event['time'] = saved['cue_times'][event['cue']]
         events.sort(key=lambda event: event['time'])

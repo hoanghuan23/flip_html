@@ -6,7 +6,8 @@ xuất video từ preview HTML có sẵn. Bố cục giao diện vẫn giữ ngu
 Frontend đọc nhóm chủ đề và phong cách từ `config/style_config.json`, mặc định
 chọn **Giáo dục & giải trí → Character Cartoon**. Luồng nhập văn
 bản → tạo kịch bản đã được chuyển từ `main`, dùng chung logic cho web và CLI.
-API đồ họa và preview mới vẫn trả thông báo chưa có cấu hình. Frontend lưu bản nháp,
+Luồng tạo ảnh preview → duyệt ảnh → tạo audio và HTML animation đã được khôi phục.
+Frontend lưu bản nháp,
 nhập tài liệu/ảnh, xem preview đã lưu và theo dõi/tải MP4. Metadata phong cách của
 bản nháp cũ được giữ để không làm mất liên kết với preview; các ID không có trong
 config không xuất hiện trong lựa chọn mới. Trong `skills/templates/` chỉ còn nguyên bộ asset `character_rig`.
@@ -92,7 +93,8 @@ Cache mặc định là `storage/audio_cache` (hoặc dưới `VIDEO_STORAGE_DIR
 đổi bằng `--cache`. Cùng lời đọc, giọng và phiên bản VieNeu sẽ dùng lại WAV;
 cache lỗi sẽ được tạo lại. Module có thể gọi trực tiếp qua
 `prepare_narration(script, output, cache, on_progress)` khi nối lại luồng đồ họa.
-Studio hiện chưa có nút tạo audio; API tạo đồ họa/animation vẫn chưa được triển khai.
+Studio tự tạo audio ở bước dựng animation sau khi bạn xác nhận ảnh preview.
+CLI trên vẫn dùng được để tạo audio riêng.
 
 Kiểm thử audio dùng model giả và WAV cục bộ, không tải model:
 
@@ -115,7 +117,64 @@ phong cách đồ họa**:
 Frontend import trực tiếp file JSON này; chạy lại `npm run build` khi phục vụ
 qua FastAPI. Bản nháp trước đây chưa chọn phong cách sẽ nhận giá trị mặc định;
 các ID phong cách cũ vẫn được giữ. Config đăng ký lựa chọn và đường dẫn phong cách;
-API tạo đồ họa/animation chưa được triển khai nên chưa đọc skill để sinh ảnh.
+Backend đọc các đường dẫn này để đưa đúng skill và preset vào prompt sinh ảnh
+và animation; không dùng cấu hình template hoặc danh mục cũ của `main`.
+
+## Từ kịch bản đến ảnh preview và HTML animation
+
+1. Hoàn tất **Tạo kịch bản** để có JSON đầy đủ trong `storage/scripts/<id>/`.
+2. Bấm **Tạo đồ họa**. Backend tạo ảnh tĩnh lần lượt cho từng phase, hiển thị
+   dần để xem/phóng to; bước này chưa tạo audio hoặc animation.
+3. Duyệt đủ ảnh rồi xác nhận dựng animation. Backend dùng VieNeu tạo WAV từ
+   `voiceover`, đo thời lượng và đồng bộ lại timeline, sinh thư viện PNG cùng
+   SVG/CSS animation, kiểm tra từng cảnh bằng Chrome và tạo playlist HTML.
+4. Xem/tua trong Studio rồi xuất MP4 bằng luồng HyperFrames hiện có.
+
+Luồng giữ đúng các phase đã chốt, dùng lựa chọn hiện tại trong
+`config/style_config.json` (mặc định `education_entertainment` / `character-cartoon`).
+JSON kịch bản nguồn được giữ nguyên; bản đã đồng bộ audio nằm trong
+`storage/previews/<graphics_id>/kich_ban.json`. Ảnh đã duyệt được gửi làm tham
+chiếu khi sinh các asset của animation; nhân vật dùng lại cùng PNG hoàn chỉnh.
+Đây là các bước AI riêng: ảnh preview là key visual để duyệt, HTML được dựng
+từ các asset để có chuyển động và có thể khác cách dàn cảnh tĩnh.
+
+Cấu hình ảnh dùng chung `.env` với dịch vụ văn bản:
+
+```dotenv
+IMAGE_API_BASE_URL=http://127.0.0.1:8000/generate-image
+IMAGE_API_KEY=your-image-api-key
+IMAGE_MODEL=your-image-model
+IMAGE_QUALITY=medium
+VIENEU_VOICE=Hải Đăng
+```
+
+Nếu bỏ các biến ảnh, backend suy ra `/generate-image` từ `CODEX_API_URL` và
+dùng `CODEX_API_TOKEN`, `CODEX_MODEL`. `CODEX_IMAGE_API_URL` được hỗ trợ như tên
+cũ của URL ảnh. Server ảnh nhận `{prompt, model, reference_images?}` và trả
+`{success: true, data: [{b64_json: "..."}]}` với PNG thật. `reference_images`
+là các PNG data URL; ghép preset nhân vật cần server hỗ trợ **5 ảnh** tham chiếu.
+Mọi ảnh được giữ nguyên byte; backend không tự xóa nền. Sprite phải có alpha
+trong suốt thật; ảnh không hợp lệ làm tác vụ báo lỗi để kiểm tra lại.
+
+Các API chính:
+
+- `POST /api/graphics` với `{projectId, scriptId, categoryId, styleId, previewOnly: true}`.
+  `POST /api/previews` là alias, nhận cùng payload từ kịch bản đã lưu.
+- `GET /api/graphics/<id>` theo dõi tiến độ, ảnh đã có và trạng thái
+  `awaiting_confirmation`.
+- `POST /api/graphics/<id>/confirm` chỉ bắt đầu animation sau khi đủ ảnh hợp lệ.
+- `GET /api/previews/<id>` trả snapshot khi toàn bộ cảnh và audio đã được xác minh.
+
+Tác vụ đang chạy không bị tạo trùng. Khi lỗi, có thể thử lại để dùng cache ảnh,
+WAV và các phase hợp lệ; snapshot chưa hoàn thành không được công bố. Khi server
+khởi động lại, tác vụ đang chạy được đánh dấu lỗi, ảnh đang chờ duyệt vẫn được giữ.
+
+CLI dùng chung phần dựng HTML và VieNeu, bỏ qua bước duyệt ảnh của Studio:
+
+```bash
+python3 generate_kurzge.py --script storage/kich_ban.json --output storage/previews/demo --style character-cartoon
+python3 generate_kurzge.py --output storage/previews/demo --resume
+```
 
 ## Render preview HTML
 
@@ -144,7 +203,9 @@ Dùng `--quality draft --fps 24` để thử nhanh, `--overwrite` để ghi đè
 trả về, tách khỏi ảnh đầu, thân, tay và chân nguồn. `config/character_assets.json`
 lưu mỗi nhân vật theo ID trong `generated_characters`, gồm đường dẫn ảnh,
 SHA-256, kích thước PNG, preset nguồn, thông tin lần tạo và vị trí các khớp.
-Hiện chưa có nhân vật hoàn chỉnh được đăng ký; danh sách này để trống.
+Nhân vật hoàn chỉnh được tự lưu khi backend sinh asset nhân vật. Backend kiểm
+tra thư viện trước khi gọi AI; cùng thiết kế, pose, preset, ảnh nguồn và phong
+cách sẽ dùng lại PNG. Các thay đổi những đầu vào này tạo ID cache khác.
 
 Nhập kết quả AI và JSON thông số khớp:
 
@@ -188,10 +249,17 @@ nguồn hoặc dịch vụ AI. Nếu PNG bị sửa/mất, thư viện báo lỗ
 Mỗi ID đại diện cho một bộ biểu cảm, trang phục và tư thế cụ thể. Khi thay đổi,
 dùng ID mới hoặc `add ... --overwrite` để cập nhật ảnh cùng thông số khớp.
 Ảnh cũ được giữ nguyên; catalog được cập nhật nguyên tử và giữ các phần cấu hình
-khác. Công cụ này lưu/đọc kết quả, chưa tự tạo ảnh hoặc tự suy đoán tọa độ khớp.
+khác. Backend dùng công cụ này để lưu PNG hoàn chỉnh và tái sử dụng giữa các tác vụ.
+
+Nếu API ảnh trả thêm `character_metadata` (ở cấp response hoặc trong `data[0]`)
+theo cấu trúc `joints.json` ở trên, backend tự ghi các tọa độ đó cùng PNG,
+với `rig_status: "ready"`. Nếu server chỉ trả PNG, ảnh vẫn được lưu và dùng lại
+dưới dạng sprite tĩnh, với `joints: {}`, `rig_status: "pending"`. Trạng thái này
+nghĩa là chưa có số đo khớp; backend không tự đặt tọa độ giả. Có thể bổ sung
+metadata thực tế bằng lệnh `add ... --overwrite` với cùng ID và cùng PNG đã lưu.
 
 ```bash
-python3 -m unittest backend.test_character_library
+python3 -m unittest backend.test_character_library backend.test_character_pipeline
 ```
 
 ## Ghép SVG bằng rig (công cụ cũ)

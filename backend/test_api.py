@@ -38,16 +38,16 @@ class ApiTests(unittest.TestCase):
         (directory / 'snapshot.json').write_text(json.dumps(snapshot))
         return snapshot
 
-    def test_empty_configuration_keeps_preview_and_export_routes(self):
+    def test_graphics_validation_keeps_existing_preview_and_export_routes(self):
         snapshot = self.preview()
         self.assertEqual(self.client.get('/api/previews/' + snapshot['id']).json(), snapshot)
         self.assertEqual(self.client.get(snapshot['phases'][0]['url']).status_code, 200)
-        for path in ['/api/previews', '/api/graphics', '/api/graphics/' + 'b' * 32 + '/confirm']:
+        for path in ['/api/previews', '/api/graphics']:
             response = self.client.post(path, json={})
-            self.assertEqual(response.status_code, 503)
-            self.assertIn('Chưa có cấu hình', response.json()['detail'])
+            self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.client.post('/api/graphics/' + 'b' * 32 + '/confirm').status_code, 404)
         self.assertEqual(self.client.get('/api/styles/flat/preview').status_code, 404)
-        self.assertFalse(hasattr(self.client.app.state, 'graphics'))
+        self.assertTrue(hasattr(self.client.app.state, 'graphics'))
         self.assertTrue(hasattr(self.client.app.state, 'scripts'))
         self.assertEqual(self.client.post('/api/scripts', json={}).status_code, 422)
 

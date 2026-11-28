@@ -139,7 +139,9 @@ class NarrationTests(unittest.TestCase):
             prepare_narration(script, output, self.root / 'cache')
             texts = [call.kwargs['text'] for call in factory.return_value.infer.call_args_list]
             self.assertEqual(texts, ['Xin chào. ', 'Mây bay. ', 'Mưa rơi.'])
-            prepare_narration(copy.deepcopy(script), output, self.root / 'cache')
+            repeated = copy.deepcopy(script)
+            prepare_narration(repeated, output, self.root / 'cache')
+            self.assertEqual(repeated['phases'][0]['illustration_events'], phase['illustration_events'])
             self.assertEqual(factory.return_value.infer.call_count, 3)
         events = phase['illustration_events']
         self.assertEqual([event['operation'] for event in events], ['hide', 'show', 'replace'])

@@ -51,7 +51,7 @@ def image_size(raw):
 def validated_metadata(metadata, size):
     if not isinstance(metadata, dict):
         raise CharacterLibraryError('Metadata nhân vật phải là object JSON.')
-    allowed = {'joints', 'description', 'preset_id', 'view', 'generation', 'image_size', 'coordinate_space'}
+    allowed = {'joints', 'description', 'preset_id', 'view', 'generation', 'image_size', 'coordinate_space', 'rig_status'}
     if set(metadata) - allowed:
         raise CharacterLibraryError('Metadata có trường chưa hỗ trợ: ' + ', '.join(sorted(set(metadata) - allowed)))
     if metadata.get('image_size', size) != size:
@@ -59,7 +59,10 @@ def validated_metadata(metadata, size):
     if metadata.get('coordinate_space', COORDINATE_SPACE) != COORDINATE_SPACE:
         raise CharacterLibraryError('Tọa độ khớp phải là pixel ảnh gốc, gốc trên trái, trục y hướng xuống.')
     joints = metadata.get('joints')
-    if not isinstance(joints, dict) or not joints:
+    pending = metadata.get('rig_status') == 'pending'
+    if metadata.get('rig_status') not in (None, 'ready', 'pending'):
+        raise CharacterLibraryError('rig_status chỉ nhận ready hoặc pending.')
+    if not isinstance(joints, dict) or (not joints and not pending):
         raise CharacterLibraryError('Cần joints chứa vị trí [x, y] thực tế của các khớp trên PNG.')
     for name, position in joints.items():
         identifier(name)

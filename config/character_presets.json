@@ -25,7 +25,7 @@
       }
     },
     "front_happy": {
-      "description": "biểu cảm trạng thái mặc định của nhân vật",
+      "description": "biểu cảm vui vẻ, trạng thái mặc định của nhân vật",
       "view": "front",
       "parts": {
         "head": "HEAD/variant_happy.png",

@@ -1,7 +1,47 @@
 from typing import Literal
 import math
-from pydantic import BaseModel, Field, field_validator
+import json
+from pathlib import Path
+from pydantic import BaseModel, Field, field_validator, model_validator
 from .image_store import ImageBinding
+
+STYLE_CONFIG_PATH = Path(__file__).resolve().parent.parent / 'config/style_config.json'
+
+
+def load_style_config():
+    config = json.loads(STYLE_CONFIG_PATH.read_text(encoding='utf-8'))
+    if (not isinstance(config, dict) or not isinstance(config.get('categories'), list)
+            or not isinstance(config.get('styles'), list)):
+        raise ValueError('Cấu hình cần danh sách categories và styles.')
+    styles = {row['id'] for row in config['styles']}
+    if len(styles) != len(config['styles']) or not styles:
+        raise ValueError('Danh sách phong cách rỗng hoặc có ID trùng nhau.')
+    categories = {row['id'] for row in config['categories']}
+    if len(categories) != len(config['categories']) or not categories:
+        raise ValueError('Danh sách nhóm chủ đề rỗng hoặc có ID trùng nhau.')
+    for row in config['categories']:
+        if not row.get('allowed_styles') or not set(row['allowed_styles']) <= styles:
+            raise ValueError('Nhóm chủ đề chứa phong cách chưa được đăng ký.')
+    return config
+
+
+class GraphicsRequest(BaseModel):
+    projectId: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,100}$')
+    scriptId: str = Field(pattern=r'^[a-f0-9]{32}$')
+    categoryId: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,100}$')
+    styleId: str = Field(pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+    previewOnly: bool = True
+
+    @model_validator(mode='after')
+    def valid_style(self):
+        try:
+            config = load_style_config()
+            category = next((row for row in config['categories'] if row['id'] == self.categoryId), None)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise ValueError('Không đọc được config/style_config.json.') from error
+        if category is None or self.styleId not in category['allowed_styles']:
+            raise ValueError('Phong cách không được phép trong nhóm chủ đề đã chọn.')
+        return self
 
 
 class ExportConfig(BaseModel):

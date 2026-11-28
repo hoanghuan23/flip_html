@@ -10,9 +10,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .jobs import JobManager, PreviewNotFoundError, ROOT
-from .models import ExportRequest, ScriptRequest
+from .models import ExportRequest, ScriptRequest, GraphicsRequest
 from .scripts import ScriptJobManager
 from .image_store import ImageUpload, save_image
+from .graphics import GraphicsInputError, GraphicsJobManager
 
 
 def create_app(storage_root: Path | None = None):
@@ -22,9 +23,11 @@ def create_app(storage_root: Path | None = None):
     async def lifespan(app):
         app.state.jobs = JobManager(storage)
         app.state.scripts = ScriptJobManager(storage)
+        app.state.graphics = GraphicsJobManager(storage)
         try:
             yield
         finally:
+            app.state.graphics.close()
             app.state.scripts.close()
             app.state.jobs.close()
 
@@ -55,11 +58,52 @@ def create_app(storage_root: Path | None = None):
                                       any(shutil.which(p) for p in ('google-chrome', 'chromium', 'chromium-browser')))
         return {'ready': all(dependencies.values()), 'dependencies': dependencies}
 
-    @app.post('/api/previews')
-    @app.post('/api/graphics')
-    @app.post('/api/graphics/{graphics_id}/confirm')
-    def generation_unavailable():
-        raise HTTPException(503, 'Chưa có cấu hình tạo nội dung.')
+    @app.post('/api/previews', status_code=202)
+    @app.post('/api/graphics', status_code=202)
+    def graphics(request: GraphicsRequest):
+        try:
+            return app.state.graphics.create(request)
+        except GraphicsInputError as error:
+            raise HTTPException(409, str(error))
+        except (OSError, ValueError, RuntimeError) as error:
+            message = str(error) if isinstance(error, ValueError) else 'Không thể tạo tác vụ đồ họa trên máy chủ.'
+            raise HTTPException(503, message)
+
+    @app.get('/api/graphics/{graphics_id}')
+    def get_graphics(graphics_id: str):
+        checked_id(graphics_id)
+        try:
+            return app.state.graphics.read(graphics_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa. Hãy tạo lại ở bước 2.')
+
+    @app.post('/api/graphics/{graphics_id}/confirm', status_code=202)
+    def confirm_graphics(graphics_id: str):
+        checked_id(graphics_id)
+        try:
+            return app.state.graphics.confirm(graphics_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa.')
+        except GraphicsInputError as error:
+            raise HTTPException(409, str(error))
+        except (OSError, RuntimeError):
+            raise HTTPException(503, 'Không thể bắt đầu dựng animation. Hãy thử lại.')
+
+    @app.get('/api/graphics/{graphics_id}/previews/{filename}')
+    def graphics_still(graphics_id: str, filename: str):
+        checked_id(graphics_id)
+        match = re.fullmatch(r'phase_([1-9][0-9]*)\.png', filename)
+        if not match:
+            raise HTTPException(404, 'Không tìm thấy ảnh preview.')
+        try:
+            job = app.state.graphics.read(graphics_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'Không tìm thấy tác vụ đồ họa.')
+        index = int(match[1])
+        path = storage / 'previews' / graphics_id / f'phase_{index}.preview.png'
+        if index > len(job.get('previews', [])) or not path.is_file():
+            raise HTTPException(404, 'Ảnh preview chưa sẵn sàng.')
+        return FileResponse(path, media_type='image/png', headers={'Cache-Control': 'no-store'})
 
     @app.post('/api/scripts', status_code=202)
     def script(request: ScriptRequest):
